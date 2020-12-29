@@ -1,2 +1,2 @@
 # pygmy
-Pygmy: Saving AWS Bills on Standby DB Servers
+Pygmy - Saving on Cloud bills from Scaling Down Standby DB Servers
