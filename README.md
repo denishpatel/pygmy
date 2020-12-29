@@ -1,2 +1,2 @@
 # pygmy
-Pygmy - Saving on Cloud bills from Scaling Down Postgres Replica DB Servers
+Pygmy - Saving on Cloud bills by Scaling Down Postgres Replica DB Servers
