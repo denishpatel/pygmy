@@ -39,7 +39,7 @@ class PostgresData:
             self.conn.close()
             raise e
 
-    def check_ec2_postgres_instance_primary(self):
+    def is_ec2_postgres_instance_primary(self):
         """
         Hit the postgres query and find out if that
         postgres instance is primary or secondary
@@ -47,13 +47,37 @@ class PostgresData:
         try:
             query = "select pg_is_in_recovery()"
             resp = self.execute_and_return_data(query)
-            if resp[0] == "t":
-                return True
-            return False
+            # in recovery means its a backup server
+            # or a read replica
+            if resp[0][0]:
+                return False
+            return True
         except Exception as e:
             logger.exception(e)
             self.conn.close()
             raise e
+
+    def get_all_slave_servers(self):
+        """
+        Hit the postgres query to find out all the slave
+        server IP addresses
+        """
+        try:
+            query = "select * from pg_stat_replication"
+            all_ips = []
+            for x in self.execute_and_return_data(query):
+                all_ips.append(x[4])
+            return all_ips
+        except Exception as e:
+            logger.exception(e)
+            self.conn.close()
+            raise e
+
+    def get_replication_lag(self):
+        """
+        TODO Ask about this ?
+        """
+        pass
 
     def close(self):
         self.cursor.close()
