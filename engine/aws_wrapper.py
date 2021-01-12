@@ -78,15 +78,27 @@ class AWSData:
         all_pg_ec2_instances = self.ec2_client.describe_instances(
             Filters=[
                 {
-                    'Name': 'tag:{}'.format(os.getenv("EC2-INSTANCE-POSTGRES-TAG-KEY-NAME", "")),
+                    'Name': 'tag:{}'.format(os.getenv("EC2-INSTANCE-POSTGRES-TAG-KEY-NAME", "Name")),
                     'Values': [
-                        os.getenv("EC2-INSTANCE-POSTGRES-TAG-KEY-VALUE", ""),
+                        os.getenv("EC2-INSTANCE-POSTGRES-TAG-KEY-VALUE", "pg-instance"),
                     ]
                 },
             ]
         )
 
         all_instances = dict()
-        for instance in all_pg_ec2_instances.get("Reservations", []):
-            pass
-        pass
+        for reservation in all_pg_ec2_instances.get("Reservations", []):
+            for instance in reservation.get("Instances", []):
+                all_instances[instance["InstanceId"]] = dict({
+                    "instance_id": instance["InstanceId"],
+                    "instance_type": instance["InstanceType"],
+                    "image_id": instance["ImageId"],
+                    "state": instance["State"],
+                    "vpc_id": instance["VpcId"],
+                    "ip": dict({
+                        "private_ip": instance["PrivateIpAddress"],
+                        "public_ip": instance["PublicIpAddress"]
+                    }),
+                    "launch_time": instance["LaunchTime"]
+                })
+        return all_instances
