@@ -1,0 +1,196 @@
+{% load static %}
+<html>
+<head>
+    <title>PyGMy</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="{% static '/vendor/uikit/css/uikit.min.css' %}" />
+    <link rel="stylesheet" href="{% static 'css/style.css' %}" />
+
+    <script src="{% static '/vendor/uikit/js/uikit.min.js' %}"></script>
+    <script src="{% static '/vendor/uikit/js/uikit-icons.min.js' %}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div uk-sticky class="uk-navbar-container tm-navbar-container uk-active">
+        <div class="uk-container uk-container-expand">
+            <nav uk-navbar>
+                <div class="uk-navbar-left">
+                    <a id="sidebar_toggle" class="uk-navbar-toggle" uk-navbar-toggle-icon ></a>
+                    <a href="#" class="uk-navbar-item uk-logo">
+                        Postgres Admin Console
+                    </a>
+                </div>
+                <div class="uk-navbar-right uk-light">
+                    <ul class="uk-navbar-nav">
+                        <li class="uk-active">
+                            <a href="#">Èrik &nbsp;<span class="ion-ios-arrow-down"></span></a>
+                            <div uk-dropdown="pos: bottom-right; mode: click; offset: -17;">
+                               <ul class="uk-nav uk-navbar-dropdown-nav">
+                                   <li class="uk-nav-header">Options</li>
+                                   <li><a href="#">Edit Profile</a></li>
+                                   <li class="uk-nav-header">Actions</li>
+                                   <li><a href="#">Lock</a></li>
+                                   <li><a href="#">Logout</a></li>
+                               </ul>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <div id="sidebar" class="tm-sidebar-left uk-background-default">
+        <center>
+            <div class="user">
+                <img id="avatar" width="100" class=".uk-border-circle" src="{% static 'img/pgsql.svg' %}" />
+                <div class="uk-margin-top"></div>
+<!--                <div id="name" class="uk-text-truncate">Èrik Campobadal</div>-->
+<!--                <div id="email" class="uk-text-truncate">ConsoleTVs@gmail.com</div>-->
+<!--                <span id="status" data-enabled="true" data-online-text="Online" data-away-text="Away" data-interval="10000" class="uk-margin-top uk-label uk-label-success"></span>-->
+            </div>
+            <br />
+        </center>
+        <ul class="uk-nav uk-nav-default">
+            <li class="uk-nav-header">
+                Dashboard
+            </li>
+            <li><a href="#">Clusters</a></li>
+            <li><a href="#">Machines</a></li>
+            <li><a href="#">Rules</a></li>
+
+            <li class="uk-nav-header">
+                Logs
+            </li>
+            <li><a href="#">Action Logs</a></li>
+            <li><a href="#">Monitoring Log</a></li>
+<!--            <li><a href="article.html">Article</a></li>-->
+<!--            <li><a href="404.html">404</a></li>-->
+        </ul>
+    </div>
+    <div class="content-padder content-background">
+        <div class="uk-section-xsmall uk-section-default header">
+            <div class="uk-container uk-container-large">
+<!--                <h1><span class="ion-speedometer"></span> Dashboard</h1>-->
+<!--                <p>-->
+<!--                    Welcome back, Èrik Campobadal-->
+<!--                </p>-->
+                <ul class="uk-breadcrumb">
+                    <li><a href="#">Home</a></li>
+                    <li><span href="">Dashboard</span></li>
+                </ul>
+            </div>
+        </div>
+        <div class="uk-section-small">
+            <div class="uk-container uk-container-large">
+                <div uk-grid class="uk-child-width-1-1@s uk-child-width-1-2@m uk-child-width-1-4@xl">
+                    <div>
+                        <div class="uk-card uk-card-default uk-card-body">
+                            <span class="statistics-text">Cluster Count</span><br />
+                            <span class="statistics-number">
+                                14
+<!--                                <span class="uk-label uk-label-success">-->
+<!--                                    8% <span class="ion-arrow-up-c"></span>-->
+<!--                                </span>-->
+                            </span>
+                            <br />
+                            <br />
+                            <br />
+                            <br />
+                        </div>
+                    </div>
+                    <div>
+                        <div class="uk-card uk-card-default uk-card-body uk-column-divider">
+                            <span class="statistics-text">Machines</span><br /><br />
+                            <div class="uk-column-1-3 uk-column-divider">
+                                <p>
+                                    <span class="statistics-number">
+                                        <span class="uk-label uk-label-danger">
+                                            Total<span class="ion-arrow-down-c"></span>
+                                        </span><br />
+                                        123
+                                    </span>
+                                </p>
+                                <p>
+                                    <span class="statistics-number">
+                                        <span class="uk-label">
+                                            EC2<span class="ion-arrow-down-c"></span>
+                                        </span><br />
+                                        23
+                                    </span>
+                                </p>
+                                <p>
+                                    <span class="statistics-number">
+                                        <span class="uk-label">
+                                            RDS<span class="ion-arrow-down-c"></span>
+                                        </span><br />
+                                        23
+                                </span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+<!--                    <div>-->
+<!--                        <div class="uk-card uk-card-default uk-card-body">-->
+<!--                            <span class="statistics-text">Total Invoices</span><br />-->
+<!--                            <span class="statistics-number">-->
+<!--                                2.316-->
+<!--                                <span class="uk-label uk-label-success">-->
+<!--                                    37% <span class="ion-arrow-up-c"></span>-->
+<!--                                </span>-->
+<!--                            </span>-->
+<!--                        </div>-->
+<!--                    </div>-->
+<!--                    <div>-->
+<!--                        <div class="uk-card uk-card-default uk-card-body">-->
+<!--                            <span class="statistics-text">Total Income</span><br />-->
+<!--                            <span class="statistics-number">-->
+<!--                                6.384€-->
+<!--                                <span class="uk-label uk-label-success">-->
+<!--                                    26% <span class="ion-arrow-up-c"></span>-->
+<!--                                </span>-->
+<!--                            </span>-->
+<!--                        </div>-->
+<!--                    </div>-->
+                </div>
+<!--                <div uk-grid class="uk-child-width-1-1@s uk-child-width-1-2@l">-->
+<!--                    <div>-->
+<!--                        <div class="uk-card uk-card-default">-->
+<!--                            <div class="uk-card-header">-->
+<!--                                Website Traffic-->
+<!--                            </div>-->
+<!--                            <div class="uk-card-body">-->
+<!--                                <canvas id="chart1"></canvas>-->
+<!--                            </div>-->
+<!--                        </div>-->
+<!--                    </div>-->
+<!--                    <div>-->
+<!--                        <div class="uk-card uk-card-default">-->
+<!--                            <div class="uk-card-header">-->
+<!--                                Website Traffic-->
+<!--                            </div>-->
+<!--                            <div class="uk-card-body">-->
+<!--                                <canvas id="chart2"></canvas>-->
+<!--                            </div>-->
+<!--                        </div>-->
+<!--                    </div>-->
+<!--                </div>-->
+            </div>
+        </div>
+    </div>
+
+    <!-- Load More Javascript -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.0/Chart.min.js" integrity="sha256-UGwvyUFH6Qqn0PSyQVw4q3vIX0wV1miKTracNJzAWPc=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.transit/0.9.12/jquery.transit.min.js" integrity="sha256-rqEXy4JTnKZom8mLVQpvni3QHbynfjPmPxQVsPZgmJY=" crossorigin="anonymous"></script>
+    <script src="{% static '/js/notyf.min.js' %}"></script>
+    <!-- Required Overall Script -->
+    <script src="{% static '/js/script.js' %}"></script>
+    <!-- Status Updater -->
+    <script src="{% static '/js/status.js' %}"></script>
+    <!-- Sample Charts -->
+<!--    <script src="js/charts.js"></script>-->
+    <!-- Sample Notifications -->
+    <script src="{% static '/js/notification.js' %}"></script>
+</body>
+</html>
