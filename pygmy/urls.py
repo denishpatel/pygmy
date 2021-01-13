@@ -9,7 +9,7 @@ Function views
 Class-based views
     1. Add an import:  from other_app.views import Home
     2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
+Including another URL conf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
@@ -18,7 +18,7 @@ from django.urls import path, re_path
 from rest_framework import permissions
 from drf_yasg2.views import get_schema_view
 from drf_yasg2 import openapi
-from users.views import Logout, Profile, Register, ObtainAuthToken
+from users.views import Logout, Profile, ObtainAuthToken
 
 
 schema_view = get_schema_view(
@@ -48,7 +48,6 @@ urlpatterns = [
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
 
     # user APIs
-    # path('api/register/', Register.as_view()),
     path('api/login/', ObtainAuthToken.as_view()),
     path('api/logout/', Logout.as_view()),
     path('api/profile/', Profile.as_view()),
