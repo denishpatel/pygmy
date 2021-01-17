@@ -95,7 +95,7 @@ class AWSData:
 
         # First describe instance
         all_pg_ec2_instances = self.ec2_client.describe_instances(
-            Filters=filters,
+            # Filters=filters,
             MaxResults=200
         )
 
@@ -174,3 +174,38 @@ class AWSData:
 
     def get_ec2_db_info(self, ipAddress):
         pass
+
+    def scale_rds_instance(self, db_instance_id, db_instance_type, apply_immediately=True):
+        """
+        scale up and down the rds instance
+        """
+        try:
+            self.rds_client.modify_db_instance(
+                DBInstanceIdentifier=db_instance_id,
+                DBInstanceClass=db_instance_type,
+                ApplyImmediately=apply_immediately
+            )
+            return True
+        except Exception as e:
+            print(str(e))
+            return False
+
+    def scale_ec2_instance(self, ec2_instance_id, ec2_instance_type):
+        """
+        scale up and down the ec2 instances
+        """
+        try:
+            # stop the instance
+            self.ec2_client.stop_instances(InstanceIds=[ec2_instance_id])
+            waiter = self.ec2_client.get_waiter('instance_stopped')
+            waiter.wait(InstanceIds=[ec2_instance_id])
+
+            # Change the instance type
+            self.ec2_client.modify_instance_attribute(InstanceId=ec2_instance_id, Attribute='instanceType',
+                                                      Value=ec2_instance_type)
+
+            # Start the instance
+            self.ec2_client.start_instances(InstanceIds=[ec2_instance_id])
+        except Exception as e:
+            print(str(e))
+            return False

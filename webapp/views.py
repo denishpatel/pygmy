@@ -11,8 +11,10 @@ class LandingView(View):
     template = "home.html"
 
     def get(self, request, **kwargs):
-        rds_instances = AWSData().describe_rds_instances()
-        ec2_instances = AWSData().describe_ec2_instances()
+        ad = AWSData()
+        rds_instances = ad.describe_rds_instances()
+        ec2_instances = ad.describe_ec2_instances()
+        print(rds_instances)
         return render(request, self.template, {
             "rds": rds_instances,
             "ec2": ec2_instances
