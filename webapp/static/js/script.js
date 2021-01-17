@@ -59,4 +59,29 @@ $(function() {
         }
     });
 
-})
+});
+
+function addSecret() {
+    $("#create__btn").on("click", function(event) {
+        $form = $("#modal-create-secret form");
+        validateForm($form);
+        if(!$form.valid()){
+            return
+        }
+    });
+}
+
+function validateForm($modal_form) {
+        $modal_form.validate({
+            rules: {
+                name: "required",
+                username: "required",
+                password: "required"
+            },
+            messages: {
+              name: "Please enter name secret",
+              username: "Please enter database username",
+              password: "Please enter database password"
+            }
+        });
+    }

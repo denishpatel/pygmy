@@ -1,6 +1,8 @@
 import os
 import boto3
 
+from engine.models import AllEc2InstancesData
+
 
 class AWSData:
     """
@@ -26,7 +28,7 @@ class AWSData:
         # First describe instance
         all_pg_instances = self.rds_client.describe_db_instances(
             Filters=filters,
-            MaxResults=100
+            MaxRecords=100
         )
 
         while True:
@@ -34,6 +36,8 @@ class AWSData:
                 slave_identifier = instance.get("ReadReplicaSourceDBInstanceIdentifier", None)
                 if slave_identifier is None:
                     # its master
+                    if not instance["DBInstanceIdentifier"] in all_instances.keys():
+                        all_instances[instance["DBInstanceIdentifier"]] = list()
                     all_instances[instance["DBInstanceIdentifier"]].append(dict({
                         "db_id": instance["DBInstanceIdentifier"],
                         "db_name": instance["DBName"],
@@ -83,7 +87,7 @@ class AWSData:
     def describe_ec2_instances(self):
         all_instances = dict()
         filters = [{
-            'Name': 'tag:{}'.format(os.getenv("EC2-INSTANCE-POSTGRES-TAG-KEY-NAME", "Name")),
+            'Name': 'tag:{}'.format(os.getenv("EC2-INSTANCE-POSTGRES-TAG-KEY-NAME", "type")),
             'Values': [
                 os.getenv("EC2-INSTANCE-POSTGRES-TAG-KEY-VALUE", "pg-instance"),
             ]
@@ -105,12 +109,15 @@ class AWSData:
                         "image_id": instance["ImageId"],
                         "state": instance["State"],
                         "vpc_id": instance["VpcId"],
+                        "availability_zone": instance["Placement"]["AvailabilityZone"],
                         "ip": dict({
                             "private_ip": instance["PrivateIpAddress"],
                             "public_ip": instance["PublicIpAddress"]
                         }),
+                        "tags": instance["Tags"],
                         "launch_time": instance["LaunchTime"]
                     })
+                    self.save_ec2_data(instance)
 
             if all_pg_ec2_instances.get("NextToken", None) is None:
                 break
@@ -139,3 +146,31 @@ class AWSData:
             )
 
         return all_instance_types
+
+    @staticmethod
+    def save_ec2_data(instance):
+        db = AllEc2InstancesData()
+        db.instanceId = instance["InstanceId"]
+        db.name = next((tag["Value"] for tag in instance["Tags"] if tag["Key"] == "Name"), None)
+        db.instanceType = instance["InstanceType"]
+        db.keyName = instance["KeyName"]
+        db.launchTime = instance["LaunchTime"]
+        db.availabilityZone = instance["Placement"]["AvailabilityZone"]
+        db.privateDnsName = instance["PrivateDnsName"]
+        db.privateIpAddress = instance["PrivateIpAddress"]
+        db.publicDnsName = instance["PublicDnsName"]
+        db.publicIpAddress = instance["PublicIpAddress"]
+        db.state = instance["State"]
+        db.vpcId = instance["VpcId"]
+        db.subnetId = instance["SubnetId"]
+        db.architecture = instance["Architecture"]
+        db.blockDeviceMapping = instance["BlockDeviceMappings"]
+        db.ebsOptimized = instance["EbsOptimized"]
+        db.securityGroups = instance["SecurityGroups"]
+        db.tags = instance["Tags"]
+        db.virtualizationType = instance["VirtualizationType"]
+        db.cpuOptions = instance["CpuOptions"]
+        db.save()
+
+    def get_ec2_db_info(self, ipAddress):
+        pass

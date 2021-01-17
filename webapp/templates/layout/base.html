@@ -1,0 +1,45 @@
+{% load static %}
+<html>
+<head>
+    <title>PyGMy</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="{% static '/vendor/uikit/css/uikit.min.css' %}" />
+    <link rel="stylesheet" href="{% static 'css/style.css' %}" />
+    <link rel="stylesheet" href="{% static '/vendor/datatables/css/dataTables.uikit.min.css' %}" />
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/jquery.validation/1.16.0/jquery.validate.min.js"></script>
+    <script src="{% static '/vendor/uikit/js/uikit.min.js' %}"></script>
+    <script src="{% static '/vendor/uikit/js/uikit-icons.min.js' %}"></script>
+
+    <script src="{% static '/vendor/datatables/js/jquery.dataTables.min.js' %}"></script>
+    <script src="{% static '/vendor/datatables/js/dataTables.uikit.min.js' %}"></script>
+    <script src="{% static '/vendor/datatables/js/dataTables.rowGroup.min.js' %}"></script>
+
+    {% block head_js %}{% endblock %}
+</head>
+<body>
+    {% include 'layout/header.html' %}
+    {% include 'layout/sidenav.html' %}
+
+    {% block content %}
+    {% endblock %}
+
+    {% block js_bottom %}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.0/Chart.min.js" integrity="sha256-UGwvyUFH6Qqn0PSyQVw4q3vIX0wV1miKTracNJzAWPc=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.transit/0.9.12/jquery.transit.min.js" integrity="sha256-rqEXy4JTnKZom8mLVQpvni3QHbynfjPmPxQVsPZgmJY=" crossorigin="anonymous"></script>
+    <script src="{% static '/js/notyf.min.js' %}"></script>
+
+    <!-- Required Overall Script -->
+    <script src="{% static '/js/script.js' %}"></script>
+
+    <!-- Status Updater -->
+    <script src="{% static '/js/status.js' %}"></script>
+    <!-- Sample Charts -->
+    <!--   <script src="js/charts.js"></script>-->
+    <!-- Sample Notifications -->
+    <script src="{% static '/js/notification.js' %}"></script>
+    {% endblock %}
+</body>
+</html>

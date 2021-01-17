@@ -10,7 +10,8 @@ html, body{
     padding-top: 2px;
 }
 .uk-navbar-container {
-    background-color: #1e87f0 !important;
+    /* background-color: #1e87f0 !important; */
+    background-color: #232f3e !important;
 }
 .user > #name {
     font-size: 22px;
@@ -33,9 +34,9 @@ html, body{
     font-size: 50px;
 }
 
-
-
-
+.uk-table th {
+    color: white;
+}
 
 .tm-sidebar-left {
     position: fixed;
@@ -92,7 +93,8 @@ html, body{
 }
 @media (min-width: 1400px) {
     .tm-sidebar-left {
-        width: 300px !important;
+        /*width: 300px !important;*/
+        width: 220px !important;
         padding: 45px 45px 60px 45px
     }
     .tm-sidebar-right {
@@ -102,7 +104,8 @@ html, body{
         padding-left: 40px
     }
     .content-padder {
-        margin-left: 300px;
+        /*margin-left: 300px;*/
+        margin-left: 220px;
     }
 }
 
@@ -124,4 +127,12 @@ html, body{
 ::moz-selection {
  background-color: #d1eefe;
  color: #1e87f0;
+}
+
+.error::before {
+    content: "*";
+}
+
+.error {
+    color: red;
 }

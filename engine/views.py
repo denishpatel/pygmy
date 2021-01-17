@@ -26,3 +26,7 @@ def update_all_ec2_instances_db():
         print(str(e))
         print(instance)
         return
+
+
+def update_ec2_data():
+    all_instances = AWSData().describe_ec2_instances()

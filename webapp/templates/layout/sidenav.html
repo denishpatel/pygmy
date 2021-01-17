@@ -1,0 +1,29 @@
+{% load static %}
+<div id="sidebar" class="tm-sidebar-left uk-background-default">
+    <center>
+        <div class="user">
+            <img id="avatar" width="100" class=".uk-border-circle" src="{% static 'img/pgsql.svg' %}" />
+            <div class="uk-margin-top"></div>
+<!--                <div id="name" class="uk-text-truncate">Èrik Campobadal</div>-->
+<!--                <div id="email" class="uk-text-truncate">ConsoleTVs@gmail.com</div>-->
+<!--                <span id="status" data-enabled="true" data-online-text="Online" data-away-text="Away" data-interval="10000" class="uk-margin-top uk-label uk-label-success"></span>-->
+        </div>
+        <br />
+    </center>
+    <ul class="uk-nav uk-nav-default">
+        <li class="uk-nav-header">
+            Dashboard
+        </li>
+        <li><a href="#">Clusters</a></li>
+        <li><a href="/secrets">Secrets</a></li>
+        <li><a href="#">Rules</a></li>
+
+        <li class="uk-nav-header">
+            Logs
+        </li>
+        <li><a href="#">Action Logs</a></li>
+        <li><a href="#">Monitoring Log</a></li>
+<!--            <li><a href="article.html">Article</a></li>-->
+<!--            <li><a href="404.html">404</a></li>-->
+    </ul>
+</div>
