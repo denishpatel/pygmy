@@ -77,6 +77,7 @@ class PostgresData:
         """
         TODO Ask about this ?
         """
+        query = "select * from pg_stat_replication"
         pass
 
     def close(self):
