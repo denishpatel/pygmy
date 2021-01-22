@@ -51,6 +51,7 @@ class AWSData:
                         "db_storage": instance["AllocatedStorage"],
                         "db_vpc_security_groups": instance["VpcSecurityGroups"],
                         "db_postgres_engine_version": instance["EngineVersion"],
+                        "db_parameter_groups": instance["DBParameterGroups"],
                         "db_availability_zone": instance["AvailabilityZone"],
                         "is_master": True
                     }))
@@ -174,7 +175,7 @@ class AWSData:
     def get_ec2_db_info(self, ipAddress):
         pass
 
-    def scale_rds_instance(self, db_instance_id, db_instance_type, apply_immediately=True):
+    def scale_rds_instance(self, db_instance_id, db_instance_type, db_parameter_group, apply_immediately=True):
         """
         scale up and down the rds instance
         """
@@ -182,6 +183,7 @@ class AWSData:
             self.rds_client.modify_db_instance(
                 DBInstanceIdentifier=db_instance_id,
                 DBInstanceClass=db_instance_type,
+                DBParameterGroupName=db_parameter_group,
                 ApplyImmediately=apply_immediately
             )
             return True
@@ -205,6 +207,46 @@ class AWSData:
 
             # Start the instance
             self.ec2_client.start_instances(InstanceIds=[ec2_instance_id])
+            return True
+        except Exception as e:
+            print(str(e))
+            return False
+
+    def copy_pygmy_parameter_group(self, source_parameter_group_name):
+        """
+        copy source db parameter group name and create new parameter group
+        """
+        try:
+            # if pygmy parameter already created!
+            response = self.rds_client.describe_db_parameter_groups(
+                DBParameterGroupName="{0}-pygmy".format(source_parameter_group_name)
+            )
+            return True
+        except self.rds_client.exceptions.DBParameterGroupNotFoundFault:
+            # create if not present
+            self.rds_client.copy_db_parameter_group(
+                SourceDBParameterGroupIdentifier=source_parameter_group_name,
+                TargetDBParameterGroupIdentifier="{0}-pygmy".format(source_parameter_group_name),
+                TargetDBParameterGroupDescription='Parameter group by pygmy'
+            )
+
+            response = self.rds_client.modify_db_parameter_group(
+                DBParameterGroupName="{0}-pygmy".format(source_parameter_group_name),
+                Parameters=[
+                    {
+                        'ApplyMethod': 'immediate',
+                        'ParameterName': 'shared_buffers',
+                        'ParameterValue': '{DBInstanceClassMemory/32768}',
+                    },
+                    {
+                        'ApplyMethod': 'immediate',
+                        'ParameterName': 'max_connections',
+                        'ParameterValue': 'LEAST({DBInstanceClassMemory/9531392},5000)',
+                    }
+                ]
+            )
+            print(response)
+            return True
         except Exception as e:
             print(str(e))
             return False

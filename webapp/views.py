@@ -11,6 +11,7 @@ class LandingView(View):
         ad = AWSData()
         rds_instances = ad.describe_rds_instances()
         ec2_instances = ad.describe_ec2_instances()
+        print(rds_instances)
         return render(request, self.template, {
             "rds": rds_instances,
             "ec2": ec2_instances
