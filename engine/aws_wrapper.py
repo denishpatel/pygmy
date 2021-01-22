@@ -1,6 +1,5 @@
 import os
 import boto3
-
 from engine.models import AllEc2InstancesData
 
 

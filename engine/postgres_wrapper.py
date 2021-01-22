@@ -75,10 +75,19 @@ class PostgresData:
 
     def get_replication_lag(self):
         """
-        TODO Ask about this ?
+        Return replication lag in seconds
+        ONLY to be hit on REPLICA
         """
-        query = "select * from pg_stat_replication"
-        pass
+        query = "SELECT EXTRACT(EPOCH FROM (now() - pg_last_xact_replay_timestamp()))::INT replica_lag_in_seconds"
+        return self.execute_and_return_data(query)[0]
+
+    def get_streaming_status(self):
+        """
+        Return streaming status
+        ONLY to be hit on REPLICA
+        """
+        query = "select * from pg_stat_wal_receiver"
+        return self.execute_and_return_data(query)[0][1] == "streaming"
 
     def close(self):
         self.cursor.close()
