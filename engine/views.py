@@ -30,3 +30,5 @@ def update_all_ec2_instances_db():
 
 def update_ec2_data():
     all_instances = AWSData().describe_ec2_instances()
+    # for db in all_instances:
+    #     dbInfo = DBInfo

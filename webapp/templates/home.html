@@ -6,7 +6,7 @@
         <div class="uk-container uk-container-large">
             <ul class="uk-breadcrumb">
                 <li><a href="#">Home</a></li>
-                <li><span href="">Dashboard</span></li>
+                <li><span href="">Cluster</span></li>
             </ul>
         </div>
     </div>
@@ -18,28 +18,51 @@
                         <th class="uk-table-shrink"></th>
 <!--                        <th><input class="uk-checkbox" type="checkbox"></th>-->
                         <th>ID</th>
-                        <th>Name</th>
-                        <th>Role</th>
-                        <th>Service</th>
-                        <th>Zone</th>
+                        <th>Primary Name</th>
                         <th>Type</th>
-                        <th>Status</th>
-                        <th>Version</th>
+<!--                        <th>Service</th>-->
+<!--                        <th>Zone</th>-->
+<!--                        <th>Type</th>-->
+<!--                        <th>Status</th>-->
+<!--                        <th>Version</th>-->
                     </tr>
                 </thead>
                     <tbody style="background-color: #ffffff; color: black;">
-                    {% for key, value in rds.items %}
+                    {% for row in clusters %}
+                        <tr>
+                            <td>
+                                <input class="uk-checkbox" type="checkbox">
+                            </td>
+                            <td>{{ row.name }}</td>
+                            <td>{{ row.primaryNodeIp }}</td>
+                            <td>{% if row.type ==  "RDS" %}
+                                <img class="uk-preserve-width" src="{% static '/img/aws-rds.svg' %}" width="15px">
+                                {% else %}
+                                <img class="uk-preserve-width" src="{% static '/img/aws-ec2.svg' %}" width="15px">
+                                {% endif %}
+                                {{ row.type }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    {% for key, value in clusters.items %}
                         {% for row in value %}
                             <tr>
-                                <td><input class="uk-checkbox" type="checkbox"></td>
-                                <td>{{ row.db_id }}</td>
-                                <td>{{ row.db_name }}</td>
-                                <td>{% if row.is_master %}Primary{% else %}Replica{% endif %}</td>
-                                <td><img class="uk-preserve-width" src="{% static '/img/aws-rds.svg' %}" width="15px"> RDS</td>
-                                <td>{{ row.db_availability_zone }}</td>
-                                <td>{{ row.db_class }}</td>
-                                <td>{{ row.db_instance_status }}</td>
-                                <td>{{ row.db_postgres_engine_version }}</td>
+                                <td>
+                                    <input class="uk-checkbox" type="checkbox">
+                                </td>
+                                <td>{{ row.name }}</td>
+                                <td>{{ row.primaryNodeIp }}</td>
+                                <td>{% if row.type ==  "RDS" %}
+                                    <img class="uk-preserve-width" src="{% static '/img/aws-rds.svg' %}" width="15px">
+                                    {% else %}
+                                    <img class="uk-preserve-width" src="{% static '/img/aws-ec2.svg' %}" width="15px">
+                                    {% endif %}
+                                </td>
+<!--                                <td><img class="uk-preserve-width" src="{% static '/img/aws-rds.svg' %}" width="15px"> RDS</td>-->
+<!--                                <td>{{ row.db_availability_zone }}</td>-->
+<!--                                <td>{{ row.db_class }}</td>-->
+<!--                                <td>{{ row.db_instance_status }}</td>-->
+<!--                                <td>{{ row.db_postgres_engine_version }}</td>-->
                             </tr>
                         {% endfor %}
                     {% endfor %}
@@ -78,10 +101,10 @@
             columnDefs: [
                { orderable: false, targets: 0 }
             ],
-            order: [[4, 'asc']],
+            order: [[3, 'asc']],
             rowGroup: {
                 // Uses the 'row group' plugin
-                dataSrc: 4,
+                dataSrc: 3,
                 startRender: function (rows, group) {
                     var collapsed = !!collapsedGroups[group];
                     rows.nodes().each(function (r) {

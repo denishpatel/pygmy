@@ -50,9 +50,49 @@ class AllEc2InstancesData(models.Model):
     credentials = models.ForeignKey(DbCredentials, on_delete=models.SET_NULL, null=True)
 
 
-class Ec2DbInfo(models.Model):
-    instance = models.ForeignKey(AllEc2InstancesData, on_delete=models.CASCADE, related_name="db_info")
-    isPrimary = models.BooleanField(default=False)
-    clusterName = models.CharField(max_length=255)
+def getClusterName():
+    return "Cluster " + str(ClusterInfo.objects.all().count() + 1)
+
+EC2 = "EC2"
+RDS = "RDS"
+
+CLUSTER_TYPES = (
+    (EC2, "EC2"),
+    (RDS, "RDS")
+)
+
+
+class ClusterInfo(models.Model):
+    name = models.CharField(max_length=100, default=getClusterName)
+    primaryNodeIp = models.CharField(max_length=100)
+    type = models.CharField(choices=CLUSTER_TYPES, max_length=30)
+
+
+class RdsInstances(models.Model):
+    dbInstanceIdentifier = models.CharField(max_length=255, primary_key=True)
+    dbInstanceClass = models.CharField(max_length=255)
     dbName = models.CharField(max_length=255)
+    engine = models.CharField(max_length=255)
+    dbInstanceStatus = models.CharField(max_length=255)
+    dbEndpoint = models.JSONField()
+    dbStorage = models.CharField(max_length=200)
+    dbVpcSecurityGroups = models.JSONField()
+    masterUsername = models.CharField(max_length=255)
+    preferredBackupWindow = models.CharField(max_length=255)
+    availabilityZone = models.CharField(max_length=255)
+    dBParameterGroups = models.JSONField()
+    engineVersion = models.CharField(max_length=255)
+    licenseModel = models.CharField(max_length=255)
+    publiclyAccessible = models.BooleanField(default=False)
+    tagList = models.JSONField()
+
+
+class Ec2DbInfo(models.Model):
+    # instance = models.OneToOneField(AllEc2InstancesData, on_delete=models.CASCADE, related_name="db_info")
+    instance = models.CharField(max_length=255)
+    isPrimary = models.BooleanField(default=False)
+    cluster = models.ForeignKey(ClusterInfo, on_delete=models.DO_NOTHING, null=True)
+    dbName = models.CharField(max_length=255)
+    isConnected = models.BooleanField(default=False)
     lastUpdated = models.DateTimeField(auto_now=True)
+    type = models.CharField(choices=CLUSTER_TYPES, max_length=30)

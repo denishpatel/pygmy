@@ -1,6 +1,6 @@
 import os
 import boto3
-from engine.models import AllEc2InstancesData
+from engine.models import AllEc2InstancesData, RdsInstances, ClusterInfo, EC2, RDS, Ec2DbInfo
 
 
 class AWSData:
@@ -34,46 +34,60 @@ class AWSData:
             for instance in all_pg_instances.get("DBInstances", []):
                 slave_identifier = instance.get("ReadReplicaSourceDBInstanceIdentifier", None)
                 if slave_identifier is None:
+                    rds = self.save_rds_data(instance)
+                    db_info, created = Ec2DbInfo.objects.get_or_create(instance=rds.dbInstanceIdentifier, type=RDS)
+                    cluster, created = ClusterInfo.objects.get_or_create(primaryNodeIp=rds.dbInstanceIdentifier, type=RDS)
+                    db_info.isPrimary = True
+                    db_info.cluster = cluster
+                    db_info.isConnected = True
+                    db_info.save()
                     # its master
-                    if not instance["DBInstanceIdentifier"] in all_instances.keys():
-                        all_instances[instance["DBInstanceIdentifier"]] = list()
-                    all_instances[instance["DBInstanceIdentifier"]].append(dict({
-                        "db_id": instance["DBInstanceIdentifier"],
-                        "db_name": instance["DBName"],
-                        "db_username": instance["MasterUsername"],
-                        "db_class": instance["DBInstanceClass"],
-                        "db_engine": instance["Engine"],
-                        "db_instance_status": instance["DBInstanceStatus"],
-                        "db_endpoint": dict({
-                            "address": instance["Endpoint"].get("Address", ""),
-                            "port": instance["Endpoint"].get("Port", "")
-                        }),
-                        "db_storage": instance["AllocatedStorage"],
-                        "db_vpc_security_groups": instance["VpcSecurityGroups"],
-                        "db_postgres_engine_version": instance["EngineVersion"],
-                        "db_parameter_groups": instance["DBParameterGroups"],
-                        "db_availability_zone": instance["AvailabilityZone"],
-                        "is_master": True
-                    }))
+                    # if not instance["DBInstanceIdentifier"] in all_instances.keys():
+                    #     all_instances[instance["DBInstanceIdentifier"]] = list()
+                    # all_instances[instance["DBInstanceIdentifier"]].append(dict({
+                    #     "db_id": instance["DBInstanceIdentifier"],
+                    #     "db_name": instance["DBName"],
+                    #     "db_username": instance["MasterUsername"],
+                    #     "db_class": instance["DBInstanceClass"],
+                    #     "db_engine": instance["Engine"],
+                    #     "db_instance_status": instance["DBInstanceStatus"],
+                    #     "db_endpoint": dict({
+                    #         "address": instance["Endpoint"].get("Address", ""),
+                    #         "port": instance["Endpoint"].get("Port", "")
+                    #     }),
+                    #     "db_storage": instance["AllocatedStorage"],
+                    #     "db_vpc_security_groups": instance["VpcSecurityGroups"],
+                    #     "db_postgres_engine_version": instance["EngineVersion"],
+                    #     "db_parameter_groups": instance["DBParameterGroups"],
+                    #     "db_availability_zone": instance["AvailabilityZone"],
+                    #     "is_master": True
+                    # }))
                 else:
+                    rds = self.save_rds_data(instance)
+                    cluster, created = ClusterInfo.objects.get_or_create(primaryNodeIp=slave_identifier, type=RDS)
+                    db_info, created = Ec2DbInfo.objects.get_or_create(instance=rds.dbInstanceIdentifier, type=RDS)
+                    db_info.cluster = cluster
+                    db_info.isPrimary = False
+                    db_info.isConnected = True
+                    db_info.save()
                     # its a slave node of one of the masters
-                    all_instances[slave_identifier].append(dict({
-                        "db_id": instance["DBInstanceIdentifier"],
-                        "db_name": instance["DBName"],
-                        "db_username": instance["MasterUsername"],
-                        "db_class": instance["DBInstanceClass"],
-                        "db_engine": instance["Engine"],
-                        "db_instance_status": instance["DBInstanceStatus"],
-                        "db_endpoint": dict({
-                            "address": instance["Endpoint"].get("Address", ""),
-                            "port": instance["Endpoint"].get("Port", "")
-                        }),
-                        "db_storage": instance["AllocatedStorage"],
-                        "db_vpc_security_groups": instance["VpcSecurityGroups"],
-                        "db_postgres_engine_version": instance["EngineVersion"],
-                        "db_availability_zone": instance["AvailabilityZone"],
-                        "is_master": False
-                    }))
+                    # all_instances[slave_identifier].append(dict({
+                    #     "db_id": instance["DBInstanceIdentifier"],
+                    #     "db_name": instance["DBName"],
+                    #     "db_username": instance["MasterUsername"],
+                    #     "db_class": instance["DBInstanceClass"],
+                    #     "db_engine": instance["Engine"],
+                    #     "db_instance_status": instance["DBInstanceStatus"],
+                    #     "db_endpoint": dict({
+                    #         "address": instance["Endpoint"].get("Address", ""),
+                    #         "port": instance["Endpoint"].get("Port", "")
+                    #     }),
+                    #     "db_storage": instance["AllocatedStorage"],
+                    #     "db_vpc_security_groups": instance["VpcSecurityGroups"],
+                    #     "db_postgres_engine_version": instance["EngineVersion"],
+                    #     "db_availability_zone": instance["AvailabilityZone"],
+                    #     "is_master": False
+                    # }))
             if all_pg_instances.get("NextToken", None) is None:
                 break
 
@@ -82,6 +96,20 @@ class AWSData:
                 MaxResults=100,
                 NextToken=all_pg_instances.get("NextToken")
             )
+
+        # Add Cluster entries
+        # for cluster_key in  all_instances:
+        #     cluster, created = ClusterInfo.objects.get_or_create(primaryNodeIp=cluster_key, type=RDS)
+        #     rdsInstances = all_instances[cluster_key]
+        #     for instance in rdsInstances:
+        #         rds = self.save_rds_data(instance)
+        #         db_info = Ec2DbInfo.objects.get_or_create(instance=rds.dbInstanceIdentifier, type=RDS)
+        #         db_info.isPrimary = rds.dbInstanceIdentifier == cluster_key
+        #         db_info.cluster = cluster
+        #         db_info.dbName = instance.dbName
+        #         db_info.isConnected = True
+        #         db_info.save()
+
         return all_instances
 
     def describe_ec2_instances(self):
@@ -171,6 +199,28 @@ class AWSData:
         db.virtualizationType = instance["VirtualizationType"]
         db.cpuOptions = instance["CpuOptions"]
         db.save()
+
+    @staticmethod
+    def save_rds_data(instance):
+        rds = RdsInstances()
+        rds.dbInstanceIdentifier = instance["DBInstanceIdentifier"]
+        rds.dbInstanceClass = instance["DBInstanceClass"]
+        rds.dbName = instance["DBName"]
+        rds.engine = instance["Engine"]
+        rds.dbInstanceStatus = instance["DBInstanceStatus"]
+        rds.dbEndpoint = instance["Endpoint"]
+        rds.dbStorage = instance["AllocatedStorage"]
+        rds.dbVpcSecurityGroups = instance["VpcSecurityGroups"]
+        rds.masterUsername = instance["MasterUsername"]
+        rds.preferredBackupWindow = instance["PreferredBackupWindow"]
+        rds.availabilityZone = instance["AvailabilityZone"]
+        rds.dBParameterGroups = instance["DBParameterGroups"]
+        rds.engineVersion = instance["EngineVersion"]
+        rds.licenseModel = instance["LicenseModel"]
+        rds.publiclyAccessible = instance["PubliclyAccessible"]
+        rds.tagList = instance["TagList"]
+        rds.save()
+        return rds
 
     def get_ec2_db_info(self, ipAddress):
         pass
