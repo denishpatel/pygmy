@@ -1,0 +1,160 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+{% block head_js %}
+<script src="{% static '/js/ajax.autocomplete.js' %}"></script>
+{% endblock %}
+{% block content %}
+<style>
+    .autocomplete-suggestions { border: 1px solid #999; background: #FFF; overflow: auto; }
+    .autocomplete-suggestion { padding: 2px 5px; white-space: nowrap; overflow: hidden; }
+    .autocomplete-selected { background: #F0F0F0; }
+    .autocomplete-suggestions strong { font-weight: normal; color: #3399FF; }
+    .autocomplete-group { padding: 2px 5px; }
+    .autocomplete-group strong { display: block; border-bottom: 1px solid #000; }
+    .error-info {
+
+    }
+</style>
+<div class="content-padder content-background">
+    <div class="uk-section-xsmall uk-section-default header">
+        <div class="uk-container uk-container-large">
+            <ul class="uk-breadcrumb">
+                <li><a href="/">Home</a></li>
+                <li><span href="">Cluster</span></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="uk-section-xsmall">
+        <div class="uk-container uk-container-large">
+            {% if not error %}
+            <span style="font-size: 25px">
+            {% if cluster.type ==  "RDS" %}
+                <img class="uk-preserve-width" src="{% static '/img/aws-rds.svg' %}" width="20px">
+            {% else %}
+                <img class="uk-preserve-width" src="{% static '/img/aws-ec2.svg' %}" width="20px">
+            {% endif %}&nbsp;
+                {{ cluster.name }}
+            </span>
+            <a href="{% url 'clusters_edit' cluster.id %}">Edit</a>
+            {% endif %}
+        </div>
+    </div>
+    <div class="">
+        <div class="uk-container uk-container-large uk-overflow-auto">
+            {% if error %}
+                <div class="uk-alert-danger" uk-alert>
+                    <a class="uk-alert-close" uk-close></a>
+                    <p>Cluster Not Found</p>
+                </div>
+            {% elif cluster.type == "EC2" %}
+                <table id="instances" class="uk-table uk-table-small uk-table-middle uk-table-hover uk-table-divider .uk-table-striped" style="width:100%">
+                    <thead style="background: #232f3e;">
+                        <tr>
+                            <th class="uk-table-shrink"></th>
+                            <th>Name</th>
+                            <th>Public DNS</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Zone</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody style="background-color: #ffffff; color: black;">
+                        {% for row in instances %}
+                            <tr{% if row.isPrimary %} style="background: #cfffd3"{% endif %}>
+                                <td><input class="uk-checkbox" type="checkbox"></td>
+                                <td>{{row.instance_object.name}}</td>
+                                <td>{{row.instance_object.publicDnsName}}</td>
+                                <td>{{row.instance_object.instanceType}}</td>
+                                <td>{{row.instance_object.state.Name}}</td>
+                                <td>{{row.instance_object.availabilityZone}}</td>
+                                <td>
+                                    <a class="uk-button uk-button-primary uk-button-small" href="{% url 'instance_edit' 'ec2' row.instance_object.instanceId %}">Edit</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <table id="instances" class="uk-table uk-table-small uk-table-middle uk-table-hover uk-table-divider .uk-table-striped" style="width:100%">
+                    <thead style="background: #232f3e;">
+                        <tr>
+                            <th class="uk-table-shrink"></th>
+                            <th>Name</th>
+                            <th>DB Name</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Zone</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody style="background-color: #ffffff; color: black;">
+                        {% for row in instances %}
+                            <tr{% if row.isPrimary %} style="background: #cfffd3"{% endif %}>
+                                <td><input class="uk-checkbox" type="checkbox"></td>
+                                <td>{{row.instance_object.dbInstanceIdentifier}}</td>
+                                <td>{{row.instance_object.dbName}}</td>
+                                <td>{{row.instance_object.dbInstanceClass}}</td>
+                                <td>{{row.instance_object.dbInstanceStatus}}</td>
+                                <td>{{row.instance_object.availabilityZone}}</td>
+                                <td>
+                                    <a class="uk-button uk-button-primary uk-button-small" href="{% url 'instance_edit' 'rds' row.instance_object.dbInstanceIdentifier %}">Edit</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+<div id="modal-scale-down" uk-modal>
+    <div class="uk-modal-dialog">
+        <div class="uk-modal-header">
+            <h2 class="uk-modal-title">Scale Up/Down</h2>
+        </div>
+        <form>
+            <div class="uk-modal-body">
+                <input type="hidden" name="instance" value="test">
+                <div class="uk-margin">
+                    <label class="uk-form-label">Type</label>
+                    <div class="uk-form-controls">
+                        <input id="instance_types" class="uk-search-input" type="search" placeholder="Search...">
+                    </div>
+                </div>
+            </div>
+            <div class="uk-modal-footer uk-text-right">
+                <button class="uk-button uk-button-default uk-modal-close" type="button" id="btn__cancel">Cancel</button>
+                <button class="uk-button uk-button-primary" type="button" id="create__btn">Create</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+{% block js_bottom %}
+<script>
+    $(document).ready(function() {
+        $("#instances").DataTable({
+            columnDefs: [
+               { orderable: false, targets: [0, 6] }
+            ],
+            order: [[1, 'asc']],
+        });
+
+        var instances_types = {{instance_types|safe}};
+        $("#instance_types").autocomplete({
+          lookup: instances_types,
+          //onSelect: function (suggestion) {
+          //      alert('You selected: ' + suggestion.value + ', ' + suggestion.data);
+          //}
+        });
+
+        $("#modal-scale-down").on("show.bs.modal", function(e) {
+            let oid = null;
+            alert($(e.relatedTarget).attr('data-oid'));
+        });
+    });
+</script>
+{% endblock %}

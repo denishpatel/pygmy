@@ -1,0 +1,38 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+{% block head_js %}
+<script src="{% static '/vendor/business-rules/conditions-builder.js' %}"></script>
+<script src="{% static '/vendor/business-rules/actions-builder.js' %}"></script>
+<script src="{% static '/js/rules.js' %}"></script>
+<script src="{% static '/css/rules.css' %}"></script>
+{% endblock %}
+{% block content %}
+<div class="content-padder content-background">
+    <div class="uk-section-xsmall uk-section-default header">
+        <div class="uk-container uk-container-large">
+            <ul class="uk-breadcrumb">
+                <li><a href="/">Home</a></li>
+                <li><span href="">Rules</span></li>
+            </ul>
+        </div>
+    </div>
+    <div class="uk-section-xsmall">
+        <div class="uk-column-1-2" style="padding: 0px 20px">
+        <h2>Create Rule</h2>
+        </div>
+    </div>
+    <div class="uk-section-xsmall uk-container">
+        <form class="uk-form-horizontal" action="" method="post">
+            <div id="conditions"></div>
+            <h3>Do these actions...</h3>
+            <div id="actions"></div>
+            <button id="submit" type="button">Pretend Submit</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+{% block js_bottom %}{{ block.super }}
+<script>
+
+</script>
+{% endblock %}

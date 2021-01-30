@@ -10,25 +10,45 @@
             </ul>
         </div>
     </div>
-    <div class="uk-section-small">
-        <div class="uk-container uk-container-large uk-overflow-auto">
-            <table id="example" class="uk-table uk-table-small uk-table-middle uk-table-hover uk-table-divider .uk-table-striped" style="width:100%">
-                <thead style="background: #232f3e;">
-                    <tr>
-                        <th class="uk-table-shrink"></th>
+    <div class="uk-section-xsmall uk-container uk-container-large uk-overflow-auto">
+        <table id="example" class="uk-table uk-table-small uk-table-middle uk-table-hover uk-table-divider .uk-table-striped" style="width:100%">
+            <thead style="background: #232f3e;">
+                <tr>
+                    <th class="uk-table-shrink"></th>
 <!--                        <th><input class="uk-checkbox" type="checkbox"></th>-->
-                        <th>ID</th>
-                        <th>Primary Name</th>
-                        <th>Type</th>
-<!--                        <th>Service</th>-->
-<!--                        <th>Zone</th>-->
-<!--                        <th>Type</th>-->
-<!--                        <th>Status</th>-->
-<!--                        <th>Version</th>-->
+                    <th>ID</th>
+                    <th>Cluster</th>
+                    <th>Type</th>
+                    <th>Service</th>
+                    <th>Zone</th>
+                    <th>Type</th>
+                    <th>Status</th>
+<!--                    <th>Version</th>-->
+                </tr>
+            </thead>
+                <tbody style="background-color: #ffffff; color: black;">
+                {% for row in dbs %}
+                    <tr {% if row.isPrimary %}style="background: #cfffd3"{% endif %}>
+                        <td>
+<!--                            <input class="uk-checkbox" type="checkbox">-->
+                        </td>
+                        <td><img class="uk-preserve-width" src="{% if row.type == 'EC2' %}{% static '/img/aws-ec2.svg' %}{% else %}{% static '/img/aws-rds.svg' %}{% endif %}" width="15px">
+                            {{ row.type }}</td>
+                        <td><a href="{% url 'clusters' row.cluster.id %}">{{ row.cluster.name }}</a></td>
+                        <td>{{ row.instance_id }}</td>
+                        <td>{{ row.isPrimary }}</td>
+                        <td>{{ row.instance_object.availabilityZone }}</td>
+                        {% if row.type ==  "RDS" %}
+                        <td>{{ row.instance_object.dbInstanceClass }}</td>
+                        <td>{{ row.instance_object.dbInstanceStatus }}</td>
+                        {% else %}
+                        <td>{{ row.instance_object.instanceType }}</td>
+                        <td>{{ row.instance_object.state.Name }}</td>
+                        {% endif %}
                     </tr>
-                </thead>
-                    <tbody style="background-color: #ffffff; color: black;">
-                    {% for row in clusters %}
+                {% endfor %}
+                {% for key, value in clusters.items %}
+                    {% for row in value %}
                         <tr>
                             <td>
                                 <input class="uk-checkbox" type="checkbox">
@@ -42,53 +62,37 @@
                                 {% endif %}
                                 {{ row.type }}
                             </td>
-                        </tr>
-                    {% endfor %}
-                    {% for key, value in clusters.items %}
-                        {% for row in value %}
-                            <tr>
-                                <td>
-                                    <input class="uk-checkbox" type="checkbox">
-                                </td>
-                                <td>{{ row.name }}</td>
-                                <td>{{ row.primaryNodeIp }}</td>
-                                <td>{% if row.type ==  "RDS" %}
-                                    <img class="uk-preserve-width" src="{% static '/img/aws-rds.svg' %}" width="15px">
-                                    {% else %}
-                                    <img class="uk-preserve-width" src="{% static '/img/aws-ec2.svg' %}" width="15px">
-                                    {% endif %}
-                                </td>
 <!--                                <td><img class="uk-preserve-width" src="{% static '/img/aws-rds.svg' %}" width="15px"> RDS</td>-->
 <!--                                <td>{{ row.db_availability_zone }}</td>-->
 <!--                                <td>{{ row.db_class }}</td>-->
 <!--                                <td>{{ row.db_instance_status }}</td>-->
 <!--                                <td>{{ row.db_postgres_engine_version }}</td>-->
-                            </tr>
-                        {% endfor %}
-                    {% endfor %}
-                    {% for key, row in ec2.items %}
-                        <tr>
-                            <td><input class="uk-checkbox" type="checkbox"></td>
-                            {% for tag in row.tags %}
-                               {% if tag.Key == "Name" %}
-                                <td>{{ tag.Value }}</td>
-                                {% endif %}
-                            {% endfor %}
-                            <td>{{ row.db_name }}</td>
-                            <td>{% if row.is_master %}Primary{% else %}Replica{% endif %}</td>
-                            <td>
-                            <img class="uk-preserve-width" src="{% static '/img/aws-ec2.svg' %}" width="15px">
-                                EC2
-                            </td>
-                            <td>{{ row.availability_zone }}</td>
-                            <td>{{ row.instance_type }}</td>
-                            <td>{{ row.state.Name }}</td>
-                            <td>{{ row.db_postgres_engine_version }}</td>
                         </tr>
                     {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                {% endfor %}
+                {% for key, row in ec2.items %}
+                    <tr>
+                        <td><input class="uk-checkbox" type="checkbox"></td>
+                        <td></td>
+                        {% for tag in row.tags %}
+                           {% if tag.Key == "Name" %}
+                            <td>{{ tag.Value }}</td>
+                            {% endif %}
+                        {% endfor %}
+                        <td>{{ row.db_name }}</td>
+                        <td>{% if row.is_master %}Primary{% else %}Replica{% endif %}</td>
+                        <td>
+                        <img class="uk-preserve-width" src="{% static '/img/aws-ec2.svg' %}" width="15px">
+                            EC2
+                        </td>
+                        <td>{{ row.availability_zone }}</td>
+                        <td>{{ row.instance_type }}</td>
+                        <td>{{ row.state.Name }}</td>
+                        <td>{{ row.db_postgres_engine_version }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 {% endblock %}
@@ -99,17 +103,26 @@
 
         var table = $('#example').DataTable({
             columnDefs: [
-               { orderable: false, targets: 0 }
+               { orderable: false, targets: 0 },
+               { targets: [ 1, 2 ], visible: false }
             ],
-            order: [[3, 'asc']],
+            order: [[1, 'asc'], [2, 'asc']],
             rowGroup: {
                 // Uses the 'row group' plugin
-                dataSrc: 3,
-                startRender: function (rows, group) {
+                dataSrc: [1, 2],
+                startRender: function (rows, group, level) {
                     var collapsed = !!collapsedGroups[group];
                     rows.nodes().each(function (r) {
                         r.style.display = collapsed ? 'none' : '';
                     });
+
+                    // top level group
+                    if (level == 0) {
+                        return $('<tr/>')
+                            .append('<td colspan="9">' + group + '</td>')
+                            .attr('data-name', group)
+                            .toggleClass('collapsed', collapsed);
+                    }
 
                     // Add category name to the <tr>. NOTE: Hardcoded colspan
                     return $('<tr/>')

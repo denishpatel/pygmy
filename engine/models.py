@@ -1,11 +1,44 @@
+from django.contrib.contenttypes import fields
+from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
+from django.contrib.contenttypes.models import ContentType
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
+
+
+def getClusterName():
+    return "Cluster " + str(ClusterInfo.objects.all().count() + 1)
+
+EC2 = "EC2"
+RDS = "RDS"
+
+CLUSTER_TYPES = (
+    (EC2, "EC2"),
+    (RDS, "RDS")
+)
+
+
+class ClusterInfo(models.Model):
+    name = models.CharField(max_length=100, default=getClusterName)
+    primaryNodeIp = models.CharField(max_length=100)
+    type = models.CharField(choices=CLUSTER_TYPES, max_length=30)
 
 
 class DbCredentials(models.Model):
     name = models.CharField(max_length=100)
     user_name = models.CharField(max_length=255)
     password = models.CharField(max_length=255)
+
+class Ec2DbInfo(models.Model):
+    # instance = models.OneToOneField(AllEc2InstancesData, on_delete=models.CASCADE, related_name="db_info")
+    instance_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True)
+    instance_id = models.CharField(max_length=255)
+    instance_object = GenericForeignKey('instance_type', 'instance_id')
+    isPrimary = models.BooleanField(default=False)
+    cluster = models.ForeignKey(ClusterInfo, on_delete=models.DO_NOTHING, null=True)
+    dbName = models.CharField(max_length=255)
+    isConnected = models.BooleanField(default=False)
+    lastUpdated = models.DateTimeField(auto_now=True)
+    type = models.CharField(choices=CLUSTER_TYPES, max_length=30)
 
 
 class AllEc2InstanceTypes(models.Model):
@@ -23,6 +56,10 @@ class AllEc2InstanceTypes(models.Model):
     current_generation = models.BooleanField(default=True)
     hibernation_supported = models.BooleanField(default=True)
     burstable_performance_supported = models.BooleanField(default=True)
+
+    class Meta:
+        pass
+
 
 
 class AllEc2InstancesData(models.Model):
@@ -48,24 +85,7 @@ class AllEc2InstancesData(models.Model):
     cpuOptions = models.JSONField()
     lastUpdated = models.DateTimeField(auto_now=True)
     credentials = models.ForeignKey(DbCredentials, on_delete=models.SET_NULL, null=True)
-
-
-def getClusterName():
-    return "Cluster " + str(ClusterInfo.objects.all().count() + 1)
-
-EC2 = "EC2"
-RDS = "RDS"
-
-CLUSTER_TYPES = (
-    (EC2, "EC2"),
-    (RDS, "RDS")
-)
-
-
-class ClusterInfo(models.Model):
-    name = models.CharField(max_length=100, default=getClusterName)
-    primaryNodeIp = models.CharField(max_length=100)
-    type = models.CharField(choices=CLUSTER_TYPES, max_length=30)
+    dbInfo = GenericRelation(Ec2DbInfo, related_query_name='ec2')
 
 
 class RdsInstances(models.Model):
@@ -85,14 +105,4 @@ class RdsInstances(models.Model):
     licenseModel = models.CharField(max_length=255)
     publiclyAccessible = models.BooleanField(default=False)
     tagList = models.JSONField()
-
-
-class Ec2DbInfo(models.Model):
-    # instance = models.OneToOneField(AllEc2InstancesData, on_delete=models.CASCADE, related_name="db_info")
-    instance = models.CharField(max_length=255)
-    isPrimary = models.BooleanField(default=False)
-    cluster = models.ForeignKey(ClusterInfo, on_delete=models.DO_NOTHING, null=True)
-    dbName = models.CharField(max_length=255)
-    isConnected = models.BooleanField(default=False)
-    lastUpdated = models.DateTimeField(auto_now=True)
-    type = models.CharField(choices=CLUSTER_TYPES, max_length=30)
+    dbInfo = GenericRelation(Ec2DbInfo, related_query_name='rds')

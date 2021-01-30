@@ -1,0 +1,65 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+{% block content %}
+<style>
+    .error-info {}
+</style>
+<div class="content-padder content-background">
+    <div class="uk-section-xsmall uk-section-default header">
+        <div class="uk-container uk-container-large">
+            <ul class="uk-breadcrumb">
+                <li><a href="/">Home</a></li>
+                <li><a href="{% url 'clusters' cluster.id %}">Cluster</a></li>
+                <li><span>Edit</span></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="uk-section-xsmall">
+        <div class="uk-container uk-container-large">
+            {% if not error %}
+            <span style="font-size: 25px">
+            {% if cluster.type ==  "RDS" %}
+                <img class="uk-preserve-width" src="{% static '/img/aws-rds.svg' %}" width="20px">
+            {% else %}
+                <img class="uk-preserve-width" src="{% static '/img/aws-ec2.svg' %}" width="20px">
+            {% endif %}&nbsp;
+                {{ cluster.name }}
+            </span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="">
+        <div class="uk-container uk-container-large uk-overflow-auto">
+            {% if error %}
+                <div class="uk-alert-danger" uk-alert>
+                    <a class="uk-alert-close" uk-close></a>
+                    <p>Cluster Not Found</p>
+                </div>
+            {% else %}
+                <div class="uk-container uk-container-large uk-overflow-auto">
+                    <form method="post" class="uk-form-horizontal" style="max-width: 500px">
+                        {% csrf_token %}
+                        <div class="uk-margin">
+                            <label class="uk-form-label uk-width-1-4" for="name">Cluster Name</label>
+                            <div class="uk-form-controls">
+                                <input id="name" class="uk-input" type="text" name="name" placeholder="" value="{{cluster.name}}">
+                            </div>
+                        </div>
+                        <br />
+                        <a class="uk-button uk-button-default uk-modal-close" href="{% url 'clusters' cluster.id %}">Back</a>
+                        <button class="uk-button uk-button-primary" type="submit" id="create__btn">Save</button>
+                    </form>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block js_bottom %}
+<script>
+    $(document).ready(function() {
+
+    });
+</script>
+{% endblock %}

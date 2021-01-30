@@ -1,0 +1,102 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+{% block head_js %}
+<script src="{% static '/js/ajax.autocomplete.js' %}"></script>
+{% endblock %}
+{% block content %}
+<style>
+    .autocomplete-suggestions { border: 1px solid #999; background: #FFF; overflow: auto; }
+    .autocomplete-suggestion { padding: 2px 5px; white-space: nowrap; overflow: hidden; }
+    .autocomplete-selected { background: #F0F0F0; }
+    .autocomplete-suggestions strong { font-weight: normal; color: #3399FF; }
+    .autocomplete-group { padding: 2px 5px; }
+    .autocomplete-group strong { display: block; border-bottom: 1px solid #000; }
+    .error-info {
+
+    }
+
+    @media (min-width: 960px) {
+        .uk-form-horizontal .uk-form-label {
+            width: 200px;
+        }
+        .uk-form-horizontal .uk-form-controls {
+            margin-left: 200px;
+        }
+    }
+</style>
+<div class="content-padder content-background">
+    <div class="uk-section-xsmall uk-section-default header">
+        <div class="uk-container uk-container-large">
+            <ul class="uk-breadcrumb">
+                <li><a href="/">Home</a></li>
+                <li><a href="{% url 'clusters' dbInfo.cluster.id %}">Cluster</a></li>
+                <li><span href="">Instance</span></li>
+            </ul>
+        </div>
+    </div>
+    <div class="uk-section-xsmall">
+        <div class="uk-container uk-container-large">
+            {% if not error %}
+            <span style="font-size: 25px">
+            {% if dbInfo.type ==  "RDS" %}
+                <img class="uk-preserve-width" src="{% static '/img/aws-rds.svg' %}" width="20px">
+                Edit Instance ({{ instance.dbInstanceIdentifier }})
+            {% else %}
+                <img class="uk-preserve-width" src="{% static '/img/aws-ec2.svg' %}" width="20px">
+                Edit Instance ({{ instance.instanceId }})
+            {% endif %}&nbsp;
+            </span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="">
+        <div class="uk-container uk-container-large uk-overflow-auto">
+            {% if success %}
+            <div class="uk-alert-success" style="max-width: 500px;" uk-alert>
+                <a class="uk-alert-close" uk-close></a>
+                <p><b>Success</b>! instance type updated successfully.</p>
+            </div>
+            {% elif error %}
+            <div class="uk-alert-danger" style="max-width: 500px;" uk-alert>
+                <a class="uk-alert-close" uk-close></a>
+                <p><b>Failed</b>! instance type change is failed.</p>
+            </div>
+            {% endif %}
+
+            <form method="post" class="uk-form-horizontal" style="max-width: 500px">
+                {% csrf_token %}
+                <input name="instance" type="hidden" value="{% if dbInfo.type == 'EC2' %}{{ instance.instanceId }}{% else %}{{ instance.dbInstanceIdentifier}}{% endif %}">
+                <input name="type" type="hidden" value="{{instance.instanceId}}">
+                <div class="uk-margin">
+                    <label class="uk-form-label uk-width-1-4 uk-text-default " for="instance_type">Current Instance Type</label>
+                    <div class="uk-form-controls">
+                        <input class="uk-select" type="text" placeholder="Search text..." value="{% if dbInfo.type == 'EC2' %}{{ instance.instanceType }}{% else %}{{ instance.dbInstanceClass}}{% endif %}" disabled>
+                    </div>
+                </div>
+                <div class="uk-margin">
+                    <label class="uk-form-label uk-width-1-4 uk-text-default " for="instance_type">New Instance Type</label>
+                    <div class="uk-form-controls">
+                        <input id="instance_type" class="uk-select" name="instance_type" type="search" placeholder="Search text..." value="{% if dbInfo.type == 'EC2' %}{{ instance.instanceType }}{% else %}{{ instance.dbInstanceClass}}{% endif %}">
+                    </div>
+                </div>
+                <br />
+                <a class="uk-button uk-button-default uk-modal-close" href="{% url 'clusters' dbInfo.cluster.id %}">Back</a>
+                <button class="uk-button uk-button-primary" type="submit" id="create__btn">Scale Down/Up</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block js_bottom %}
+<script>
+    $(document).ready(function() {
+        console.log("loaded document");
+
+        let instance_type = {{types|safe}};
+
+        $("#instance_type").autocomplete({
+          lookup: instance_type
+        });
+    });
+</script>
+{% endblock %}
