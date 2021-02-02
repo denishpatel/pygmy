@@ -1,6 +1,9 @@
+from datetime import datetime
 import os
+
 import boto3
 from engine.models import AllEc2InstancesData, RdsInstances, ClusterInfo, EC2, RDS, Ec2DbInfo
+from webapp.models import Settings
 
 
 class AWSData:
@@ -60,6 +63,10 @@ class AWSData:
                 NextToken=all_pg_instances.get("NextToken")
             )
 
+        # Settings update
+        setting = Settings.objects.get(name="rds")
+        setting.last_sync = datetime.now()
+        setting.save()
         return all_instances
 
     def describe_ec2_instances(self):
@@ -106,6 +113,10 @@ class AWSData:
                 NextToken=all_pg_ec2_instances.get("NextToken")
             )
 
+        # Settings update
+        setting = Settings.objects.get(name="ec2")
+        setting.last_sync = datetime.now()
+        setting.save()
         return all_instances
 
     def describe_ec2_instance_types(self):

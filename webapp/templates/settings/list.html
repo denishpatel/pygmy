@@ -1,0 +1,84 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+{% block head_js %}
+<link rel="stylesheet" href="{% static 'css/notyf.min.css' %}" />
+{% endblock %}
+{% block content %}
+<div class="content-padder content-background">
+    <div class="uk-section-xsmall uk-section-default header">
+        <div class="uk-container uk-container-large">
+            <ul class="uk-breadcrumb">
+                <li><a href="#">Home</a></li>
+                <li><span href="">Settings</span></li>
+            </ul>
+        </div>
+    </div>
+    <div class="uk-section-xsmall">
+        <div class="uk-column-1-2" style="padding: 0px 40px">
+            <h2>Settings</h2>
+            <div class="uk-container-small uk-align-right">
+                <div id="all-sync-spinner" style="display: none" uk-spinner></div>
+                <span id="all-sync-btn" class="uk-button uk-button-primary uk-button-small sync-btn" data-target="all">Sync All</span>
+            </div>
+        </div>
+    </div>
+    <div class="">
+        <div class="uk-container uk-container-large">
+            <table class="uk-table uk-table-hover uk-table-responsive uk-table-divider" style="background: white">
+                <thead>
+                    <tr style="background: #232f3e">
+                        <th class="uk-table-expand">Name</th>
+                        <th class="">State</th>
+                        <th class="">Last Sync Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in settings %}
+                    <tr>
+                        <td>{{s.description}}</td>
+                        <td class="uk-width-1-5">
+                            {% if s.in_progress %}
+                            <span class="uk-label uk-label-warning">In-Progress</span>
+                            {% else %}
+                            <div id="{{s.name}}-sync-spinner" style="display: none" uk-spinner></div>
+                            <span id="{{s.name}}-sync-btn" class="uk-button uk-button-primary uk-button-small sync-btn" data-target="{{s.name}}">Sync</span>
+                            {% endif %}</td>
+                        <td class="uk-width-1-5">{{s.last_sync}}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block js_bottom %}{{ block.super }}
+<script>
+    $(document).ready(function(){
+        var notyf = new Notyf();
+        $(".sync-btn").on("click", function(e) {
+            let settingId = e.target.dataset["target"];
+            $("#"+settingId+"-sync-btn").hide();
+            $("#"+settingId+"-sync-spinner").show();
+            $.ajax({
+                url: "{% url 'settings_reload' %}",
+                data: {
+                    "settingId": settingId
+                },
+            }).done(function(result) {
+                console.log("passing");
+                notyf.success('Sync is completed Successfully!');
+                $("#"+settingId+"-sync-spinner").hide();
+                $("#"+settingId+"-sync-btn").show();
+                setTimeout(function() {
+                    location.reload();
+                }, 5000);
+            }).fail(function(result){
+                console.log("error");
+                e.target.style = "inline-block";
+                notyf.error('Sync is Failed!');
+            });
+        });
+    });
+</script>
+{% endblock %}

@@ -1,9 +1,9 @@
 import json
 
 from django.db.models import F
-from django.shortcuts import render
+from django.shortcuts import render, redirect
+from django.urls import reverse
 from django.views import View
-from django.core import serializers
 
 from engine.aws_wrapper import AWSData
 from engine.models import DbCredentials, ClusterInfo, EC2, AllEc2InstancesData, RdsInstances, Ec2DbInfo, RDS, \
@@ -84,10 +84,11 @@ class ClusterEditView(View):
             if name:
                 cluster.name = name
                 cluster.save()
-                return render(request, self.template, {
-                    "success": True,
-                    "cluster": cluster
-                })
+                return redirect(reverse("clusters", args=[cluster.id]))
+                # return render(request, self.template, {
+                #     "success": True,
+                #     "cluster": cluster
+                # })
         except ClusterInfo.DoesNotExist:
             return render(request, self.template, {"error": "not found"})
 
