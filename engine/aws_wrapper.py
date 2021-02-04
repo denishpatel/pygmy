@@ -136,6 +136,28 @@ class AWSData:
 
         return all_instance_types
 
+    def describe_rds_instance_types(self):
+        all_instance_types = []
+        describe_instance_type_resp = self.rds_client.describe_orderable_db_instance_options(
+            Engine='postgres',
+            MaxRecords=100
+        )
+
+        while True:
+            all_instance_types.extend(describe_instance_type_resp.get("OrderableDBInstanceOptions"))
+
+            # For handling pagination
+            if describe_instance_type_resp.get("Marker", None) is None:
+                break
+
+            describe_instance_type_resp = self.rds_client.describe_orderable_db_instance_options(
+                Engine='postgres',
+                MaxRecords=100,
+                Marker=describe_instance_type_resp.get("Marker")
+            )
+
+        return all_instance_types
+
     @staticmethod
     def save_ec2_data(instance):
         db = AllEc2InstancesData()

@@ -28,6 +28,7 @@ class DbCredentials(models.Model):
     user_name = models.CharField(max_length=255)
     password = models.CharField(max_length=255)
 
+
 class Ec2DbInfo(models.Model):
     # instance = models.OneToOneField(AllEc2InstancesData, on_delete=models.CASCADE, related_name="db_info")
     instance_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True)
@@ -57,9 +58,27 @@ class AllEc2InstanceTypes(models.Model):
     hibernation_supported = models.BooleanField(default=True)
     burstable_performance_supported = models.BooleanField(default=True)
 
-    class Meta:
-        pass
 
+class AllRdsInstanceTypes(models.Model):
+    """
+    Simple DB to store all rds instances types.
+    We need to periodically update this info
+    """
+    engine = models.CharField(max_length=24, default='postgres', null=False)
+    engine_version = models.CharField(max_length=16, null=False)
+    instance_type = models.CharField(max_length=64, primary_key=True)
+    support_storage_encryption = models.BooleanField()
+    multi_az_capable = models.BooleanField()
+    read_replica_capable = models.BooleanField()
+    storage_type = models.CharField(max_length=32, default="standard")
+    support_iops = models.BooleanField()
+    min_storage_size = models.IntegerField()
+    max_storage_size = models.IntegerField()
+    support_storage_auto_scaling = models.BooleanField()
+
+    class Meta:
+        unique_together = ['engine', 'engine_version', 'instance_type']
+        index_together = ['engine', 'engine_version', 'instance_type']
 
 
 class AllEc2InstancesData(models.Model):

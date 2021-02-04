@@ -1,8 +1,8 @@
-from engine.models import AllEc2InstanceTypes
+from engine.models import AllEc2InstanceTypes, AllRdsInstanceTypes
 from engine.aws_wrapper import AWSData
 
 
-def update_all_ec2_instances_db():
+def update_all_ec2_instances_types_db():
     try:
         all_instances = AWSData().describe_ec2_instance_types()
         if AllEc2InstanceTypes.objects.count() != len(all_instances):
@@ -28,7 +28,37 @@ def update_all_ec2_instances_db():
         return
 
 
+def update_all_rds_instance_types_db():
+    try:
+        all_instances = AWSData().describe_rds_instance_types()
+        if AllRdsInstanceTypes.objects.count() != len(all_instances):
+            for instance in all_instances:
+                try:
+                    inst = AllRdsInstanceTypes.objects.get(instance_type=instance["DBInstanceClass"],
+                                                           engine=instance["Engine"],
+                                                           engine_version= instance["EngineVersion"])
+                except AllRdsInstanceTypes.DoesNotExist:
+                    arit = AllRdsInstanceTypes()
+                    arit.instance_type = instance["DBInstanceClass"]
+                    arit.engine = instance["Engine"]
+                    arit.engine_version = instance["EngineVersion"]
+                    arit.support_storage_encryption = instance["SupportsStorageEncryption"]
+                    arit.multi_az_capable = instance["MultiAZCapable"]
+                    arit.read_replica_capable = instance.get("ReadReplicaCapable", False)
+                    arit.storage_type = instance.get("StorageType", "")
+                    arit.support_iops = instance.get("SupportsIops", False)
+                    arit.min_storage_size = instance["MinStorageSize"]
+                    arit.max_storage_size = instance["MaxStorageSize"]
+                    arit.support_storage_auto_scaling = instance["SupportsStorageAutoscaling"]
+                    arit.save()
+    except Exception as e:
+        print(str(e))
+        print(instance)
+        return
+
+
 def update_ec2_data():
     all_instances = AWSData().describe_ec2_instances()
     # for db in all_instances:
     #     dbInfo = DBInfo
+    pass
