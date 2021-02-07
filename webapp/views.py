@@ -8,6 +8,7 @@ from django.views import View
 from engine.aws_wrapper import AWSData
 from engine.models import DbCredentials, ClusterInfo, EC2, AllEc2InstancesData, RdsInstances, Ec2DbInfo, RDS, \
     AllEc2InstanceTypes
+from engine.utils import get_instance_types
 
 
 class LandingView(View):
@@ -96,26 +97,6 @@ class ClusterEditView(View):
         return super(ClusterEditView, self).dispatch(*args, **kwargs)
 
 
-class RulesView(View):
-    template = "rule/rules.html"
-
-    def get(self,request, **kwargs):
-        return render(request, self.template, {})
-
-    def dispatch(self, *args, **kwargs):
-        return super(RulesView, self).dispatch(*args, **kwargs)
-
-
-class CreateRulesView(View):
-    template = "rule/create.html"
-
-    def get(self,request, **kwargs):
-        return render(request, self.template, {})
-
-    def dispatch(self, *args, **kwargs):
-        return super(CreateRulesView, self).dispatch(*args, **kwargs)
-
-
 class InstanceView(View):
     template = "cluster/instance_update.html"
 
@@ -123,7 +104,7 @@ class InstanceView(View):
         try:
             instance, db_info = self.get_instance(cluster_type, id)
             return render(request, self.template, {
-                "types": self.get_instance_types(),
+                "types": get_instance_types(cluster_type),
                 "dbInfo": db_info,
                 "instance": instance
             })
@@ -140,7 +121,7 @@ class InstanceView(View):
             else:
                 AWSData().scale_rds_instance(instance.dbInstanceIdentifier, instance_type, instance.dBParameterGroups)
             return render(request, self.template, {
-                "types": self.get_instance_types(),
+                "types": get_instance_types(cluster_type),
                 "instance": instance,
                 "dbInfo": db_info,
                 "success": True
@@ -159,10 +140,6 @@ class InstanceView(View):
             instance = RdsInstances.objects.get(dbInstanceIdentifier=id)
             db_info = Ec2DbInfo.objects.get(instance_id=instance.dbInstanceIdentifier)
         return instance, db_info
-
-    def get_instance_types(self):
-        types = list(AllEc2InstanceTypes.objects.all().values('instance_type').annotate(value=F('instance_type'), data=F('instance_type')))
-        return json.dumps(types)
 
     def dispatch(self, *args, **kwargs):
         return super(InstanceView, self).dispatch(*args, **kwargs)

@@ -14,8 +14,36 @@
         <div class="uk-column-1-2" style="padding: 0px 20px">
             <h2>Rules</h2>
             <div class="uk-container-small uk-align-right">
-                <a class="uk-button uk-button-primary" href="{% url 'create_rule' %}" uk-toggle>New Rule</a>
+                <a class="uk-button uk-button-primary" href="{% url 'create_rule' %}" uk-toggle>Edit Rule</a>
             </div>
+        </div>
+    </div>
+    <div class="">
+        <div class="uk-container uk-container-large uk-overflow-auto">
+            <table id="rules" class="uk-table uk-table-small uk-table-middle uk-table-hover uk-table-divider .uk-table-striped" style="width:100%">
+                <thead style="background: #232f3e;">
+                    <tr>
+                        <th class="uk-table-shrink"></th>
+                        <th>Id</th>
+                        <th>Action</th>
+                        <th>Run at</th>
+                        <th>Last Status</th>
+                        <th>Last Run</th>
+                    </tr>
+                </thead>
+                <tbody style="background-color: #ffffff; color: black;">
+                    {% for row in rules %}
+                        <tr>
+                            <td><input class="uk-checkbox" type="checkbox"></td>
+                            <td>{{row.id}}</td>
+                            <td>{{row.action}}</td>
+                            <td>{{row.run_at}}</td>
+                            <td>{% if row.status %}<span class="uk-label uk-label-success">Success</span>{% else %}<span class="uk-label uk-label-danger">Failed</span>{% endif %}</td>
+                            <td>{{row.last_run}}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>

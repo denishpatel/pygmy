@@ -1,12 +1,32 @@
 {% extends 'layout/base.html' %}
 {% load static %}
 {% block head_js %}
-<script src="{% static '/vendor/business-rules/conditions-builder.js' %}"></script>
-<script src="{% static '/vendor/business-rules/actions-builder.js' %}"></script>
-<script src="{% static '/js/rules.js' %}"></script>
-<script src="{% static '/css/rules.css' %}"></script>
+<!--<script src="{% static '/vendor/business-rules/conditions-builder.js' %}"></script>-->
+<!--<script src="{% static '/vendor/business-rules/actions-builder.js' %}"></script>-->
+<link rel="stylesheet" href="{% static '/vendor/flatpickr/css/flatpickr.min.css' %}" />
+<script src="{% static '/vendor/flatpickr/js/flatpickr.min.js' %}"></script>
+<script src="{% static '/js/ajax.autocomplete.js' %}"></script>
+<!--<script src="{% static '/js/rules.js' %}"></script>-->
+<!--<script src="{% static '/css/rules.css' %}"></script>-->
 {% endblock %}
 {% block content %}
+<style>
+    .autocomplete-suggestions { border: 1px solid #999; background: #FFF; overflow: auto; }
+    .autocomplete-suggestion { padding: 2px 5px; white-space: nowrap; overflow: hidden; }
+    .autocomplete-selected { background: #F0F0F0; }
+    .autocomplete-suggestions strong { font-weight: normal; color: #3399FF; }
+    .autocomplete-group { padding: 2px 5px; }
+    .autocomplete-group strong { display: block; border-bottom: 1px solid #000; }
+
+    @media (min-width: 960px) {
+        .1uk-form-horizontal .uk-form-label {
+            width: 200px;
+        }
+        .1uk-form-horizontal .uk-form-controls {
+            margin-left: 200px;
+        }
+    }
+</style>
 <div class="content-padder content-background">
     <div class="uk-section-xsmall uk-section-default header">
         <div class="uk-container uk-container-large">
@@ -21,18 +41,115 @@
         <h2>Create Rule</h2>
         </div>
     </div>
-    <div class="uk-section-xsmall uk-container">
+    <div class="uk-section-xsmall uk-container uk-overflow-auto">
+        {% if success %}
+        <div class="uk-alert-success" style="max-width: 500px;" uk-alert>
+            <a class="uk-alert-close" uk-close></a>
+            <p><b>Success</b>! created rule successfully.</p>
+        </div>
+        {% elif error %}
+        <div class="uk-alert-danger" style="max-width: 500px;" uk-alert>
+            <a class="uk-alert-close" uk-close></a>
+            <p><b>Failed</b>! {{error}}</p>
+        </div>
+        {% endif %}
         <form class="uk-form-horizontal" action="" method="post">
-            <div id="conditions"></div>
-            <h3>Do these actions...</h3>
-            <div id="actions"></div>
-            <button id="submit" type="button">Pretend Submit</button>
+            {% csrf_token %}
+            <table class="uk-table">
+                <tr>
+                    <td>
+                        <h3>Scale Down</h3>
+                        <hr>
+                    </td>
+                    <td>
+                        <h3>Scale Up</h3>
+                        <hr>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="uk-margin">
+                            <label class="uk-form-label uk-width-1-4 uk-text-default ">At Time</label>
+                            <div class="uk-form-controls">
+                                <input id="scale_down_time" name="scale_down_time" class="uk-input flatpickr" type="text" placeholder="Search text..." value="" required>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="uk-margin">
+                            <label class="uk-form-label uk-width-1-4 uk-text-default ">At Time</label>
+                            <div class="uk-form-controls">
+                                <input id="scale_up_time" name="scale_up_time" class="uk-input flatpickr" type="text" placeholder="Search text..." value="" required>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="uk-margin">
+                            <label class="uk-form-label uk-width-1-4 uk-text-default ">EC2 Instance Type</label>
+                            <div class="uk-form-controls">
+                                <input id="scale_down_ec2" name="scale_down_ec2" class="uk-select ec2_types" type="text" placeholder="Search text..." value="" required>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="uk-margin">
+                            <label class="uk-form-label uk-width-1-4 uk-text-default ">EC2 Instance Type</label>
+                            <div class="uk-form-controls">
+                                <input id="scale_up_ec2" name="scale_up_ec2" class="uk-select ec2_types" type="text" placeholder="Search text..." value="" required>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="uk-margin">
+                            <label class="uk-form-label uk-width-1-4 uk-text-default ">RDS Instance Type</label>
+                            <div class="uk-form-controls">
+                                <input id="scale_down_rds" name="scale_down_rds" class="uk-select rds_types" type="text" placeholder="Search text..." value="" required>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="uk-margin">
+                            <label class="uk-form-label uk-width-1-4 uk-text-default ">RDS Instance Type</label>
+                            <div class="uk-form-controls">
+                                <input id="scale_up_rds" name="scale_up_rds" class="uk-select rds_types" type="text" placeholder="Search text..." value="" required>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2">
+                        <button id="save_rule" class="uk-button uk-button-primary" type="submit">Save Rule</button>
+                    </td>
+                </tr>
+            </table>
         </form>
     </div>
 </div>
 {% endblock %}
 {% block js_bottom %}{{ block.super }}
 <script>
+var ec2_types = {{ ec2_types|safe }}
+var rds_types = {{ rds_types|safe }}
+$(document).ready(function() {
 
+    $(".ec2_types").autocomplete({
+      lookup: ec2_types
+    });
+
+    $(".rds_types").autocomplete({
+      lookup: rds_types
+    });
+
+    $(".flatpickr").flatpickr({
+        enableTime: true,
+        noCalendar: true,
+        dateFormat: "H:i",
+        time_24hr: false
+    });
+});
 </script>
 {% endblock %}

@@ -10,10 +10,17 @@ def getClusterName():
 
 EC2 = "EC2"
 RDS = "RDS"
+SCALE_DOWN = "SCALE_DOWN"
+SCALE_UP = "SCALE_UP"
 
 CLUSTER_TYPES = (
     (EC2, "EC2"),
     (RDS, "RDS")
+)
+
+RuleType = (
+    (SCALE_DOWN, "SCALE_DOWN"),
+    (SCALE_UP, "SCALE_UP")
 )
 
 
@@ -125,3 +132,21 @@ class RdsInstances(models.Model):
     publiclyAccessible = models.BooleanField(default=False)
     tagList = models.JSONField()
     dbInfo = GenericRelation(Ec2DbInfo, related_query_name='rds')
+
+
+class InstanceStateInfo(models.Model):
+    instance_type = models.CharField(max_length=100)
+    instance_id = models.CharField(max_length=100)
+    last_type = models.CharField(max_length=100)
+    changed_to = models.CharField(max_length=100)
+    updated_at = models.DateTimeField(auto_created=True)
+
+
+class Rules(models.Model):
+    rule = models.JSONField()
+    action = models.CharField(choices=RuleType, max_length=100)
+    action_arg = models.CharField(max_length=255, null=True)
+    status = models.BooleanField(default=False, null=True)
+    run_at = models.CharField(max_length=100, null=False)
+    err_msg = models.CharField(max_length=255, null=True)
+    last_run = models.DateTimeField(auto_created=True, null=True)

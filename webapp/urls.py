@@ -1,7 +1,8 @@
 from django.urls import path, re_path
 
+from webapp.view.rules import CreateRulesView, RulesView
 from webapp.view.settings import SettingsView, SettingsRefreshView
-from webapp.views import LandingView, SecretsView, ClusterView, RulesView, CreateRulesView, InstanceView, \
+from webapp.views import LandingView, SecretsView, ClusterView, InstanceView, \
     ClusterEditView
 
 urlpatterns = [
