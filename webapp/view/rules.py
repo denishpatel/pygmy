@@ -1,8 +1,6 @@
 import json
-
 from django.shortcuts import render
 from django.views import View
-
 from engine.models import EC2, RDS, Rules, SCALE_UP, SCALE_DOWN
 from engine.utils import get_instance_types, create_cron
 

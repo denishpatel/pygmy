@@ -22,9 +22,9 @@ class Command(BaseCommand):
                 rds_type = rule_json["rds_type"]
                 all_dbs = Ec2DbInfo.objects.all()
                 for db in all_dbs:
-                    if db.type == EC2:
+                    if db.type == EC2 and not db.isPrimary:
                         aws.scale_ec2_instance(db.instance_id, ec2_type)
-                    elif db.type == RDS:
+                    elif db.type == RDS and not db.isPrimary:
                         db_parameter = db.instance_object.dBParameterGroups[0]['DBParameterGroupName']
                         aws.scale_rds_instance(db.instance_id, rds_type, db_parameter)
                 rule_db.status = True
