@@ -27,7 +27,7 @@ class Command(BaseCommand):
 
     def get_ec2_info(self, instance):
         db_info, created = Ec2DbInfo.objects.get_or_create(instance_id=instance.instanceId)
-        db_info.content_object = instance
+        db_info.instance_object = instance
         db_info.type = EC2
         try:
             db_conn = PostgresData(instance.publicDnsName, "pygmy", "pygmy", "postgres")
