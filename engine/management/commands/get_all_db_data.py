@@ -1,7 +1,5 @@
 import logging
-
 from django.core.management import BaseCommand
-
 from engine.aws_wrapper import AWSData
 from engine.models import AllEc2InstancesData, Ec2DbInfo, ClusterInfo, EC2
 from engine.postgres_wrapper import PostgresData
@@ -16,18 +14,20 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         try:
-            all_instances = update_ec2_data()
+            # update ec2 instances data
             all_instances = AllEc2InstancesData.objects.all()
             for db in all_instances:
-                self.get_info(db)
+                self.get_ec2_info(db)
+
+            # update rds data
             AWSData().describe_rds_instances()
         except Exception as e:
             logger.exception(e)
             return
 
-    def get_info(self, instance):
+    def get_ec2_info(self, instance):
         db_info, created = Ec2DbInfo.objects.get_or_create(instance_id=instance.instanceId)
-        db_info.content_object=instance
+        db_info.content_object = instance
         db_info.type = EC2
         try:
             db_conn = PostgresData(instance.publicDnsName, "pygmy", "pygmy", "postgres")
@@ -45,7 +45,8 @@ class Command(BaseCommand):
             self.update_cluster_info(instance.privateDnsName, replicas)
         print("publicIp: ", instance.publicDnsName, " isPrimary: ", db_conn.is_ec2_postgres_instance_primary())
 
-    def update_cluster_info(self, privateDnsName, replicas):
+    @staticmethod
+    def update_cluster_info(privateDnsName, replicas):
         for node in replicas:
             instance = AllEc2InstancesData.objects.get(privateIpAddress=node)
             db_info, created = Ec2DbInfo.objects.get_or_create(instance_id=instance.instanceId)
