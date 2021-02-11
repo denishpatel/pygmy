@@ -17,6 +17,11 @@ def get_instance_types(cluster_type):
     return json.dumps(types)
 
 
+def get_selection_list(query, value_col, data_col):
+    data = list(query.values(value_col).annotate(value=F(value_col), data=F(data_col)))
+    return json.dumps(data)
+
+
 def create_cron(rule):
     cron = CronTab(user=getpass.getuser())
     cron.remove_all(comment="rule_{}".format(rule.id))

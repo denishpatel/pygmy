@@ -3,6 +3,7 @@ import os
 
 import boto3
 from engine.models import AllEc2InstancesData, RdsInstances, ClusterInfo, EC2, RDS, Ec2DbInfo
+from engine.postgres_wrapper import PostgresData
 from webapp.models import Settings
 
 
@@ -112,11 +113,6 @@ class AWSData:
                 MaxResults=200,
                 NextToken=all_pg_ec2_instances.get("NextToken")
             )
-
-        # Settings update
-        setting = Settings.objects.get(name="ec2")
-        setting.last_sync = datetime.now()
-        setting.save()
         return all_instances
 
     def describe_ec2_instance_types(self):
@@ -283,3 +279,32 @@ class AWSData:
         except Exception as e:
             print(str(e))
             return False
+
+    def process_ec2_cluster_info(self, instance):
+        db_info, created = Ec2DbInfo.objects.get_or_create(instance_id=instance.instanceId)
+        db_info.instance_object = instance
+        db_info.type = EC2
+        try:
+            db_conn = PostgresData(instance.publicDnsName, "pygmy", "pygmy", "postgres")
+            db_info.isPrimary = db_conn.is_ec2_postgres_instance_primary()
+            if db_info.isPrimary:
+                db_info.cluster, created = ClusterInfo.objects.get_or_create(primaryNodeIp=instance.privateDnsName,
+                                                                             type=EC2)
+            db_info.isConnected = True
+        except Exception as e:
+            db_info.isPrimary = False
+            db_info.isConnected = False
+        db_info.save()
+
+        if db_info.isPrimary:
+            replicas = db_conn.get_all_slave_servers()
+            self.update_cluster_info(instance.privateDnsName, replicas)
+        print("publicIp: ", instance.publicDnsName, " isPrimary: ", db_conn.is_ec2_postgres_instance_primary())
+
+    def update_cluster_info(self, privateDnsName, replicas):
+        for node in replicas:
+            instance = AllEc2InstancesData.objects.get(privateIpAddress=node)
+            db_info, created = Ec2DbInfo.objects.get_or_create(instance_id=instance.instanceId)
+            db_info.cluster = ClusterInfo.objects.get(primaryNodeIp=privateDnsName, type=EC2)
+            db_info.content_object = instance
+            db_info.save()

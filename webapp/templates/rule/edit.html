@@ -33,16 +33,22 @@
             <ul class="uk-breadcrumb">
                 <li><a href="/">Home</a></li>
                 <li><a href="{% url 'rules' %}">Rules</a></li>
-                <li><span href="">new rule</span></li>
+                <li><span href="">{{data.name}}</span></li>
             </ul>
         </div>
     </div>
     <div class="uk-section-xsmall">
         <div class="uk-column-1-2" style="padding: 0px 20px">
-        <h2>Create Rule</h2>
+        <h2>Edit Rule</h2>
         </div>
     </div>
     <div class="uk-container uk-overflow-auto">
+        {% if not_found%}
+            <div class="uk-alert-danger" style="max-width: 500px;" uk-alert>
+                <a class="uk-alert-close" uk-close></a>
+                <p><b>Not Found</b>! Rule with mention id doesn't exists</p>
+            </div>
+        {% else %}
         {% if success %}
         <div class="uk-alert-success" style="max-width: 500px;" uk-alert>
             <a class="uk-alert-close" uk-close></a>
@@ -60,9 +66,9 @@
                 <tr>
                     <td>
                         <div class="uk-margin">
-                            <label class="uk-form-label uk-text-default" for="form-horizontal-select">Name</label>
+                            <label class="uk-form-label uk-text-default" for="form-horizontal-select">Rule Name</label>
                             <div class="uk-form-controls">
-                                <input class="uk-input" name="name" type="text" placeholder="Rule Name..." value="{{data.name}}" required>
+                                <input class="uk-input" name="name" type="text" placeholder="" value="{{data.name}}" required>
                             </div>
                         </div>
                         <hr>
@@ -71,8 +77,8 @@
                         <div class="uk-margin">
                             <label class="uk-form-label uk-text-default" for="form-horizontal-select">Cluster</label>
                             <div class="uk-form-controls">
-                                <input class="uk-select cluster" name="cluster_name" type="text" placeholder="Cluster..." value="{{data.cluster_name}}" required>
-                                <input id="cluster" name="cluster_id" type="hidden" value="{{data.cluster_id}}" required>
+                                <input class="uk-select cluster" name="cluster_name" type="text" placeholder="" value="{{data.cluster.name}}" required>
+                                <input id="cluster" name="cluster_id" type="hidden" value="{{data.cluster.id}}" required>
                             </div>
                         </div>
                         <hr>
@@ -90,13 +96,11 @@
                             </div>
                         </div>
                     </td>
-<!--                </tr>-->
-<!--                <tr>-->
                     <td>
                         <div class="uk-margin">
                             <label class="uk-form-label uk-width-1-4 uk-text-default ">At Time</label>
                             <div class="uk-form-controls">
-                                <input id="time" name="time" class="uk-input flatpickr" type="text" placeholder="Time..." value="{{data.time}}" required>
+                                <input id="time" name="time" class="uk-input flatpickr" type="text" placeholder="Search text..." value="{{data.run_at}}" required>
                             </div>
                         </div>
                     </td>
@@ -106,28 +110,27 @@
                         <div class="uk-margin">
                             <label class="uk-form-label uk-width-1-4 uk-text-default ">EC2 Instance Type</label>
                             <div class="uk-form-controls">
-                                <input id="ec2_type" name="ec2_type" class="uk-select ec2_types" type="text" placeholder="EC2 types..." value="{{data.ec2_type}}" required>
+                                <input id="ec2_type" name="ec2_type" class="uk-select ec2_types" type="text" placeholder="Search text..." value="{{data.rule.ec2_type}}" required>
                             </div>
                         </div>
                     </td>
-<!--                </tr>-->
-<!--                <tr>-->
                     <td>
                         <div class="uk-margin">
                             <label class="uk-form-label uk-width-1-4 uk-text-default ">RDS Instance Type</label>
                             <div class="uk-form-controls">
-                                <input id="rds_type" name="rds_type" class="uk-select rds_types" type="text" placeholder="RDS types..." value="{{data.rds_type}}" required>
+                                <input id="rds_type" name="rds_type" class="uk-select rds_types" type="text" placeholder="Search text..." value="{{data.rule.rds_type}}" required>
                             </div>
                         </div>
                     </td>
                 </tr>
                 <tr>
                     <td colspan="2" style="text-align: right;">
-                        <button id="save_rule" class="uk-button uk-button-primary " type="submit">Create Rule</button>
+                        <button id="save_rule" class="uk-button uk-button-primary" type="submit">Save Rule</button>
                     </td>
                 </tr>
             </table>
         </form>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

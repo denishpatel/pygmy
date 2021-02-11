@@ -8,6 +8,11 @@ from django.db import models
 def getClusterName():
     return "Cluster " + str(ClusterInfo.objects.all().count() + 1)
 
+
+def getRuleName():
+    return "Rule " + str(Rules.objects.all().count() + 1)
+
+
 EC2 = "EC2"
 RDS = "RDS"
 SCALE_DOWN = "SCALE_DOWN"
@@ -143,6 +148,8 @@ class InstanceStateInfo(models.Model):
 
 
 class Rules(models.Model):
+    name = models.CharField(max_length=100, default=getRuleName)
+    cluster = models.ForeignKey(ClusterInfo, on_delete=models.DO_NOTHING)
     rule = models.JSONField()
     action = models.CharField(choices=RuleType, max_length=100)
     action_arg = models.CharField(max_length=255, null=True)

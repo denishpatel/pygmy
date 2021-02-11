@@ -20,7 +20,7 @@ class Command(BaseCommand):
                 rule_json = json.loads(rule_db.rule)
                 ec2_type = rule_json["ec2_type"]
                 rds_type = rule_json["rds_type"]
-                all_dbs = Ec2DbInfo.objects.all()
+                all_dbs = Ec2DbInfo.objects.filter(cluster=rule_db.cluster)
                 for db in all_dbs:
                     if db.type == EC2 and not db.isPrimary:
                         aws.scale_ec2_instance(db.instance_id, ec2_type)
