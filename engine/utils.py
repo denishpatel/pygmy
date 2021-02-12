@@ -1,7 +1,6 @@
 import getpass
-
+import sys
 from crontab import CronTab
-
 from engine.models import AllRdsInstanceTypes, AllEc2InstanceTypes, RDS
 from django.db.models import F
 import json
@@ -23,6 +22,9 @@ def get_selection_list(query, table_col, value_col, data_col):
 
 
 def create_cron(rule):
+    if sys.platform == "win32":
+        return
+
     cron = CronTab(user=getpass.getuser())
     cron.remove_all(comment="rule_{}".format(rule.id))
     job = cron.new(command="python manage.py apply_rule {}".format(rule.id), comment="rule_{}".format(rule.id))
