@@ -53,11 +53,21 @@
 {% endblock %}
 {% block js_bottom %}{{ block.super }}
 <script>
+    var notyf = new Notyf();
     $(document).ready(function(){
         addSecret();
         $("#btn__cancel").on("click", function() {
             //$("#modal-create-secret form").trigger("reset");
         });
+
+        if(window.location.hash == '#ar')
+        {
+            notyf.success('Success!! Added rule');
+        }
+        if(window.location.hash == '#dr')
+        {
+            notyf.success('Success!! Deleted rule');
+        }
     });
 </script>
 {% endblock %}

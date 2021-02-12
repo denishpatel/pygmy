@@ -1,13 +1,9 @@
 {% extends 'layout/base.html' %}
 {% load static %}
 {% block head_js %}
-<!--<script src="{% static '/vendor/business-rules/conditions-builder.js' %}"></script>-->
-<!--<script src="{% static '/vendor/business-rules/actions-builder.js' %}"></script>-->
 <link rel="stylesheet" href="{% static '/vendor/flatpickr/css/flatpickr.min.css' %}" />
 <script src="{% static '/vendor/flatpickr/js/flatpickr.min.js' %}"></script>
 <script src="{% static '/js/ajax.autocomplete.js' %}"></script>
-<!--<script src="{% static '/js/rules.js' %}"></script>-->
-<!--<script src="{% static '/css/rules.css' %}"></script>-->
 {% endblock %}
 {% block content %}
 <style>
@@ -39,7 +35,12 @@
     </div>
     <div class="uk-section-xsmall">
         <div class="uk-column-1-2" style="padding: 0px 20px">
-        <h2>Edit Rule</h2>
+            <h2>Edit Rule</h2>
+            <div style="text-align: right; padding-right: 20px;">
+                <a id="delete" href="#">
+                    <span class="uk-margin-small-right" uk-icon="icon: trash; ratio: 1"></span>
+                </a>
+            </div>
         </div>
     </div>
     <div class="uk-container uk-overflow-auto">
@@ -87,6 +88,14 @@
                 <tr>
                     <td>
                         <div class="uk-margin">
+                            <label class="uk-form-label uk-width-1-4 uk-text-default ">At Time</label>
+                            <div class="uk-form-controls">
+                                <input id="time" name="time" class="uk-input flatpickr" type="text" placeholder="Search text..." value="{{data.run_at}}" required>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="uk-margin">
                             <label class="uk-form-label uk-text-default" for="form-horizontal-select">Action</label>
                             <div class="uk-form-controls">
                                 <select name="action" class="uk-select" id="form-horizontal-select">
@@ -96,32 +105,39 @@
                             </div>
                         </div>
                     </td>
-                    <td>
-                        <div class="uk-margin">
-                            <label class="uk-form-label uk-width-1-4 uk-text-default ">At Time</label>
-                            <div class="uk-form-controls">
-                                <input id="time" name="time" class="uk-input flatpickr" type="text" placeholder="Search text..." value="{{data.run_at}}" required>
-                            </div>
-                        </div>
-                    </td>
                 </tr>
                 <tr>
                     <td>
-                        <div class="uk-margin">
+                        <div>
+                            <label class="uk-form-label uk-width-1-4 uk-text-default ">Replication Lag</label>
+                            <div class="uk-form-controls">
+                                <select name="r_op" class="uk-select uk-width-1-3" id="select-r-op">
+                                    <option value="equal" {% if data.rule.rl_op == 'equal' %}selected{% endif %}>equal</option>
+                                    <option value="less" {% if data.rule.rl_op == 'less' %}selected{% endif %}>less than</option>
+                                    <option value="greater" {% if data.rule.rl_op == 'greater' %}selected{% endif %}>greater than</option>
+                                </select>
+                                <input id="r_threshold" name="r_threshold" class="uk-input uk-width-3-5" type="text" placeholder="EC2 types..." value="{{data.rule.rl_threshold}}" required>
+                            </div>
+                        </div>
+                    </td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td>
+                        <div id="ec2_type_div" style="display: {% if data.cluster.type == 'EC2' %}block{% else %}none{% endif %}">
                             <label class="uk-form-label uk-width-1-4 uk-text-default ">EC2 Instance Type</label>
                             <div class="uk-form-controls">
-                                <input id="ec2_type" name="ec2_type" class="uk-select ec2_types" type="text" placeholder="Search text..." value="{{data.rule.ec2_type}}" required>
+                                <input id="ec2_type" name="ec2_type" class="uk-select ec2_types" type="text" placeholder="EC2 types..." value="{{data.rule.ec2_type}}">
                             </div>
                         </div>
-                    </td>
-                    <td>
-                        <div class="uk-margin">
+                        <div id="rds_type_div" style="display: {% if data.cluster.type == 'RDS' %}block{% else %}none{% endif %}">
                             <label class="uk-form-label uk-width-1-4 uk-text-default ">RDS Instance Type</label>
                             <div class="uk-form-controls">
-                                <input id="rds_type" name="rds_type" class="uk-select rds_types" type="text" placeholder="Search text..." value="{{data.rule.rds_type}}" required>
+                                <input id="rds_type" name="rds_type" class="uk-select rds_types" type="text" placeholder="RDS types..." value="{{data.rule.rds_type}}">
                             </div>
                         </div>
                     </td>
+                    <td></td>
                 </tr>
                 <tr>
                     <td colspan="2" style="text-align: right;">
@@ -136,11 +152,14 @@
 {% endblock %}
 {% block js_bottom %}{{ block.super }}
 <script>
+{% if success %}
+    window.location.href = "{% url 'rules' %}#ar";
+{% else %}
 var ec2_types = {{ ec2_types|safe }}
 var rds_types = {{ rds_types|safe }}
 var clusters = {{ clusters | safe }}
+var notyf = new Notyf();
 $(document).ready(function() {
-
     $(".ec2_types").autocomplete({
       lookup: ec2_types,
       minChars: 0,
@@ -165,6 +184,31 @@ $(document).ready(function() {
         dateFormat: "H:i",
         time_24hr: false
     });
+
+    $("#delete").on("click", function () {
+        UIkit.modal.confirm('Deleting! Are you sure to delete?', { labels: { ok: 'Yes', cancel: 'No' } }).then(function() {
+            console.log('Confirmed.');
+            delete_rule();
+        }, function () {
+             console.log('Cancel delete.')
+        });
+    });
 });
+
+function delete_rule() {
+    $.ajax({
+        url: '{% url "edit_rule" data.id %}',
+        type: 'DELETE',
+        success: function(result) {
+            // Do something with the result
+        }
+    }).done(function (){
+        notyf.success("Success! deleted rule successfully");
+        window.location.href = "{% url 'rules' %}#dr";
+    }).fail(function () {
+        notyf.error('Fail! deleting rule is failed!');
+    });
+}
+{% endif %}
 </script>
 {% endblock %}

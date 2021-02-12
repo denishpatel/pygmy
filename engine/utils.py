@@ -17,8 +17,8 @@ def get_instance_types(cluster_type):
     return json.dumps(types)
 
 
-def get_selection_list(query, value_col, data_col):
-    data = list(query.values(value_col).annotate(value=F(value_col), data=F(data_col)))
+def get_selection_list(query, table_col, value_col, data_col):
+    data = list(query.values(table_col).annotate(value=F(value_col), data=F(data_col)))
     return json.dumps(data)
 
 

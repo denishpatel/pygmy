@@ -81,6 +81,14 @@
                 <tr>
                     <td>
                         <div class="uk-margin">
+                            <label class="uk-form-label uk-width-1-4 uk-text-default ">At Time</label>
+                            <div class="uk-form-controls">
+                                <input id="time" name="time" class="uk-input flatpickr" type="text" placeholder="Time..." value="{{data.time}}" required>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="uk-margin">
                             <label class="uk-form-label uk-text-default" for="form-horizontal-select">Action</label>
                             <div class="uk-form-controls">
                                 <select name="action" class="uk-select" id="form-horizontal-select">
@@ -90,36 +98,39 @@
                             </div>
                         </div>
                     </td>
-<!--                </tr>-->
-<!--                <tr>-->
-                    <td>
-                        <div class="uk-margin">
-                            <label class="uk-form-label uk-width-1-4 uk-text-default ">At Time</label>
-                            <div class="uk-form-controls">
-                                <input id="time" name="time" class="uk-input flatpickr" type="text" placeholder="Time..." value="{{data.time}}" required>
-                            </div>
-                        </div>
-                    </td>
                 </tr>
                 <tr>
                     <td>
-                        <div class="uk-margin">
+                        <div>
+                            <label class="uk-form-label uk-width-1-4 uk-text-default ">Replication Lag</label>
+                            <div class="uk-form-controls">
+                                <select name="r_op" class="uk-select uk-width-1-3" id="select-r-op">
+                                    <option value="equal">equal</option>
+                                    <option value="less">less than</option>
+                                    <option value="greater">greater than</option>
+                                </select>
+                                <input id="r_threshold" name="r_threshold" class="uk-input uk-width-3-5" type="text" placeholder="EC2 types..." value="{{data.ec2_type}}" required>
+                            </div>
+                        </div>
+                    </td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td>
+                        <div id="ec2_type_div" style="display:none">
                             <label class="uk-form-label uk-width-1-4 uk-text-default ">EC2 Instance Type</label>
                             <div class="uk-form-controls">
-                                <input id="ec2_type" name="ec2_type" class="uk-select ec2_types" type="text" placeholder="EC2 types..." value="{{data.ec2_type}}" required>
+                                <input id="ec2_type" name="ec2_type" class="uk-select ec2_types" type="text" placeholder="EC2 types..." value="{{data.ec2_type}}">
                             </div>
                         </div>
-                    </td>
-<!--                </tr>-->
-<!--                <tr>-->
-                    <td>
-                        <div class="uk-margin">
+                        <div id="rds_type_div" style="display:none">
                             <label class="uk-form-label uk-width-1-4 uk-text-default ">RDS Instance Type</label>
                             <div class="uk-form-controls">
-                                <input id="rds_type" name="rds_type" class="uk-select rds_types" type="text" placeholder="RDS types..." value="{{data.rds_type}}" required>
+                                <input id="rds_type" name="rds_type" class="uk-select rds_types" type="text" placeholder="RDS types..." value="{{data.rds_type}}">
                             </div>
                         </div>
                     </td>
+                    <td></td>
                 </tr>
                 <tr>
                     <td colspan="2" style="text-align: right;">
@@ -133,11 +144,15 @@
 {% endblock %}
 {% block js_bottom %}{{ block.super }}
 <script>
+{% if not success %}
 var ec2_types = {{ ec2_types|safe }}
 var rds_types = {{ rds_types|safe }}
 var clusters = {{ clusters | safe }}
+{% endif %}
 $(document).ready(function() {
-
+    {% if success %}
+        window.location.href = "{% url 'rules' %}#ar";
+    {% else %}
     $(".ec2_types").autocomplete({
       lookup: ec2_types,
       minChars: 0,
@@ -153,6 +168,13 @@ $(document).ready(function() {
       minChars: 0,
       onSelect: function (suggestion) {
         $("#cluster").val(suggestion.data);
+        console.log("suggestion " + suggestion);
+        $("#ec2_type_div").hide();
+        $("#rds_type_div").hide();
+        if(suggestion.type == "RDS")
+            $("#rds_type_div").show();
+        else
+            $("#ec2_type_div").show();
       }
     });
 
@@ -162,6 +184,7 @@ $(document).ready(function() {
         dateFormat: "H:i",
         time_24hr: false
     });
+    {% endif %}
 });
 </script>
 {% endblock %}
