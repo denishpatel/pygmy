@@ -10,6 +10,7 @@ urlpatterns = [
     path("secrets", SecretsView.as_view(), name="secrets"),
     path("rules", RulesView.as_view(), name="rules"),
     path("rules/create", CreateRulesView.as_view(), name="create_rule"),
+    # path("rules/<int:id>", DeleteRulesView.as_view(), name="delete_rule"),
     path("rules/<int:id>/edit", EditRuleView.as_view(), name="edit_rule"),
     re_path(r'^cluster/(?P<id>\d+)/edit', ClusterEditView.as_view(), name="clusters_edit"),
     re_path(r'^cluster/(?P<id>\d+)/', ClusterView.as_view(), name="clusters"),

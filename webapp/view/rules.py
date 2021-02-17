@@ -1,13 +1,8 @@
-import json
-
-from django import forms
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views import View
-from django.views.decorators.csrf import csrf_exempt
-
-from engine.models import EC2, RDS, Rules, SCALE_UP, SCALE_DOWN, ClusterInfo, RuleType
-from engine.utils import get_instance_types, create_cron, get_selection_list
+from engine.models import EC2, RDS, Rules, SCALE_UP, SCALE_DOWN, ClusterInfo
+from engine.utils import get_instance_types, create_cron, get_selection_list, delete_cron
 
 
 class CreateRulesView(View):
@@ -44,9 +39,8 @@ class CreateRulesView(View):
             else:
                 raise Exception
         except Exception as e:
-            result.update({"error": "missing parameter",
-                           "data": request.POST
-                           })
+            print(str(e))
+            result.update({"error": "missing parameter", "data": request.POST})
         return render(request, self.template, result)
 
     def dispatch(self, *args, **kwargs):
@@ -84,7 +78,7 @@ class EditRuleView(View):
             ctx = {
                 "ec2_types": self.ec2,
                 "rds_types": self.rds,
-                "clusters": get_selection_list(ClusterInfo.objects.all(),"type", "name", "id"),
+                "clusters": get_selection_list(ClusterInfo.objects.all(), "type", "name", "id"),
                 "data": rule
             }
         except Rules.DoesNotExist:
@@ -95,6 +89,7 @@ class EditRuleView(View):
 
     def delete(self, request, id, **kwargs):
         rule = Rules.objects.get(id=id)
+        delete_cron(rule)
         rule.delete()
         return JsonResponse({"success": True})
 
@@ -117,7 +112,8 @@ class EditRuleView(View):
         except Rules.DoesNotExist:
             result = {"not_found": "not found"}
         except Exception as e:
-            result = {"error": "missing parameter", "data": rule }
+            print(str(e))
+            result = {"error": "missing parameter", "data": rule}
         return render(request, self.template, result)
 
     def dispatch(self, *args, **kwargs):
@@ -142,7 +138,7 @@ class EditRuleView(View):
 class RulesView(View):
     template = "rule/rules.html"
 
-    def get(self,request, **kwargs):
+    def get(self, request, **kwargs):
         rules = Rules.objects.all()
         return render(request, self.template, {
             "rules": rules

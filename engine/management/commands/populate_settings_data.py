@@ -1,7 +1,5 @@
 import logging
-
 from django.core.management import BaseCommand
-
 from webapp.models import Settings
 
 logger = logging.getLogger(__name__)
@@ -18,8 +16,11 @@ class Command(BaseCommand):
             "logs": "Sync Log Data"
         }
         for key, value in syncSettings.items():
-            setting = Settings()
-            setting.name = key
-            setting.last_sync = None
-            setting.description = value
-            setting.save()
+            try:
+                Settings.objects.get(name=key)
+            except Settings.DoesNotExist:
+                setting = Settings()
+                setting.name = key
+                setting.last_sync = None
+                setting.description = value
+                setting.save()
