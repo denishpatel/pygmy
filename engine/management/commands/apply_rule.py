@@ -1,8 +1,6 @@
 import json
-from datetime import datetime
-
+from django.utils import timezone
 from django.core.management import BaseCommand
-
 from engine.aws_wrapper import AWSData
 from engine.models import Rules, Ec2DbInfo, EC2, RDS
 
@@ -34,6 +32,6 @@ class Command(BaseCommand):
                 rule_db.err_msg = e
                 print("No rule found")
             finally:
-                rule_db.last_run = datetime.now()
+                rule_db.last_run = timezone.now()
                 rule_db.save()
             print("Rule has completed successfully")
