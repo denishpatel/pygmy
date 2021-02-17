@@ -1,8 +1,8 @@
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views import View
-from engine.models import EC2, RDS, Rules, SCALE_UP, SCALE_DOWN, ClusterInfo, RuleType
-from engine.utils import get_instance_types, create_cron, get_selection_list
+from engine.models import EC2, RDS, Rules, SCALE_UP, SCALE_DOWN, ClusterInfo
+from engine.utils import get_instance_types, create_cron, get_selection_list, delete_cron
 
 
 class CreateRulesView(View):
@@ -89,6 +89,7 @@ class EditRuleView(View):
 
     def delete(self, request, id, **kwargs):
         rule = Rules.objects.get(id=id)
+        delete_cron(rule)
         rule.delete()
         return JsonResponse({"success": True})
 
