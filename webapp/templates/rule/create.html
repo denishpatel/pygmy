@@ -6,8 +6,9 @@
 <link rel="stylesheet" href="{% static '/vendor/flatpickr/css/flatpickr.min.css' %}" />
 <script src="{% static '/vendor/flatpickr/js/flatpickr.min.js' %}"></script>
 <script src="{% static '/js/ajax.autocomplete.js' %}"></script>
-<!--<script src="{% static '/js/rules.js' %}"></script>-->
-<!--<script src="{% static '/css/rules.css' %}"></script>-->
+<script src="{% static '/vendor/cron/js/jqCron.js' %}"></script>
+<script src="{% static '/vendor/cron/js/jqCron.en.js' %}"></script>
+<link rel="stylesheet" href="{% static '/vendor/cron/css/jqCron.css' %}" />
 {% endblock %}
 {% block content %}
 <style>
@@ -79,14 +80,16 @@
                     </td>
                 </tr>
                 <tr>
-                    <td>
+                    <td colspan="2">
                         <div class="uk-margin">
                             <label class="uk-form-label uk-width-1-4 uk-text-default ">At Time</label>
                             <div class="uk-form-controls">
-                                <input id="time" name="time" class="uk-input flatpickr" type="text" placeholder="Time..." value="{{data.time}}" required>
+                                <input id="time" name="time" class="uk-input crontime" type="text" placeholder="Time..." value="{{data.time}}" required>
                             </div>
                         </div>
                     </td>
+                </tr>
+                <tr>
                     <td>
                         <div class="uk-margin">
                             <label class="uk-form-label uk-text-default" for="form-horizontal-select">Action</label>
@@ -184,6 +187,7 @@ $(document).ready(function() {
         dateFormat: "H:i",
         time_24hr: false
     });
+    $('.crontime').jqCron();
     {% endif %}
 });
 </script>
