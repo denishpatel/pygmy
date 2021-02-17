@@ -1,5 +1,4 @@
-from datetime import datetime
-
+from django.utils import timezone
 from engine.aws_wrapper import AWSData
 from webapp.models import Settings
 
@@ -21,5 +20,5 @@ class AwsSync:
     def update_setting_db(self, s_type):
         # Settings update
         setting = Settings.objects.get(name=s_type)
-        setting.last_sync = datetime.now()
+        setting.last_sync = timezone.now()
         setting.save()
