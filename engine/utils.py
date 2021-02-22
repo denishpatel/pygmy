@@ -35,15 +35,16 @@ def create_cron(rule):
     #     settings.BASE_DIR, rule.id), comment="rule_{}".format(rule.id))
 
     # Run at
-    time = rule.run_at.split(":")
-    hour = time[0]
-    minute = time[1]
-
-    # Setup a cron
-    if hour:
-        job.hour.on(hour)
-    if minute:
-        job.minute.on(minute)
+    job.setall(rule.run_at)
+    # time = rule.run_at.split(":")
+    # hour = time[0]
+    # minute = time[1]
+    #
+    # # Setup a cron
+    # if hour:
+    #     job.hour.on(hour)
+    # if minute:
+    #     job.minute.on(minute)
     cron.write()
 
 
