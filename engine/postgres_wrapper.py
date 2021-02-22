@@ -79,7 +79,7 @@ class PostgresData:
         ONLY to be hit on REPLICA
         """
         query = "SELECT EXTRACT(EPOCH FROM (now() - pg_last_xact_replay_timestamp()))::INT replica_lag_in_seconds"
-        return self.execute_and_return_data(query)[0]
+        return self.execute_and_return_data(query)[0][0]
 
     def get_streaming_status(self):
         """
@@ -88,6 +88,14 @@ class PostgresData:
         """
         query = "select * from pg_stat_wal_receiver"
         return self.execute_and_return_data(query)[0][1] == "streaming"
+
+    def get_system_load_avg(self):
+        """
+        Return avg system load in last 15 mins if available
+        else return last 10 mins load
+        """
+        query = "SELECT * FROM pg_sys_load_avg_info"
+        return self.execute_and_return_data(query)[0]
 
     def close(self):
         self.cursor.close()

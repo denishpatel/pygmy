@@ -3,7 +3,6 @@ from django.core.management import BaseCommand
 from engine.aws_wrapper import AWSData
 from engine.models import AllEc2InstancesData, Ec2DbInfo, ClusterInfo, EC2
 from engine.postgres_wrapper import PostgresData
-from engine.views import update_ec2_data
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +13,8 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         try:
+            AWSData().describe_ec2_instances()
+
             # update ec2 instances data
             all_instances = AllEc2InstancesData.objects.all()
             for db in all_instances:
@@ -33,7 +34,8 @@ class Command(BaseCommand):
             db_conn = PostgresData(instance.publicDnsName, "pygmy", "pygmy", "postgres")
             db_info.isPrimary = db_conn.is_ec2_postgres_instance_primary()
             if db_info.isPrimary:
-                db_info.cluster, created = ClusterInfo.objects.get_or_create(primaryNodeIp=instance.privateDnsName, type=EC2)
+                db_info.cluster, created = ClusterInfo.objects.get_or_create(primaryNodeIp=instance.privateDnsName,
+                                                                             type=EC2)
             db_info.isConnected = True
         except Exception as e:
             db_info.isPrimary = False

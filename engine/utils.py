@@ -31,6 +31,9 @@ def create_cron(rule):
     job = cron.new(command="{0}/venv/bin/python {0}/manage.py apply_rule {1}".format(
         settings.BASE_DIR, rule.id), comment="rule_{}".format(rule.id))
 
+    # job_2 = cron.new(command="{0}/venv/bin/python {0}/manage.py get_all_db_data".format(
+    #     settings.BASE_DIR, rule.id), comment="rule_{}".format(rule.id))
+
     # Run at
     time = rule.run_at.split(":")
     hour = time[0]
@@ -52,3 +55,11 @@ def delete_cron(rule):
     cron.remove_all(comment="rule_{}".format(rule.id))
 
     cron.write()
+
+
+def delete_all_crons():
+    if sys.platform == "win32":
+        return
+
+    cron = CronTab(user=getpass.getuser())
+    cron.remove_all()

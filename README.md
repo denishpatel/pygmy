@@ -40,7 +40,7 @@ Load instance types data
 $ python manage.py refresh_all_db_instance_types
 ```
 
-Populate settings data
+Populate settings data ( Run only one time at starting )
 ```shell
 $ python manage.py populate_settings_data
 ```
@@ -50,7 +50,18 @@ Load instance data
 $ python manage.py get_all_db_data
 ```
 
-Start local server
+Start local server ( Testing only )
 ```shell
 $ python manage.py runserver
+```
+
+Start uwsgi ( Production )
+```shell
+$  nohup uwsgi proj.ini &
+```
+
+Restart uwsgi ( Production )
+```shell
+$  pkill -9 uwsgi
+$  nohup uwsgi proj.ini &
 ```

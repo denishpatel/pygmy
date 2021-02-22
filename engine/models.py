@@ -1,4 +1,3 @@
-from django.contrib.contenttypes import fields
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.core.serializers.json import DjangoJSONEncoder
@@ -99,7 +98,7 @@ class AllEc2InstancesData(models.Model):
     instanceType = models.CharField(max_length=255, null=False)
     keyName = models.CharField(max_length=255, null=False)
     launchTime = models.DateTimeField()
-    availabilityZone= models.CharField(max_length=255)
+    availabilityZone = models.CharField(max_length=255)
     privateDnsName = models.CharField(max_length=255)
     privateIpAddress = models.CharField(max_length=255)
     publicDnsName = models.CharField(max_length=255)
@@ -149,7 +148,7 @@ class InstanceStateInfo(models.Model):
 
 class Rules(models.Model):
     name = models.CharField(max_length=100, default=getRuleName)
-    cluster = models.ForeignKey(ClusterInfo, on_delete=models.DO_NOTHING)
+    cluster = models.ForeignKey(ClusterInfo, on_delete=models.CASCADE)
     rule = models.JSONField()
     action = models.CharField(choices=RuleType, max_length=100)
     action_arg = models.CharField(max_length=255, null=True)

@@ -1,4 +1,4 @@
-import json
+import time
 from django.utils import timezone
 from django.core.management import BaseCommand
 from engine.aws_wrapper import AWSData
@@ -8,7 +8,7 @@ from engine.models import Rules, Ec2DbInfo, EC2, RDS
 class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('rule_id', nargs='+', type=int, help="Rule id to run. You can provide multiple "
-                                                                     "rule ids to run multiple rule")
+                            "rule ids to run multiple rule")
 
     def handle(self, *args, **kwargs):
         for rid in kwargs['rule_id']:
@@ -35,4 +35,9 @@ class Command(BaseCommand):
             finally:
                 rule_db.last_run = timezone.now()
                 rule_db.save()
+
+            # auto reload of the instances
+            time.sleep(60)
+            aws.describe_ec2_instances()
+            aws.describe_rds_instances()
             print("Rule has completed successfully")
