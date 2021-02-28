@@ -2,7 +2,7 @@ import time
 from django.utils import timezone
 from django.core.management import BaseCommand
 from engine.aws_wrapper import AWSData
-from engine.models import Rules, Ec2DbInfo, EC2, RDS
+from engine.models import Rules, Ec2DbInfo, EC2, RDS, ActionLogs
 
 
 class Command(BaseCommand):
@@ -27,17 +27,28 @@ class Command(BaseCommand):
                         aws.scale_rds_instance(db.instance_id, rds_type, db_parameter)
                 rule_db.status = True
                 rule_db.err_msg = ""
+                msg = "Successfully Executed Rule"
             except Exception as e:
                 rule_db.status = False
                 rule_db.err_msg = e
                 print(str(e))
                 print("No rule found")
+                msg = "Rule not matched"
             finally:
                 rule_db.last_run = timezone.now()
                 rule_db.save()
+                self.add_log_entry(rule_db, msg)
 
             # auto reload of the instances
             time.sleep(60)
             aws.describe_ec2_instances()
             aws.describe_rds_instances()
             print("Rule has completed successfully")
+
+    def add_log_entry(self, rule, msg):
+        # Add Log entry
+        log = ActionLogs()
+        log.rule = rule
+        log.msg = msg
+        log.status = rule.status
+        log.save()

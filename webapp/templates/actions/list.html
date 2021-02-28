@@ -1,0 +1,58 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+{% block content %}
+<style>
+    .time_td {
+        width: 165px;
+    }
+    .scale_icon {
+        max-width: 20px;
+    }
+</style>
+<div class="content-padder content-background">
+    <div class="uk-section-xsmall uk-section-default header">
+        <div class="uk-container uk-container-large">
+            <ul class="uk-breadcrumb">
+                <li><a href="#">Home</a></li>
+                <li><span href="">Action</span></li>
+            </ul>
+        </div>
+    </div>
+    <div class="uk-section-xsmall uk-container uk-container-large uk-overflow-auto">
+        <table id="example" class="uk-table uk-table-small uk-table-middle uk-table-hover uk-table-divider .uk-table-striped" style="width:100%">
+            <thead style="background: #232f3e;">
+                <tr>
+                    <th>ID</th>
+                    <th>Rule Id</th>
+                    <th>Message</th>
+                    <th>Status</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody style="background-color: #ffffff; color: black;">
+            {% for action in actions %}
+                <tr>
+                    <td>{{action.id}}</td>
+                    <td>
+                        <a href="{% url 'edit_rule' action.rule.id %}">{{action.rule.name}}
+                            {% if action.rule.action == "SCALE_UP" %}
+                            <img class="scale_icon" src="{% static '/img/up.ico' %}" />{% else %}
+                            <img class="scale_icon" src="{% static '/img/down.ico' %}" />
+                            {% endif %}
+                        </a>
+                    </td>
+                    <td>{{action.msg}}</td>
+                    <td>{{action.status}}</td>
+                    <td class="time_td">{{action.time}}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+{% block js_bottom %}{{ block.super }}
+<script>
+
+</script>
+{% endblock %}

@@ -156,3 +156,10 @@ class Rules(models.Model):
     run_at = models.CharField(max_length=100, null=False)
     err_msg = models.CharField(max_length=255, null=True)
     last_run = models.DateTimeField(auto_created=True, null=True)
+
+
+class ActionLogs(models.Model):
+    rule = models.ForeignKey(Rules, on_delete=models.DO_NOTHING)
+    time = models.DateTimeField(auto_now_add=True, null=True)
+    msg = models.CharField(max_length=255)
+    status = models.BooleanField(default=False)

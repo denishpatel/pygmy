@@ -1,5 +1,6 @@
 from django.urls import path, re_path
 
+from webapp.view.actions import ActionsView
 from webapp.view.rules import CreateRulesView, RulesView, EditRuleView
 from webapp.view.settings import SettingsView, SettingsRefreshView
 from webapp.views import LandingView, SecretsView, ClusterView, InstanceView, \
@@ -17,4 +18,5 @@ urlpatterns = [
     path('instance/<str:cluster_type>/<str:id>/edit', InstanceView.as_view(), name="instance_edit"),
     path("settings", SettingsView.as_view(), name="settings"),
     path("settings/reload", SettingsRefreshView.as_view(), name="settings_reload"),
+    path("actions", ActionsView.as_view(), name="action_list"),
 ]
