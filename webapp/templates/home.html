@@ -34,7 +34,11 @@
                         </td>
                         <td><img class="uk-preserve-width" src="{% if row.type == 'EC2' %}{% static '/img/aws-ec2.svg' %}{% else %}{% static '/img/aws-rds.svg' %}{% endif %}" width="15px">
                             {{ row.type }}</td>
+                        {% if row.cluster %}
                         <td><a href="{% url 'clusters' row.cluster.id %}">{{ row.cluster.name }}</a></td>
+                        {% else %}
+                        <td><a href="#">Non Cluster</a></td>
+                        {% endif %}
                         <td>{{ row.instance_id }}</td>
                         <td>{{ row.isPrimary }}</td>
                         <td>{{ row.instance_object.availabilityZone }}</td>

@@ -174,3 +174,12 @@ REDOC_SETTINGS = {
 }
 
 STATIC_ROOT = os.path.join(BASE_DIR, "static")
+
+# Filter Tag values
+EC2_INSTANCE_POSTGRES_TAG_KEY_NAME = "role"
+EC2_INSTANCE_POSTGRES_TAG_KEY_VALUE = "pg-instance"
+
+# Read Tag Values
+EC2_INSTANCE_PROJECT_TAG_KEY_NAME = "project"
+EC2_INSTANCE_ENV_TAG_KEY_NAME = "environment"
+EC2_INSTANCE_CLUSTER_TAG_KEY_NAME = "cluster"

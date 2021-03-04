@@ -33,19 +33,24 @@ class Command(BaseCommand):
         try:
             db_conn = PostgresData(instance.publicDnsName, "pygmy", "pygmy", "postgres")
             db_info.isPrimary = db_conn.is_ec2_postgres_instance_primary()
-            if db_info.isPrimary:
-                db_info.cluster, created = ClusterInfo.objects.get_or_create(primaryNodeIp=instance.privateDnsName,
-                                                                             type=EC2)
             db_info.isConnected = True
+            print("publicIp: ", instance.publicDnsName, " isPrimary: ", db_conn.is_ec2_postgres_instance_primary())
+            db_info.save()
+
+            # Handle primary node case
+            if db_info.isPrimary:
+                tag_map = AWSData.get_tag_map(instance)
+                cluster_name = AWSData.get_cluster_name(tag_map)
+                db_info.cluster, created = ClusterInfo.objects.get_or_create(name=cluster_name, primaryNodeIp=instance.privateDnsName,
+                                                                             type=EC2)
+                replicas = db_conn.get_all_slave_servers()
+                self.update_cluster_info(instance.privateDnsName, replicas)
+
         except Exception as e:
+            print("Fail to connect Server {}".format(instance.publicDnsName))
             db_info.isPrimary = False
             db_info.isConnected = False
-        db_info.save()
-
-        if db_info.isPrimary:
-            replicas = db_conn.get_all_slave_servers()
-            self.update_cluster_info(instance.privateDnsName, replicas)
-        print("publicIp: ", instance.publicDnsName, " isPrimary: ", db_conn.is_ec2_postgres_instance_primary())
+            db_info.save()
 
     @staticmethod
     def update_cluster_info(privateDnsName, replicas):

@@ -3,7 +3,8 @@ import boto3
 from django.utils import timezone
 from engine.models import AllEc2InstancesData, RdsInstances, ClusterInfo, EC2, RDS, Ec2DbInfo
 from engine.postgres_wrapper import PostgresData
-from webapp.models import Settings
+from webapp.models import Settings as SettingsModal
+from django.conf import settings
 
 
 class AWSData:
@@ -64,7 +65,7 @@ class AWSData:
             )
 
         # Settings update
-        setting = Settings.objects.get(name="rds")
+        setting = SettingsModal.objects.get(name="rds")
         setting.last_sync = timezone.now()
         setting.save()
         return all_instances
@@ -72,9 +73,9 @@ class AWSData:
     def describe_ec2_instances(self):
         all_instances = dict()
         filters = [{
-            'Name': 'tag:{}'.format(os.getenv("EC2-INSTANCE-POSTGRES-TAG-KEY-NAME", "type")),
+            'Name': 'tag:{}'.format(settings.EC2_INSTANCE_POSTGRES_TAG_KEY_NAME),
             'Values': [
-                os.getenv("EC2-INSTANCE-POSTGRES-TAG-KEY-VALUE", "pg-instance"),
+                os.getenv(settings.EC2_INSTANCE_POSTGRES_TAG_KEY_VALUE),
             ]
         }]
 
@@ -114,7 +115,7 @@ class AWSData:
             )
 
         # Settings update
-        setting = Settings.objects.get(name="ec2")
+        setting = SettingsModal.objects.get(name="ec2")
         setting.last_sync = timezone.now()
         setting.save()
 
@@ -316,3 +317,14 @@ class AWSData:
             db_info.cluster = ClusterInfo.objects.get(primaryNodeIp=privateDnsName, type=EC2)
             db_info.content_object = instance
             db_info.save()
+
+    @staticmethod
+    def get_tag_map(instance):
+        return dict((tag['Key'].lower(), tag['Value'].lower()) for tag in instance.tags)
+
+    @staticmethod
+    def get_cluster_name(tag_map):
+        project = tag_map.get(settings.EC2_INSTANCE_PROJECT_TAG_KEY_NAME, None)
+        environment = tag_map.get(settings.EC2_INSTANCE_ENV_TAG_KEY_NAME, None)
+        cluster = tag_map.get(settings.EC2_INSTANCE_CLUSTER_TAG_KEY_NAME, None)
+        return "{}-{}-{}".format(project, environment, cluster)

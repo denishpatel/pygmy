@@ -159,7 +159,7 @@ class Rules(models.Model):
 
 
 class ActionLogs(models.Model):
-    rule = models.ForeignKey(Rules, on_delete=models.DO_NOTHING)
+    rule = models.ForeignKey(Rules, on_delete=models.CASCADE)
     time = models.DateTimeField(auto_now_add=True, null=True)
     msg = models.CharField(max_length=255)
     status = models.BooleanField(default=False)
