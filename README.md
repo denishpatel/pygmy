@@ -65,3 +65,4 @@ Restart uwsgi ( Production )
 $  pkill -9 uwsgi
 $  nohup uwsgi proj.ini &
 ```
+
