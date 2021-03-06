@@ -40,10 +40,13 @@ class AWSData:
                 if slave_identifier is None:
                     rds = self.save_rds_data(instance)
                     db_info, created = Ec2DbInfo.objects.get_or_create(instance_id=rds.dbInstanceIdentifier, type=RDS)
-                    cluster, created = ClusterInfo.objects.get_or_create(primaryNodeIp=rds.dbInstanceIdentifier, type=RDS)
+                    # cluster, created = ClusterInfo.objects.get_or_create(primaryNodeIp=rds.dbInstanceIdentifier, type=RDS)
+                    # if created:
+                    #     cluster.name = self.get_cluster_name(self.get_rds_tag_map(instance))
+                    #     cluster.save()
                     db_info.isPrimary = True
                     db_info.instance_object = rds
-                    db_info.cluster = cluster
+                    db_info.cluster = self.get_or_create_cluster(instance, rds.dbInstanceIdentifier,cluster_type=RDS)
                     db_info.isConnected = True
                     db_info.save()
                 else:
@@ -319,12 +322,30 @@ class AWSData:
             db_info.save()
 
     @staticmethod
-    def get_tag_map(instance):
-        return dict((tag['Key'].lower(), tag['Value'].lower()) for tag in instance.tags)
+    def get_tag_map(instance, cluster_type=EC2):
+        if cluster_type == EC2:
+            return dict((tag['Key'].lower(), tag['Value'].lower()) for tag in instance.tags)
+        else:
+            return dict((tag['Key'].lower(), tag['Value'].lower()) for tag in instance.get("TagList"))
 
     @staticmethod
     def get_cluster_name(tag_map):
         project = tag_map.get(settings.EC2_INSTANCE_PROJECT_TAG_KEY_NAME, None)
         environment = tag_map.get(settings.EC2_INSTANCE_ENV_TAG_KEY_NAME, None)
         cluster = tag_map.get(settings.EC2_INSTANCE_CLUSTER_TAG_KEY_NAME, None)
-        return "{}-{}-{}".format(project, environment, cluster)
+        print("Tag values project:{} environment:{} cluster:{}".format(project, environment, cluster))
+        if project and environment and cluster:
+            return "{}-{}-{}".format(project, environment, cluster)
+        else:
+            return None
+
+    @classmethod
+    def get_or_create_cluster(cls, instance, primaryNodeId, cluster_type=EC2):
+        cluster, created = ClusterInfo.objects.get_or_create(primaryNodeIp=primaryNodeId, type=cluster_type)
+        if created:
+            cluster_name = cls.get_cluster_name(cls.get_tag_map(instance, cluster_type))
+            print("Cluster name ", cluster_name)
+            if cluster_name:
+                cluster.name = cluster_name
+                cluster.save()
+        return cluster

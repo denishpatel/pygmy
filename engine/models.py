@@ -16,6 +16,8 @@ EC2 = "EC2"
 RDS = "RDS"
 SCALE_DOWN = "SCALE_DOWN"
 SCALE_UP = "SCALE_UP"
+DAILY = "DAILY"
+CRON = "CRON"
 
 CLUSTER_TYPES = (
     (EC2, "EC2"),
@@ -27,6 +29,10 @@ RuleType = (
     (SCALE_UP, "SCALE_UP")
 )
 
+RunType = (
+    (DAILY, "DAILY"),
+    (CRON, "CRON")
+)
 
 class ClusterInfo(models.Model):
     name = models.CharField(max_length=100, default=getClusterName)
@@ -41,7 +47,6 @@ class DbCredentials(models.Model):
 
 
 class Ec2DbInfo(models.Model):
-    # instance = models.OneToOneField(AllEc2InstancesData, on_delete=models.CASCADE, related_name="db_info")
     instance_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True)
     instance_id = models.CharField(max_length=255)
     instance_object = GenericForeignKey('instance_type', 'instance_id')
@@ -153,6 +158,7 @@ class Rules(models.Model):
     action = models.CharField(choices=RuleType, max_length=100)
     action_arg = models.CharField(max_length=255, null=True)
     status = models.BooleanField(default=False, null=True)
+    run_type = models.CharField(choices=RunType, max_length=100)
     run_at = models.CharField(max_length=100, null=False)
     err_msg = models.CharField(max_length=255, null=True)
     last_run = models.DateTimeField(auto_created=True, null=True)

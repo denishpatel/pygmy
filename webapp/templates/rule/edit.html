@@ -89,44 +89,18 @@
                     </td>
                 </tr>
                 <tr>
-                    <td colspan="2">
-                        <div class="uk-margin">
-                            <label class="uk-form-label uk-width-1-4 uk-text-default ">At Time</label>
-                            <div class="uk-form-controls">
-                                <input id="time" name="time" class="uk-input crontime" type="text" placeholder="Search text..." value="{{data.run_at}}" required>
-                            </div>
-                        </div>
-                    </td>
-                </tr>
-                <tr>
                     <td>
                         <div class="uk-margin">
                             <label class="uk-form-label uk-text-default" for="form-horizontal-select">Action</label>
                             <div class="uk-form-controls">
                                 <select name="action" class="uk-select" id="form-horizontal-select">
-                                    <option value="SCALE_DOWN" {% if data.action == "SCALE_DOWN"%}selected{% endif %}>Scale Down</option>
-                                    <option value="SCALE_UP" {% if data.action == "SCALE_UP"%}selected{% endif %}>Scale Up</option>
+                                    <option value="SCALE_DOWN" {% if data.action == "SCALE_DOWN" %}selected{% endif %}>Scale Down</option>
+                                    <option value="SCALE_UP" {% if data.action == "SCALE_UP" %}selected{% endif %}>Scale Up</option>
                                 </select>
                             </div>
                         </div>
                     </td>
                 </tr>
-<!--                <tr>-->
-<!--                    <td>-->
-<!--                        <div>-->
-<!--                            <label class="uk-form-label uk-width-1-4 uk-text-default ">Replication Lag</label>-->
-<!--                            <div class="uk-form-controls">-->
-<!--                                <select name="r_op" class="uk-select uk-width-1-3" id="select-r-op">-->
-<!--                                    <option value="equal" {% if data.rule.rl_op == 'equal' %}selected{% endif %}>equal</option>-->
-<!--                                    <option value="less" {% if data.rule.rl_op == 'less' %}selected{% endif %}>less than</option>-->
-<!--                                    <option value="greater" {% if data.rule.rl_op == 'greater' %}selected{% endif %}>greater than</option>-->
-<!--                                </select>-->
-<!--                                <input id="r_threshold" name="r_threshold" class="uk-input uk-width-3-5" type="text" placeholder="EC2 types..." value="{{data.rule.rl_threshold}}" required>-->
-<!--                            </div>-->
-<!--                        </div>-->
-<!--                    </td>-->
-<!--                    <td></td>-->
-<!--                </tr>-->
                 <tr>
                     <td>
                         <div id="ec2_type_div" style="display: {% if data.cluster.type == 'EC2' %}block{% else %}none{% endif %}">
@@ -140,6 +114,67 @@
                             <div class="uk-form-controls">
                                 <input id="rds_type" name="rds_type" class="uk-select rds_types" type="text" placeholder="RDS types..." value="{{data.rule.rds_type}}">
                             </div>
+                        </div>
+                    </td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="uk-form-label uk-margin uk-grid-small uk-child-width-auto uk-grid">
+                            <label class="uk-text-default">
+                                <input id="enableTime" name="enableTime" class="uk-checkbox" type="checkbox" {% if data.run_type %}checked{% endif %}> Time
+                            </label>
+                        </div>
+                        <div id="inputTime" class="uk-form-controls">
+                            <div class="time_options">
+                                <label><input class="typeTime uk-radio" type="radio" name="typeTime" value="DAILY" {% if data.run_type == "DAILY" %}checked{% endif %}> Daily</label>
+                                <label style="padding-left: 30px;"><input class="typeTime uk-radio" type="radio" name="typeTime" value="CRON" style="align: right" {% if data.run_type == "CRON" %}checked{% endif %}> Cron</label>
+                            </div>
+                            <div id="check_daily_time_input" class="uk-margin" {% if data.run_type == "CRON" %}style="display: none"{% endif %}>
+                                <div>
+                                    <input id="dailyTime" name="dailyTime" class="uk-input flatpickr" type="text" placeholder="Time..." value="{{data.run_at}}">
+                                </div>
+                            </div>
+                            <div id="check_cron_time_input" class="uk-margin" {% if data.run_type == "DAILY" %}style="display: none"{% endif %}>
+                                <div>
+                                    <input id="cronTime" name="cronTime" class="uk-input crontime" type="text" placeholder="Time..." value="{{data.run_at}}">
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="uk-form-label uk-margin uk-grid-small uk-child-width-auto uk-grid">
+                            <label class="uk-text-default">
+                                <input id="enableReplicationLag" name="enableReplicationLag" class="uk-checkbox" type="checkbox" {% if data.rule.replicationLag %}checked{% endif %}> Replication Lag
+                            </label>
+                        </div>
+                        <div id="inputReplicationLag" class="uk-form-controls">
+                            <select name="selectReplicationLagOp" class="uk-select uk-width-1-3" id="selectReplicationLagOp">
+                                <option value="equal" {% if data.rule.replicationLag.op == "equal" %}selected{% endif %}>equal</option>
+                                <option value="less" {% if data.rule.replicationLag.op == "less" %}selected{% endif %}>less than</option>
+                                <option value="greater" {% if data.rule.replicationLag.op == "greater" %}selected{% endif %}>greater than</option>
+                            </select>
+                            <input id="replicationLag" name="replicationLag" class="uk-input uk-width-3-5" type="text" placeholder="Replication..." value="{{data.rule.replicationLag.value}}">
+                        </div>
+                    </td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="uk-form-label uk-margin uk-grid-small uk-child-width-auto uk-grid">
+                            <label class="uk-text-default">
+                                <input id="enableCheckConnection" name="enableCheckConnection" class="uk-checkbox" type="checkbox" {% if data.rule.checkConnection   %}checked{% endif %}> Connections
+                            </label>
+                        </div>
+                        <div id="inputCheckConnection" class="uk-form-controls">
+                            <select name="selectCheckConnectionOp" class="uk-select uk-width-1-3" id="selectCheckConnectionOp">
+                                <option value="equal" {% if data.rule.checkConnection.op == "equal" %}selected{% endif %}>equal</option>
+                                <option value="less" {% if data.rule.checkConnection.op == "less" %}selected{% endif %}>less than</option>
+                                <option value="greater" {% if data.rule.checkConnection.op == "greater" %}selected{% endif %}>greater than</option>
+                            </select>
+                            <input id="checkConnection" name="checkConnection" class="uk-input uk-width-3-5" type="text" placeholder="Connection..." value="{{data.rule.checkConnection.value}}">
                         </div>
                     </td>
                     <td></td>
@@ -180,6 +215,14 @@ $(document).ready(function() {
       minChars: 0,
       onSelect: function (suggestion) {
         $("#cluster").val(suggestion.data);
+        $("#cluster").val(suggestion.data);
+        console.log("suggestion " + suggestion);
+        $("#ec2_type_div").hide();
+        $("#rds_type_div").hide();
+        if(suggestion.type == "RDS")
+            $("#rds_type_div").show();
+        else
+            $("#ec2_type_div").show();
       }
     });
 
@@ -200,6 +243,17 @@ $(document).ready(function() {
     });
 
     $('.crontime').jqCron();
+
+    // hide all inputs
+    {% if not data.run_type %}
+        $("#inputTime").hide();
+    {% endif %}
+    {% if not data.rule.checkConnection %}
+        $("#inputCheckConnection").hide();
+    {% endif %}
+    {% if not data.rule.replicationLag %}
+        $("#inputReplicationLag").hide();
+    {% endif %}
 });
 
 function delete_rule() {
@@ -216,6 +270,43 @@ function delete_rule() {
         notyf.error('Fail! deleting rule is failed!');
     });
 }
+
+// Handle time check
+$("#enableTime").change(function() {
+   if(this.checked) {
+        $("#inputTime").show();
+   } else {
+        $("#inputTime").hide();
+   }
+});
+
+$("#enableCheckConnection").change(function() {
+    if(this.checked) {
+        $("#inputCheckConnection").show();
+   } else {
+        $("#inputCheckConnection").hide();
+   }
+});
+
+$("#enableReplicationLag").change(function() {
+    if(this.checked) {
+        $("#inputReplicationLag").show();
+   } else {
+        $("#inputReplicationLag").hide();
+   }
+});
+
+// Handle Replication Lag
+$(".typeTime").change(function() {
+    console.log("this ", this.value);
+    if(this.value == "DAILY") {
+        $("#check_cron_time_input").hide();
+        $("#check_daily_time_input").show();
+    } else {
+        $("#check_cron_time_input").show();
+        $("#check_daily_time_input").hide();
+    }
+});
 {% endif %}
 </script>
 {% endblock %}

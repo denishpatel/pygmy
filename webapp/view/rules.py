@@ -1,8 +1,8 @@
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views import View
-from engine.models import EC2, RDS, Rules, SCALE_UP, SCALE_DOWN, ClusterInfo
-from engine.utils import get_instance_types, create_cron, get_selection_list, delete_cron
+from engine.models import EC2, RDS, Rules, SCALE_UP, SCALE_DOWN, ClusterInfo, DAILY, CRON
+from engine.utils import get_instance_types, create_cron, get_selection_list, delete_cron, RuleUtils
 
 
 class CreateRulesView(View):
@@ -24,15 +24,26 @@ class CreateRulesView(View):
         result = dict()
         try:
             name = request.POST.get("name", None)
-            r_op = request.POST.get("r_op", None)
-            r_threshold = request.POST.get("r_threshold", None)
+
+            enableTime = request.POST.get("enableTime", False)
+            typeTime = request.POST.get("typeTime", "daily")
+            dailyTime = request.POST.get("dailyTime", None)
+            cronTime = request.POST.get("cronTime", None)
+
+            enableReplicationLag = request.POST.get("enableReplicationLag", False)
+            selectReplicationLagOp = request.POST.get("selectReplicationLagOp", None)
+            replicationLag = request.POST.get("replicationLag", None)
+
+            enableCheckConnection = request.POST.get("enableCheckConnection", False)
+            selectCheckConnectionOp = request.POST.get("selectCheckConnectionOp", None)
+            checkConnection = request.POST.get("checkConnection", None)
+
             cluster = request.POST.get("cluster_id", None)
             action = request.POST.get("action", None)
-            time = request.POST.get("time", None)
             ec2_type = request.POST.get("ec2_type", None)
             rds_type = request.POST.get("rds_type", None)
 
-            if cluster and action.upper() in (SCALE_UP, SCALE_DOWN) and time and (ec2_type or rds_type):
+            if name and cluster and action:
                 # Scale down Rule
                 self.create_rule(request.POST)
                 result.update({"success": True})
@@ -47,22 +58,7 @@ class CreateRulesView(View):
         return super(CreateRulesView, self).dispatch(*args, **kwargs)
 
     def create_rule(self, data):
-        # name, rule_type, cluster_id, time, ec2_type, rds_type
-        rules = {
-            "ec2_type": data.get("ec2_type", None),
-            "rds_type": data.get("rds_type", None),
-            "rl_threshold": data.get("r_threshold", None),
-            "rl_op": data.get("r_op", None)
-        }
-        rule_db = Rules()
-        rule_db.name = data.get("name", None)
-        rule_db.action = data.get("action", None)
-        rule_db.cluster_id = data.get("cluster_id", None)
-        rule_db.run_at = data.get("time", None)
-        rule_db.rule = rules
-        rule_db.save()
-        create_cron(rule_db)
-
+        RuleUtils.add_rule_db(data)
 
 class EditRuleView(View):
     template = "rule/edit.html"
@@ -98,13 +94,26 @@ class EditRuleView(View):
         try:
             rule = Rules.objects.get(id=id)
             name = request.POST.get("name", None)
+
+            enableTime = request.POST.get("enableTime", False)
+            typeTime = request.POST.get("typeTime", "daily")
+            dailyTime = request.POST.get("dailyTime", None)
+            cronTime = request.POST.get("cronTime", None)
+
+            enableReplicationLag = request.POST.get("enableReplicationLag", False)
+            selectReplicationLagOp = request.POST.get("selectReplicationLagOp", None)
+            replicationLag = request.POST.get("replicationLag", None)
+
+            enableCheckConnection = request.POST.get("enableCheckConnection", False)
+            selectCheckConnectionOp = request.POST.get("selectCheckConnectionOp", None)
+            checkConnection = request.POST.get("checkConnection", None)
+
             cluster = request.POST.get("cluster_id", None)
             action = request.POST.get("action", None)
-            time = request.POST.get("time", None)
             ec2_type = request.POST.get("ec2_type", None)
             rds_type = request.POST.get("rds_type", None)
 
-            if cluster and action.upper() in (SCALE_UP, SCALE_DOWN) and time and (ec2_type or rds_type):
+            if name and cluster and action:
                 self.update_rule(rule, request.POST)
                 result.update({"success": True})
             else:
@@ -120,19 +129,7 @@ class EditRuleView(View):
         return super(EditRuleView, self).dispatch(*args, **kwargs)
 
     def update_rule(self, rule_db, data):
-        rules = {
-            "ec2_type": data.get("ec2_type", None),
-            "rds_type": data.get("rds_type", None),
-            "rl_threshold": data.get("r_threshold", None),
-            "rl_op": data.get("r_op", None)
-        }
-        rule_db.name = data.get("name", None)
-        rule_db.action = data.get("action", None)
-        rule_db.cluster_id = data.get("cluster_id", None)
-        rule_db.run_at = data.get("time", None)
-        rule_db.rule = rules
-        rule_db.save()
-        create_cron(rule_db)
+        RuleUtils.add_rule_db(data, rule_db)
 
 
 class RulesView(View):

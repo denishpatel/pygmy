@@ -1,7 +1,7 @@
 import getpass
 import sys
 from crontab import CronTab
-from engine.models import AllRdsInstanceTypes, AllEc2InstanceTypes, RDS
+from engine.models import AllRdsInstanceTypes, AllEc2InstanceTypes, RDS, CRON, Rules, DAILY
 from django.db.models import F
 import json
 from django.conf import settings
@@ -34,17 +34,19 @@ def create_cron(rule):
     # job_2 = cron.new(command="{0}/venv/bin/python {0}/manage.py get_all_db_data".format(
     #     settings.BASE_DIR, rule.id), comment="rule_{}".format(rule.id))
 
-    # Run at
-    job.setall(rule.run_at)
-    # time = rule.run_at.split(":")
-    # hour = time[0]
-    # minute = time[1]
-    #
-    # # Setup a cron
-    # if hour:
-    #     job.hour.on(hour)
-    # if minute:
-    #     job.minute.on(minute)
+    if rule.run_type == CRON:
+        # Run at
+        job.setall(rule.run_at)
+    else:
+        time = rule.run_at.split(":")
+        hour = time[0]
+        minute = time[1]
+
+        # Setup a cron
+        if hour:
+            job.hour.on(hour)
+        if minute:
+            job.minute.on(minute)
     cron.write()
 
 
@@ -64,3 +66,56 @@ def delete_all_crons():
 
     cron = CronTab(user=getpass.getuser())
     cron.remove_all()
+
+
+class RuleUtils:
+
+    @staticmethod
+    def add_rule_db(data, rule_db=None):
+        if not rule_db:
+            rule_db = Rules()
+
+        # name, rule_type, cluster_id, time, ec2_type, rds_type
+        rules = {
+            "ec2_type": data.get("ec2_type", None),
+            "rds_type": data.get("rds_type", None)
+        }
+
+        # Set replication check
+        enableReplicationLag = data.get("enableReplicationLag", None)
+        if enableReplicationLag and enableReplicationLag == "on":
+            rules.update({
+                "replicationLag": dict({
+                    "op": data.get("selectReplicationLagOp", None),
+                    "value": data.get("replicationLag", None)
+                })
+            })
+
+        # Set Connection check
+        enableCheckConnection = data.get("enableCheckConnection", None)
+        if enableCheckConnection and enableCheckConnection == "on":
+            rules.update({
+                "checkConnection": dict({
+                    "op": data.get("selectCheckConnectionOp", None),
+                    "value": data.get("checkConnection", None)
+                })
+            })
+
+        rule_db.name = data.get("name", None)
+        rule_db.action = data.get("action", None)
+        rule_db.cluster_id = data.get("cluster_id", None)
+        enableTime = data.get("enableTime", False)
+        typeTime = data.get("typeTime", None)
+
+        # Set time
+        if enableTime:
+            if typeTime.upper() == DAILY:
+                rule_db.run_type = DAILY
+                rule_db.run_at = data.get("dailyTime", None)
+            else:
+                rule_db.run_type = CRON
+                rule_db.run_at = data.get("cronTime", None)
+
+        rule_db.rule = rules
+        rule_db.save()
+        create_cron(rule_db)
