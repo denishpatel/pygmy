@@ -1,5 +1,6 @@
 import os
 import boto3
+import datetime
 from django.utils import timezone
 from engine.models import AllEc2InstancesData, RdsInstances, ClusterInfo, EC2, RDS, Ec2DbInfo
 from engine.postgres_wrapper import PostgresData
@@ -18,6 +19,7 @@ class AWSData:
         self.aws_session = boto3.Session(region_name=os.getenv("AWS_REGION", ""))
         self.rds_client = self.aws_session.client('rds')
         self.ec2_client = self.aws_session.client('ec2')
+        self.cloudwatch_client = self.aws_session.client('cloudwatch')
 
     def describe_rds_instances(self):
         all_instances = dict()
@@ -313,7 +315,8 @@ class AWSData:
             self.update_cluster_info(instance.privateDnsName, replicas)
         print("publicIp: ", instance.publicDnsName, " isPrimary: ", db_conn.is_ec2_postgres_instance_primary())
 
-    def update_cluster_info(self, privateDnsName, replicas):
+    @staticmethod
+    def update_cluster_info(privateDnsName, replicas):
         for node in replicas:
             instance = AllEc2InstancesData.objects.get(privateIpAddress=node)
             db_info, created = Ec2DbInfo.objects.get_or_create(instance_id=instance.instanceId)
@@ -349,3 +352,22 @@ class AWSData:
                 cluster.name = cluster_name
                 cluster.save()
         return cluster
+
+    def get_rds_cloudwatch_metrics(self):
+        response = self.cloudwatch_client.get_metric_statistics(
+            Namespace='AWS/RDS',
+            MetricName='CPUUtilization',
+            Dimensions=[
+                {
+                    'Name': 'DBInstanceIdentifier',
+                    'Value': 'postgres-replica'
+                },
+            ],
+            StartTime=timezone.now() - datetime.timedelta(hours=1),
+            EndTime=timezone.now(),
+            Period=900,
+            Statistics=[
+                'Average',
+            ]
+        )
+        return response

@@ -97,6 +97,14 @@ class PostgresData:
         query = "SELECT * FROM pg_sys_load_avg_info"
         return self.execute_and_return_data(query)[0]
 
+    def get_no_of_active_connections(self):
+        """
+        Return number of active connections
+        """
+        query = "select datname,usename,application_name,count(*) as connection_count from pg_stat_activity "\
+                "where datname !='postgres' group by 1,2,3;"
+        return self.execute_and_return_data(query)[0]
+
     def close(self):
         self.cursor.close()
         self.conn.close()
