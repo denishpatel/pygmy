@@ -1,7 +1,9 @@
-from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
+from django.db import models
+from datetime import datetime
+from django.utils import timezone
 from django.contrib.contenttypes.models import ContentType
 from django.core.serializers.json import DjangoJSONEncoder
-from django.db import models
+from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 
 
 def getClusterName():
@@ -33,6 +35,7 @@ RunType = (
     (DAILY, "DAILY"),
     (CRON, "CRON")
 )
+
 
 class ClusterInfo(models.Model):
     name = models.CharField(max_length=100, default=getClusterName)
@@ -152,8 +155,11 @@ class InstanceStateInfo(models.Model):
 
 
 class Rules(models.Model):
+    """
+    Model to store the rules to be applied
+    """
     name = models.CharField(max_length=100, default=getRuleName)
-    cluster = models.ForeignKey(ClusterInfo, on_delete=models.CASCADE)
+    cluster = models.ForeignKey(ClusterInfo, on_delete=models.CASCADE, related_name="rules")
     rule = models.JSONField()
     action = models.CharField(choices=RuleType, max_length=100)
     action_arg = models.CharField(max_length=255, null=True)
@@ -165,7 +171,34 @@ class Rules(models.Model):
 
 
 class ActionLogs(models.Model):
+    """
+    Model to store all the action logs
+    """
     rule = models.ForeignKey(Rules, on_delete=models.CASCADE)
     time = models.DateTimeField(auto_now_add=True, null=True)
     msg = models.CharField(max_length=255)
     status = models.BooleanField(default=False)
+
+
+def is_valid_date(data):
+    try:
+        if isinstance(data, str):
+            data = datetime.strptime(data, "%Y-%m-%d")
+        date = timezone.datetime.date(data)
+        return True
+    except ValueError:
+        print("Invalid date : " + str(data))
+        return False
+
+
+class ExceptionData(models.Model):
+    """
+    All exception days will be stored here
+    Before every rule is applied, data for
+    that cluster is checked if there is an
+    exception to it
+    """
+    cluster_info = models.ForeignKey(ClusterInfo, on_delete=models.CASCADE, related_name="exceptions")
+    exception_dates = models.JSONField(default=list, validators=[is_valid_date])
+    added_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
