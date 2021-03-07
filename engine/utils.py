@@ -101,6 +101,16 @@ class RuleUtils:
                 })
             })
 
+        # Set Average Load check
+        enableAverageLoad = data.get("enableAverageLoad", None)
+        if enableAverageLoad and enableAverageLoad == "on":
+            rules.update({
+                "averageLoad": dict({
+                    "op": data.get("selectAverageLoadOp", None),
+                    "value": data.get("averageLoad", None)
+                })
+            })
+
         rule_db.name = data.get("name", None)
         rule_db.action = data.get("action", None)
         rule_db.cluster_id = data.get("cluster_id", None)

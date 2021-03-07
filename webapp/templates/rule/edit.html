@@ -122,7 +122,8 @@
                     <td>
                         <div class="uk-form-label uk-margin uk-grid-small uk-child-width-auto uk-grid">
                             <label class="uk-text-default">
-                                <input id="enableTime" name="enableTime" class="uk-checkbox" type="checkbox" {% if data.run_type %}checked{% endif %}> Time
+<!--                                <input id="enableTime" name="enableTime" class="uk-checkbox" type="checkbox" {% if data.run_type %}checked{% endif %}> -->
+                                Time
                             </label>
                         </div>
                         <div id="inputTime" class="uk-form-controls">
@@ -131,17 +132,14 @@
                                 <label style="padding-left: 30px;"><input class="typeTime uk-radio" type="radio" name="typeTime" value="CRON" style="align: right" {% if data.run_type == "CRON" %}checked{% endif %}> Cron</label>
                             </div>
                             <div id="check_daily_time_input" class="uk-margin" {% if data.run_type == "CRON" %}style="display: none"{% endif %}>
-                                <div>
-                                    <input id="dailyTime" name="dailyTime" class="uk-input flatpickr" type="text" placeholder="Time..." value="{{data.run_at}}">
-                                </div>
+                                <input id="dailyTime" name="dailyTime" class="uk-input flatpickr" type="text" placeholder="Time..." value="{{data.run_at}}">
                             </div>
                             <div id="check_cron_time_input" class="uk-margin" {% if data.run_type == "DAILY" %}style="display: none"{% endif %}>
-                                <div>
-                                    <input id="cronTime" name="cronTime" class="uk-input crontime" type="text" placeholder="Time..." value="{{data.run_at}}">
-                                </div>
+                                <input id="cronTime" name="cronTime" class="uk-input crontime" type="text" placeholder="Time..." value="{{data.run_at}}">
                             </div>
                         </div>
                     </td>
+                    <td></td>
                 </tr>
                 <tr>
                     <td>
@@ -175,6 +173,24 @@
                                 <option value="greater" {% if data.rule.checkConnection.op == "greater" %}selected{% endif %}>greater than</option>
                             </select>
                             <input id="checkConnection" name="checkConnection" class="uk-input uk-width-3-5" type="text" placeholder="Connection..." value="{{data.rule.checkConnection.value}}">
+                        </div>
+                    </td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="uk-form-label uk-margin uk-grid-small uk-child-width-auto uk-grid">
+                            <label class="uk-text-default">
+                                <input id="enableAverageLoad" name="enableAverageLoad" class="uk-checkbox" type="checkbox" {% if data.rule.averageLoad %}checked{% endif %}> Average Load
+                            </label>
+                        </div>
+                        <div id="inputAverageLoad" class="uk-form-controls">
+                            <select name="selectAverageLoadOp" class="uk-select uk-width-1-3" id="selectAverageLoadOp">
+                                <option value="equal" {% if data.rule.averageLoad.op == "equal" %}selected{% endif %}>equal</option>
+                                <option value="less" {% if data.rule.averageLoad.op == "less" %}selected{% endif %}>less than</option>
+                                <option value="greater" {% if data.rule.averageLoad.op == "greater" %}selected{% endif %}>greater than</option>
+                            </select>
+                            <input id="averageLoad" name="averageLoad" class="uk-input uk-width-3-5" type="text" placeholder="Average Load..." value="{{data.rule.averageLoad.value}}">
                         </div>
                     </td>
                     <td></td>
@@ -245,14 +261,14 @@ $(document).ready(function() {
     $('.crontime').jqCron();
 
     // hide all inputs
-    {% if not data.run_type %}
-        $("#inputTime").hide();
-    {% endif %}
     {% if not data.rule.checkConnection %}
         $("#inputCheckConnection").hide();
     {% endif %}
     {% if not data.rule.replicationLag %}
         $("#inputReplicationLag").hide();
+    {% endif %}
+    {% if not data.rule.averageLoad %}
+        $("#inputAverageLoad").hide();
     {% endif %}
 });
 
@@ -293,6 +309,14 @@ $("#enableReplicationLag").change(function() {
         $("#inputReplicationLag").show();
    } else {
         $("#inputReplicationLag").hide();
+   }
+});
+
+$("#enableAverageLoad").change(function() {
+    if(this.checked) {
+        $("#inputAverageLoad").show();
+   } else {
+        $("#inputAverageLoad").hide();
    }
 });
 

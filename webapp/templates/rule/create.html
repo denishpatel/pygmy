@@ -118,13 +118,14 @@
                     <td>
                         <div class="uk-form-label uk-margin uk-grid-small uk-child-width-auto uk-grid">
                             <label class="uk-text-default">
-                                <input id="enableTime" name="enableTime" class="uk-checkbox" type="checkbox"> Time
+<!--                                <input id="enableTime" name="enableTime" class="uk-checkbox" type="checkbox"> -->
+                                Time
                             </label>
                         </div>
                         <div id="inputTime" class="uk-form-controls">
                             <div class="time_options">
-                                <label><input class="typeTime uk-radio" type="radio" name="typeTime" value="daily" checked> Daily</label>
-                                <label style="padding-left: 30px;"><input class="typeTime uk-radio" type="radio" name="typeTime" value="cron" style="align: right"> Cron</label>
+                                <label><input class="typeTime uk-radio" type="radio" name="typeTime" value="DAILY" checked> Daily</label>
+                                <label style="padding-left: 30px;"><input class="typeTime uk-radio" type="radio" name="typeTime" value="CRON" style="align: right"> Cron</label>
                             </div>
                             <div id="check_daily_time_input" class="uk-margin">
                                 <div>
@@ -171,6 +172,24 @@
                                 <option value="greater">greater than</option>
                             </select>
                             <input id="checkConnection" name="checkConnection" class="uk-input uk-width-3-5" type="text" placeholder="Connection..." value="{{data.checkConnection}}">
+                        </div>
+                    </td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="uk-form-label uk-margin uk-grid-small uk-child-width-auto uk-grid">
+                            <label class="uk-text-default">
+                                <input id="enableAverageLoad" name="enableAverageLoad" class="uk-checkbox" type="checkbox" {% if data.rule.averageLoad %}checked{% endif %}> Average Load
+                            </label>
+                        </div>
+                        <div id="inputAverageLoad" class="uk-form-controls">
+                            <select name="selectAverageLoadOp" class="uk-select uk-width-1-3" id="selectAverageLoadOp">
+                                <option value="equal" {% if data.rule.averageLoad.op == "equal" %}selected{% endif %}>equal</option>
+                                <option value="less" {% if data.rule.averageLoad.op == "less" %}selected{% endif %}>less than</option>
+                                <option value="greater" {% if data.rule.averageLoad.op == "greater" %}selected{% endif %}>greater than</option>
+                            </select>
+                            <input id="averageLoad" name="averageLoad" class="uk-input uk-width-3-5" type="text" placeholder="Average Load..." value="{{data.rule.averageLoad.value}}">
                         </div>
                     </td>
                     <td></td>
@@ -231,9 +250,9 @@ $(document).ready(function() {
     {% endif %}
 
     // hide all inputs
-    $("#inputTime").hide();
     $("#inputCheckConnection").hide();
     $("#inputReplicationLag").hide();
+    $("#inputAverageLoad").hide();
 });
 
 // Handle time check
@@ -258,6 +277,14 @@ $("#enableReplicationLag").change(function() {
         $("#inputReplicationLag").show();
    } else {
         $("#inputReplicationLag").hide();
+   }
+});
+
+$("#enableAverageLoad").change(function() {
+    if(this.checked) {
+        $("#inputAverageLoad").show();
+   } else {
+        $("#inputAverageLoad").hide();
    }
 });
 
