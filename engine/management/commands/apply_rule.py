@@ -3,6 +3,7 @@ from django.utils import timezone
 from django.core.management import BaseCommand
 from engine.aws_wrapper import AWSData
 from engine.models import Rules, Ec2DbInfo, EC2, RDS, ActionLogs
+from engine.utils import RuleUtils
 
 
 class Command(BaseCommand):
@@ -15,16 +16,7 @@ class Command(BaseCommand):
             try:
                 aws = AWSData()
                 rule_db = Rules.objects.get(id=rid)
-                # rule_json = rule_db.rule
-                # ec2_type = rule_json["ec2_type"]
-                # rds_type = rule_json["rds_type"]
-                # all_dbs = Ec2DbInfo.objects.filter(cluster=rule_db.cluster)
-                # for db in all_dbs:
-                #     if db.type == EC2 and not db.isPrimary:
-                #         aws.scale_ec2_instance(db.instance_id, ec2_type)
-                #     elif db.type == RDS and not db.isPrimary:
-                #         db_parameter = db.instance_object.dBParameterGroups[0]['DBParameterGroupName']
-                #         aws.scale_rds_instance(db.instance_id, rds_type, db_parameter)
+                RuleUtils.apply_rule(rule_db)
                 rule_db.status = True
                 rule_db.err_msg = ""
                 msg = "Successfully Executed Rule"
