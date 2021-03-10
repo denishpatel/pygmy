@@ -21,7 +21,7 @@ class Command(BaseCommand):
                 self.get_ec2_info(db)
 
             # update rds data
-            # AWSData().describe_rds_instances()
+            AWSData().describe_rds_instances()
         except Exception as e:
             logger.exception(e)
             return
@@ -39,15 +39,9 @@ class Command(BaseCommand):
 
             # Handle primary node case
             if db_info.isPrimary:
-                # tag_map = AWSData.get_tag_map(instance)
-                # cluster, created = ClusterInfo.objects.get_or_create(primaryNodeIp=instance.privateDnsName, type=EC2)
-                # if created:
-                #     cluster.name = AWSData.get_cluster_name(tag_map)
-                #     cluster.save()
                 db_info.cluster = AWSData.get_or_create_cluster(instance, instance.privateDnsName, cluster_type=EC2)
                 replicas = db_conn.get_all_slave_servers()
                 self.update_cluster_info(instance.privateDnsName, replicas)
-
         except Exception as e:
             print("Fail to connect Server {}".format(instance.publicDnsName))
             db_info.isPrimary = False

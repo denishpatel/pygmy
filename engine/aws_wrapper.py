@@ -42,10 +42,6 @@ class AWSData:
                 if slave_identifier is None:
                     rds = self.save_rds_data(instance)
                     db_info, created = Ec2DbInfo.objects.get_or_create(instance_id=rds.dbInstanceIdentifier, type=RDS)
-                    # cluster, created = ClusterInfo.objects.get_or_create(primaryNodeIp=rds.dbInstanceIdentifier, type=RDS)
-                    # if created:
-                    #     cluster.name = self.get_cluster_name(self.get_rds_tag_map(instance))
-                    #     cluster.save()
                     db_info.isPrimary = True
                     db_info.instance_object = rds
                     db_info.cluster = self.get_or_create_cluster(instance, rds.dbInstanceIdentifier,cluster_type=RDS)
