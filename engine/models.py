@@ -123,7 +123,8 @@ class AllEc2InstancesData(models.Model):
     cpuOptions = models.JSONField()
     lastUpdated = models.DateTimeField(auto_now=True)
     credentials = models.ForeignKey(DbCredentials, on_delete=models.SET_NULL, null=True)
-    dbInfo = GenericRelation(Ec2DbInfo, related_query_name='ec2')
+    dbInfo = GenericRelation(Ec2DbInfo, object_id_field='instance_id', content_type_field='instance_type',
+                             related_query_name='ec2')
 
 
 class RdsInstances(models.Model):

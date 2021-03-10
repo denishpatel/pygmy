@@ -44,7 +44,7 @@ class AWSData:
                     db_info, created = Ec2DbInfo.objects.get_or_create(instance_id=rds.dbInstanceIdentifier, type=RDS)
                     db_info.isPrimary = True
                     db_info.instance_object = rds
-                    db_info.cluster = self.get_or_create_cluster(instance, rds.dbInstanceIdentifier,cluster_type=RDS)
+                    db_info.cluster = self.get_or_create_cluster(instance, rds.dbInstanceIdentifier, cluster_type=RDS)
                     db_info.isConnected = True
                     db_info.save()
                 else:

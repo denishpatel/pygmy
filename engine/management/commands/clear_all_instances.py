@@ -13,11 +13,11 @@ class Command(BaseCommand):
         try:
             # Delete all instances saved
             Rules.objects.all().delete()
-            AllEc2InstancesData.objects.all().delete()
-            AllRdsInstanceTypes.objects.all().delete()
             Ec2DbInfo.objects.all().delete()
             ClusterInfo.objects.all().delete()
             DbCredentials.objects.all().delete()
+            AllEc2InstancesData.objects.all().delete()
+            print("All cluster data deleted!")
         except Exception as e:
             logger.exception(e)
             return
