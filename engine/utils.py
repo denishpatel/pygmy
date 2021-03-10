@@ -114,17 +114,16 @@ class RuleUtils:
         rule_db.name = data.get("name", None)
         rule_db.action = data.get("action", None)
         rule_db.cluster_id = data.get("cluster_id", None)
-        enableTime = data.get("enableTime", False)
+        # enableTime = data.get("enableTime", False)
         typeTime = data.get("typeTime", None)
 
         # Set time
-        if enableTime:
-            if typeTime.upper() == DAILY:
-                rule_db.run_type = DAILY
-                rule_db.run_at = data.get("dailyTime", None)
-            else:
-                rule_db.run_type = CRON
-                rule_db.run_at = data.get("cronTime", None)
+        if typeTime.upper() == DAILY:
+            rule_db.run_type = DAILY
+            rule_db.run_at = data.get("dailyTime", None)
+        else:
+            rule_db.run_type = CRON
+            rule_db.run_at = data.get("cronTime", None)
 
         rule_db.rule = rules
         rule_db.save()

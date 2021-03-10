@@ -1,0 +1,88 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+{% block head_js %}
+<script src="{% static '/js/ajax.autocomplete.js' %}"></script>
+{% endblock %}
+{% block content %}
+<style>
+    table {
+        width: 100%;
+    }
+    thead {
+        background: #232f3e;
+    }
+    tbody {
+        background-color: #ffffff;
+        color: black;
+    }
+</style>
+<div class="content-padder content-background">
+    <div class="uk-section-xsmall uk-section-default header">
+        <div class="uk-container uk-container-large">
+            <ul class="uk-breadcrumb">
+                <li><a href="/">Home</a></li>
+                <li><span href="">Exception</span></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="uk-section-xsmall">
+        <div class="uk-column-1-2" style="padding: 0px 20px">
+            <h2>Exception List</h2>
+            <div class="uk-container-small uk-align-right">
+                <a class="uk-button uk-button-primary" href="{% url 'create_exception' %}" uk-toggle>New Exception</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="uk-container uk-container-large uk-overflow-auto">
+        <table class="uk-table uk-table-small uk-table-middle uk-table-hover uk-table-divider .uk-table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Exception Date</th>
+                    <th>Cluster</th>
+                    <th>Updated At</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for exc in exceptions %}
+                <tr>
+                    <td><a href="{% url 'edit_exception' exc.id %}">{{ exc.id }}</a></td>
+                    <td>{{ exc.exception_date }}</td>
+                    <td>
+                        <div class="uk-panel uk-text-truncate">
+                        {% for tag in exc.clusters %}
+                        <span class="uk-label uk-label-warning">{{tag.value}}</span>
+                        {% endfor %}
+                        </div>
+                    </td>
+                    <td>{{ exc.updated_on }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+{% block js_bottom %}
+{{ block.super }}
+<script>
+var notyf = new Notyf();
+$(document).ready(function(){
+    if(window.location.hash == '#ae')
+    {
+        notyf.success('Success!! Added Exceptions');
+    }
+    else if(window.location.hash == '#de')
+    {
+        notyf.success('Success!! Deleted Exception');
+    }
+    else if(window.location.hash == '#ue')
+    {
+        notyf.success('Success!! Updated Exception');
+    }
+});
+
+</script>
+{% endblock %}

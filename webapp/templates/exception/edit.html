@@ -1,0 +1,150 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+{% block head_js %}
+<link rel="stylesheet" href="{% static '/vendor/flatpickr/css/flatpickr.min.css' %}" />
+<script src="{% static '/vendor/flatpickr/js/flatpickr.min.js' %}"></script>
+<script src="{% static '/js/ajax.autocomplete.js' %}"></script>
+<script src="{% static '/vendor/tagify/js/jQuery.tagify.min.js' %}"></script>
+<link rel="stylesheet" href="{% static '/vendor/tagify/css/tagify.css' %}" />
+{% endblock %}
+{% block content %}
+<style>
+.tagify--outside{
+    border: 0;
+}
+
+.tagify--outside .tagify__input{
+  order: -1;
+  flex: 100%;
+  border: 1px solid var(--tags-border-color);
+  margin-bottom: 1em;
+  transition: .1s;
+  background: white;
+  height: 40px;
+  padding: 10px;
+}
+
+.tagify--outside .tagify__input:hover{ border-color:var(--tags-hover-border-color); }
+.tagify--outside.tagify--focus .tagify__input{
+  transition:0s;
+  border-color: var(--tags-focus-border-color);
+}
+</style>
+<div class="content-padder content-background">
+    <div class="uk-section-xsmall uk-section-default header">
+        <div class="uk-container uk-container-large">
+            <ul class="uk-breadcrumb">
+                <li><a href="/">Home</a></li>
+                <li><a href="{% url 'exceptions' %}">Exceptions</a></li>
+                <li><span href="">New Exception</span></li>
+            </ul>
+        </div>
+    </div>
+    <div class="uk-section-xsmall">
+        <div class="uk-column-1-2" style="padding: 0px 20px">
+            <h2>Edit Exception</h2>
+            <div style="text-align: right; padding-right: 20px;">
+                <a id="delete" href="#">
+                    <span class="uk-margin-small-right" uk-icon="icon: trash; ratio: 1"></span>
+                </a>
+            </div>
+        </div>
+    </div>
+    <form id="exception_create" class="uk-form-horizontal" action="" method="post">
+        {% csrf_token %}
+        <table class="uk-table" style="max-width: 500px">
+            <tr>
+                <td style="max-width: 500px">
+                    <div class="uk-margin">
+                        <label class="uk-form-label uk-text-default">Date</label>
+                        <div class="uk-form-controls">
+                            <input class="uk-input uk-width-1-2 flatpickr" name="dates" type="text" placeholder="Date.." value="{{exception.exception_date}}" required>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <label>Cluster Name:</label>
+                    <input id="clusterNames" name='clusterNames' class="tagify--outside" placeholder='write some tags' minlength="2" type="text" required>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="2" style="text-align: right;">
+                    <button id="save_exception" class="uk-button uk-button-primary " type="submit">Save Exception</button>
+                </td>
+            </tr>
+        </table>
+    </form>
+</div>
+{% endblock %}
+{% block js_bottom %}{{ block.super }}
+<script>
+{% if success %}
+    window.location.href = "{% url 'exceptions' %}#ue";
+{% else %}
+var notyf = new Notyf();
+var clusters = {{clusterName|safe}};
+
+$(document).ready(function() {
+    $(".flatpickr").flatpickr({
+        minDate: "today",
+        defaultDate: ["{{exception.exception_date|date:"Y-m-d"}}"]
+    });
+
+    var input = document.querySelector('#clusterNames')
+
+    // init Tagify script on the above inputs
+    var tagify = new Tagify(input, {
+        whitelist: clusters,
+        dropdown: {
+          position: "input",
+          enabled : 0
+        },
+        //originalInputValueFormat: valuesArr => valuesArr.map(item => item.id).join(',')
+    });
+
+    {% if exception.clusters %}
+    // tag to add
+    tagify.addTags({{exception.clusters|safe}});
+    {% endif %}
+    $("#exception_create").validate({
+      validate: {
+        rules: {
+            dates: "required"
+        },
+        messages: {
+            dates: "Please enter date"
+        }
+      },
+      submitHandler: function(form) {
+        // do other things for a valid form
+        form.submit();
+      }
+    });
+
+    // Delete exception date
+    $("#delete").on("click", function () {
+        UIkit.modal.confirm('Deleting! Are you sure to delete?', { labels: { ok: 'Yes', cancel: 'No' } }).then(function() {
+            console.log('Confirmed.');
+            delete_exception_date();
+        }, function () {
+             console.log('Cancel delete.')
+        });
+    });
+});
+
+function delete_exception_date() {
+    $.ajax({
+        url: '{% url "edit_exception" exception.id %}',
+        type: 'DELETE',
+    }).done(function (){
+        notyf.success("Success! deleted exception successfully");
+        window.location.href = "{% url 'exceptions' %}#de";
+    }).fail(function () {
+        notyf.error('Fail! deleting exception date is failed!');
+    });
+}
+{% endif %}
+</script>
+{% endblock %}

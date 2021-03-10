@@ -198,7 +198,7 @@ class ExceptionData(models.Model):
     that cluster is checked if there is an
     exception to it
     """
-    cluster_info = models.ForeignKey(ClusterInfo, on_delete=models.CASCADE, related_name="exceptions")
-    exception_dates = models.JSONField(default=list, validators=[is_valid_date])
+    exception_date = models.DateField(null=False, unique=True)
+    clusters = models.JSONField(default=list)
     added_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)

@@ -24,26 +24,11 @@ class CreateRulesView(View):
         result = dict()
         try:
             name = request.POST.get("name", None)
-
-            enableTime = request.POST.get("enableTime", False)
             typeTime = request.POST.get("typeTime", "daily")
-            dailyTime = request.POST.get("dailyTime", None)
-            cronTime = request.POST.get("cronTime", None)
-
-            enableReplicationLag = request.POST.get("enableReplicationLag", False)
-            selectReplicationLagOp = request.POST.get("selectReplicationLagOp", None)
-            replicationLag = request.POST.get("replicationLag", None)
-
-            enableCheckConnection = request.POST.get("enableCheckConnection", False)
-            selectCheckConnectionOp = request.POST.get("selectCheckConnectionOp", None)
-            checkConnection = request.POST.get("checkConnection", None)
-
             cluster = request.POST.get("cluster_id", None)
             action = request.POST.get("action", None)
-            ec2_type = request.POST.get("ec2_type", None)
-            rds_type = request.POST.get("rds_type", None)
 
-            if name and cluster and action:
+            if name and cluster and action and typeTime:
                 # Scale down Rule
                 self.create_rule(request.POST)
                 result.update({"success": True})
@@ -59,6 +44,7 @@ class CreateRulesView(View):
 
     def create_rule(self, data):
         RuleUtils.add_rule_db(data)
+
 
 class EditRuleView(View):
     template = "rule/edit.html"
@@ -94,26 +80,11 @@ class EditRuleView(View):
         try:
             rule = Rules.objects.get(id=id)
             name = request.POST.get("name", None)
-
-            enableTime = request.POST.get("enableTime", False)
             typeTime = request.POST.get("typeTime", "daily")
-            dailyTime = request.POST.get("dailyTime", None)
-            cronTime = request.POST.get("cronTime", None)
-
-            enableReplicationLag = request.POST.get("enableReplicationLag", False)
-            selectReplicationLagOp = request.POST.get("selectReplicationLagOp", None)
-            replicationLag = request.POST.get("replicationLag", None)
-
-            enableCheckConnection = request.POST.get("enableCheckConnection", False)
-            selectCheckConnectionOp = request.POST.get("selectCheckConnectionOp", None)
-            checkConnection = request.POST.get("checkConnection", None)
-
             cluster = request.POST.get("cluster_id", None)
             action = request.POST.get("action", None)
-            ec2_type = request.POST.get("ec2_type", None)
-            rds_type = request.POST.get("rds_type", None)
 
-            if name and cluster and action:
+            if name and cluster and action and typeTime:
                 self.update_rule(rule, request.POST)
                 result.update({"success": True})
             else:
