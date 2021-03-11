@@ -35,22 +35,19 @@ class Command(BaseCommand):
             db_info.isPrimary = db_conn.is_ec2_postgres_instance_primary()
             db_info.isConnected = True
             print("publicIp: ", instance.publicDnsName, " isPrimary: ", db_conn.is_ec2_postgres_instance_primary())
-            db_info.save()
+            # db_info.save()
 
             # Handle primary node case
             if db_info.isPrimary:
-                # tag_map = AWSData.get_tag_map(instance)
-                # cluster, created = ClusterInfo.objects.get_or_create(primaryNodeIp=instance.privateDnsName, type=EC2)
-                # if created:
-                #     cluster.name = AWSData.get_cluster_name(tag_map)
-                #     cluster.save()
                 db_info.cluster = AWSData.get_or_create_cluster(instance, instance.privateIpAddress, cluster_type=EC2)
+                # db_info.save()
                 replicas = db_conn.get_all_slave_servers()
                 self.update_cluster_info(instance.privateIpAddress, replicas)
         except Exception as e:
             print("Fail to connect Server {}".format(instance.publicDnsName))
             db_info.isPrimary = False
             db_info.isConnected = False
+        finally:
             db_info.save()
 
     @staticmethod
