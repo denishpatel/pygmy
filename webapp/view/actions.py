@@ -9,7 +9,7 @@ class ActionsView(View):
 
     def get(self, request, *args, **kwargs):
         return render(request, self.template, {
-            "actions": ActionLogs.objects.all()
+            "actions": ActionLogs.objects.all().order_by("-time")
         })
 
     def dispatch(self, *args, **kwargs):

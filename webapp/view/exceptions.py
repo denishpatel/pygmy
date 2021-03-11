@@ -2,7 +2,7 @@ import json
 
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
-from django.urls import reverse
+from datetime import datetime
 from django.views import View
 
 from engine.models import ExceptionData, ClusterInfo
@@ -12,7 +12,7 @@ class ExceptionsView(View):
     template = "exception/list.html"
 
     def get(self, request, **kwargs):
-        exceptionList = ExceptionData.objects.all()
+        exceptionList = ExceptionData.objects.filter(exception_date__gte=datetime.now().date()).order_by("exception_date")
         return render(request, self.template, {
             "exceptions": exceptionList
         })

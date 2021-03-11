@@ -3,7 +3,7 @@
 {% block content %}
 <style>
     .time_td {
-        width: 165px;
+        width: 200px;
     }
     .scale_icon {
         max-width: 20px;
@@ -33,7 +33,7 @@
             {% for action in actions %}
                 <tr>
                     <td>{{action.id}}</td>
-                    <td>
+                    <td width="100px">
                         <a href="{% url 'edit_rule' action.rule.id %}">{{action.rule.name}}
                             {% if action.rule.action == "SCALE_UP" %}
                             <img class="scale_icon" src="{% static '/img/up.ico' %}" />{% else %}
@@ -41,7 +41,11 @@
                             {% endif %}
                         </a>
                     </td>
-                    <td>{{action.msg}}</td>
+                    <td width="40%">
+                        <div class="uk-panel uk-text-truncate">
+                            {{action.msg}}
+                        </div>
+                    </td>
                     <td>{{action.status}}</td>
                     <td class="time_td">{{action.time}}</td>
                 </tr>

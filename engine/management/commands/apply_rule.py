@@ -2,8 +2,9 @@ import time
 from django.utils import timezone
 from django.core.management import BaseCommand
 from engine.aws_wrapper import AWSData
-from engine.models import Rules, Ec2DbInfo, EC2, RDS, ActionLogs
+from engine.models import Rules, ActionLogs, ExceptionData
 from engine.utils import RuleUtils
+from datetime import datetime
 
 
 class Command(BaseCommand):
@@ -12,10 +13,20 @@ class Command(BaseCommand):
                             "rule ids to run multiple rule")
 
     def handle(self, *args, **kwargs):
+        aws = AWSData()
         for rid in kwargs['rule_id']:
             try:
-                aws = AWSData()
                 rule_db = Rules.objects.get(id=rid)
+                try:
+                    exce_date = ExceptionData.objects.get(exception_date=datetime.now().date())
+                    if exce_date:
+                        # Check existing cluster is present in exception or not
+                        for cluster in exce_date.clusters:
+                            if rule_db.cluster.id == cluster["id"]:
+                                raise Exception("Rule execution on Cluster: {} is excluded for date: {}".format(rule_db.cluster.name, datetime.now().date()))
+                except ExceptionData.DoesNotExist:
+                    pass
+
                 RuleUtils.apply_rule(rule_db)
                 rule_db.status = True
                 rule_db.err_msg = ""
@@ -23,9 +34,10 @@ class Command(BaseCommand):
             except Exception as e:
                 rule_db.status = False
                 rule_db.err_msg = e
+                msg = e
                 print(str(e))
                 print("No rule found")
-                msg = "Rule not matched"
+                # msg = "Rule not matched"
             finally:
                 rule_db.last_run = timezone.now()
                 rule_db.save()

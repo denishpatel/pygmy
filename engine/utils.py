@@ -141,29 +141,33 @@ class RuleUtils:
         cluster = rule_db.cluster
 
         secondaryNode = Ec2DbInfo.objects.filter(cluster=rule_db.cluster, isPrimary=False)
-        primaryNode = Ec2DbInfo.objects.filter(cluster=rule_db.cluster, isPrimary=True)
+        # primaryNode = Ec2DbInfo.objects.filter(cluster=rule_db.cluster, isPrimary=True)
 
         # check replication lag on primary Node
-        if primaryNode.count() > 0:
-            for db in primaryNode:
-                db_conn = RuleUtils.create_connection(primaryNode)
-                cls.checkReplicationLag(db_conn, rule_json)
-        else:
-            raise Exception("Primary node not found for cluster : {}".format(cluster.id))
+        # if primaryNode.count() > 0:
+        #     for db in primaryNode:
+        #         db_conn = RuleUtils.create_connection(db)
+        #         cls.checkReplicationLag(db_conn, rule_json)
+        # else:
+        #     raise Exception("Primary node not found for cluster : {}".format(cluster.name))
 
         # Check no of connection and average load on secondary node
         for db in secondaryNode:
-            db_conn = RuleUtils.create_connection(primaryNode)
+            db_conn = RuleUtils.create_connection(db)
+            cls.checkReplicationLag(db_conn, rule_json)
             cls.checkConnections(db_conn, rule_json)
-            cls.checkAverageLoad(db_conn, rule_json)
+            if db.type == EC2:
+                cls.checkAverageLoad(db_conn, rule_json)
 
             # Scale down node
             RuleUtils.scaleDownNode(db, ec2_type, rds_type)
 
     @staticmethod
     def create_connection(db):
-        dbEndpoint = db.publicDnsName if db.type == EC2 else db["dbEndpoint"]["Address"]
-        return PostgresData(dbEndpoint, "pygmy", "pygmy", "postgres")
+        if db.type == RDS:
+            return PostgresData(db.instance_object.dbEndpoint["Address"], db.instance_object.masterUsername, "postgres123", db.instance_object.dbName)
+        else:
+            return PostgresData(db.publicDnsName, "pygmy", "pygmy", "postgres")
 
     @staticmethod
     def scaleDownNode(db, ec2_type, rds_type):
@@ -185,7 +189,7 @@ class RuleUtils:
     def checkConnections(db_conn, rule_json):
         rule = rule_json.get("checkConnection", None)
         if rule:
-            activeConnections = db_conn.get_no_of_active_connections()
+            activeConnections = db_conn.get_no_of_active_connections()[3]
             return RuleUtils.checkValue(rule, activeConnections, msg="Check Connection")
 
     @staticmethod
@@ -199,10 +203,10 @@ class RuleUtils:
     def checkValue(rule, value, msg=None):
         result = False
         if rule.get("op") == "equal":
-            result = value == rule.get("value")
+            result = value == int(rule.get("value"))
         elif rule.get("op") == "greater":
-            result = value > rule.get("value")
+            result = value > int(rule.get("value"))
         elif rule.get("op") == "less":
-            result = value < rule.get("value")
+            result = value < int(rule.get("value"))
         if not result:
             raise Exception("{} check failed".format(msg))
