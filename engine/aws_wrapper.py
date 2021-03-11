@@ -249,6 +249,7 @@ class AWSData:
             return True
         except Exception as e:
             print(str(e))
+            print("failed in scaling ec2 instance")
             return False
 
     def copy_pygmy_parameter_group(self, source_parameter_group_name):

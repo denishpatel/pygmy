@@ -1,9 +1,8 @@
 import getpass
 import sys
 from crontab import CronTab
-
 from engine.aws_wrapper import AWSData
-from engine.models import AllRdsInstanceTypes, AllEc2InstanceTypes, RDS, CRON, Rules, DAILY, ActionLogs, Ec2DbInfo, EC2
+from engine.models import AllRdsInstanceTypes, AllEc2InstanceTypes, RDS, CRON, Rules, DAILY, Ec2DbInfo, EC2
 from django.db.models import F
 import json
 from django.conf import settings
@@ -138,7 +137,6 @@ class RuleUtils:
         rule_json = rule_db.rule
         ec2_type = rule_json.get("ec2_type")
         rds_type = rule_json.get("rds_type")
-        cluster = rule_db.cluster
 
         secondaryNode = Ec2DbInfo.objects.filter(cluster=rule_db.cluster, isPrimary=False)
         # primaryNode = Ec2DbInfo.objects.filter(cluster=rule_db.cluster, isPrimary=True)
@@ -165,9 +163,10 @@ class RuleUtils:
     @staticmethod
     def create_connection(db):
         if db.type == RDS:
-            return PostgresData(db.instance_object.dbEndpoint["Address"], db.instance_object.masterUsername, "postgres123", db.instance_object.dbName)
+            return PostgresData(db.instance_object.dbEndpoint["Address"], db.instance_object.masterUsername,
+                                "postgres123", db.instance_object.dbName)
         else:
-            return PostgresData(db.publicDnsName, "pygmy", "pygmy", "postgres")
+            return PostgresData(db.instance_object.publicDnsName, "pygmy", "pygmy", "postgres")
 
     @staticmethod
     def scaleDownNode(db, ec2_type, rds_type):
@@ -194,7 +193,7 @@ class RuleUtils:
 
     @staticmethod
     def checkAverageLoad(db_conn, rule_json):
-        rule = rule_json("averageLoad", None)
+        rule = rule_json.get("averageLoad", None)
         if rule:
             avgLoad = db_conn.get_system_load_avg()
             return RuleUtils.checkValue(rule, avgLoad, msg="Average load")
