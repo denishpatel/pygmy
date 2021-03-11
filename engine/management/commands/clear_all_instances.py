@@ -1,6 +1,6 @@
 import logging
 from django.core.management import BaseCommand
-from engine.models import AllEc2InstancesData, Ec2DbInfo, ClusterInfo, DbCredentials, Rules, AllRdsInstanceTypes
+from engine.models import AllEc2InstancesData, Ec2DbInfo, ClusterInfo, DbCredentials, Rules, RdsInstances
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +16,7 @@ class Command(BaseCommand):
             Ec2DbInfo.objects.all().delete()
             ClusterInfo.objects.all().delete()
             DbCredentials.objects.all().delete()
+            RdsInstances.objects.all().delete()
             AllEc2InstancesData.objects.all().delete()
             print("All cluster data deleted!")
         except Exception as e:

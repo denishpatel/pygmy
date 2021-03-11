@@ -144,7 +144,8 @@ class RdsInstances(models.Model):
     licenseModel = models.CharField(max_length=255)
     publiclyAccessible = models.BooleanField(default=False)
     tagList = models.JSONField()
-    dbInfo = GenericRelation(Ec2DbInfo, related_query_name='rds')
+    dbInfo = GenericRelation(Ec2DbInfo, object_id_field='instance_id', content_type_field='instance_type',
+                             related_query_name='rds')
 
 
 class InstanceStateInfo(models.Model):

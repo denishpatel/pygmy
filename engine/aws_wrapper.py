@@ -323,9 +323,9 @@ class AWSData:
     @staticmethod
     def get_tag_map(instance, cluster_type=EC2):
         if cluster_type == EC2:
-            return dict((tag['Key'].lower(), tag['Value'].lower()) for tag in instance.tags)
+            return dict((tag['Key'], tag['Value'].lower()) for tag in instance.tags)
         else:
-            return dict((tag['Key'].lower(), tag['Value'].lower()) for tag in instance.get("TagList"))
+            return dict((tag['Key'], tag['Value'].lower()) for tag in instance.get("TagList"))
 
     @staticmethod
     def get_cluster_name(tag_map):
@@ -339,8 +339,8 @@ class AWSData:
             return None
 
     @classmethod
-    def get_or_create_cluster(cls, instance, primaryNodeId, cluster_type=EC2):
-        cluster, created = ClusterInfo.objects.get_or_create(primaryNodeIp=primaryNodeId, type=cluster_type)
+    def get_or_create_cluster(cls, instance, primaryNodeIp, cluster_type=EC2):
+        cluster, created = ClusterInfo.objects.get_or_create(primaryNodeIp=primaryNodeIp, type=cluster_type)
         if created:
             cluster_name = cls.get_cluster_name(cls.get_tag_map(instance, cluster_type))
             print("Cluster name ", cluster_name)
