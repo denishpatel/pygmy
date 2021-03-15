@@ -1,5 +1,6 @@
 import json
 
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from datetime import datetime
@@ -8,7 +9,7 @@ from django.views import View
 from engine.models import ExceptionData, ClusterInfo
 
 
-class ExceptionsView(View):
+class ExceptionsView(LoginRequiredMixin, View):
     template = "exception/list.html"
 
     def get(self, request, **kwargs):
@@ -21,7 +22,7 @@ class ExceptionsView(View):
         return super(ExceptionsView, self).dispatch(*args, **kwargs)
 
 
-class ExceptionsCreateView(View):
+class ExceptionsCreateView(LoginRequiredMixin, View):
     template = "exception/create.html"
 
     def get(self, request, **kwargs):
@@ -65,7 +66,7 @@ class ExceptionsCreateView(View):
         return super(ExceptionsCreateView, self).dispatch(*args, **kwargs)
 
 
-class ExceptionsEditView(View):
+class ExceptionsEditView(LoginRequiredMixin, View):
     template = "exception/edit.html"
 
     def get(self, request, id, **kwargs):

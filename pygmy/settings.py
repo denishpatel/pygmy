@@ -173,6 +173,10 @@ REDOC_SETTINGS = {
     'LAZY_RENDERING': False,
 }
 
+# Login Redirect to
+LOGIN_REDIRECT_URL = 'landing'
+LOGIN_URL = "login"
+
 STATIC_ROOT = os.path.join(BASE_DIR, "static")
 
 # Filter Tag values

@@ -1,5 +1,6 @@
 import json
 
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import F
 from django.shortcuts import render, redirect
 from django.urls import reverse
@@ -11,7 +12,7 @@ from engine.models import DbCredentials, ClusterInfo, EC2, AllEc2InstancesData, 
 from engine.utils import get_instance_types
 
 
-class LandingView(View):
+class LandingView(LoginRequiredMixin, View):
     template = "home.html"
 
     def get(self, request, **kwargs):
@@ -29,7 +30,7 @@ class LandingView(View):
         return super(LandingView, self).dispatch(*args, **kwargs)
 
 
-class SecretsView(View):
+class SecretsView(LoginRequiredMixin, View):
     template = "credentials.html"
 
     def get(self, request, **kwargs):
@@ -42,7 +43,7 @@ class SecretsView(View):
         return super(SecretsView, self).dispatch(*args, **kwargs)
 
 
-class ClusterView(View):
+class ClusterView(LoginRequiredMixin, View):
     template = "cluster/list.html"
 
     def get(self, request, id, **kwargs):
@@ -64,7 +65,7 @@ class ClusterView(View):
         return super(ClusterView, self).dispatch(*args, **kwargs)
 
 
-class ClusterEditView(View):
+class ClusterEditView(LoginRequiredMixin, View):
     template = "cluster/edit.html"
 
     def get(self, request, id, **kwargs):
@@ -97,7 +98,7 @@ class ClusterEditView(View):
         return super(ClusterEditView, self).dispatch(*args, **kwargs)
 
 
-class InstanceView(View):
+class InstanceView(LoginRequiredMixin, View):
     template = "cluster/instance_update.html"
 
     def get(self, request, cluster_type, id, **kwargs):
@@ -143,3 +144,16 @@ class InstanceView(View):
 
     def dispatch(self, *args, **kwargs):
         return super(InstanceView, self).dispatch(*args, **kwargs)
+
+
+# class LoginView(View):
+#     template = "login.html"
+#
+#     def get(self, request):
+#         return render(request, self.template)
+#
+#     def post(self, request):
+#         return render(request, self.template)
+#
+#     def dispatch(self, *args, **kwargs):
+#         return super(LoginView, self).dispatch(*args, **kwargs)

@@ -1,10 +1,11 @@
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import render
 from django.views import View
 
 from engine.models import ActionLogs
 
 
-class ActionsView(View):
+class ActionsView(LoginRequiredMixin, View):
     template = "actions/list.html"
 
     def get(self, request, *args, **kwargs):

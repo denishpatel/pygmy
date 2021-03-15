@@ -1,3 +1,4 @@
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views import View
@@ -5,7 +6,7 @@ from engine.models import EC2, RDS, Rules, SCALE_UP, SCALE_DOWN, ClusterInfo, DA
 from engine.utils import get_instance_types, create_cron, get_selection_list, delete_cron, RuleUtils
 
 
-class CreateRulesView(View):
+class CreateRulesView(LoginRequiredMixin, View):
     template = "rule/create.html"
 
     def __init__(self, **kwargs):
@@ -46,7 +47,7 @@ class CreateRulesView(View):
         RuleUtils.add_rule_db(data)
 
 
-class EditRuleView(View):
+class EditRuleView(LoginRequiredMixin, View):
     template = "rule/edit.html"
 
     def __init__(self, **kwargs):
@@ -103,7 +104,7 @@ class EditRuleView(View):
         RuleUtils.add_rule_db(data, rule_db)
 
 
-class RulesView(View):
+class RulesView(LoginRequiredMixin, View):
     template = "rule/rules.html"
 
     def get(self, request, **kwargs):

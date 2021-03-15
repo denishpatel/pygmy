@@ -1,0 +1,81 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+{% block content %}
+<style>
+    small {
+        color: red;
+    }
+</style>
+<div class="content-padder">
+    <div class="uk-section-xsmall uk-section-default header">
+        <div class="uk-container uk-container-large">
+            <ul class="uk-breadcrumb">
+                <li><a href="/">Home</a></li>
+                <li><a href="#">User</a></li>
+                <li><span href="">Edit</span></li>
+            </ul>
+        </div>
+    </div>
+    <div class="uk-section-xsmall">
+        <div class="uk-column-1-2" style="padding: 0px 20px">
+            <h2>Edit Profile</h2>
+        </div>
+    </div>
+    <div class="uk-container uk-overflow-auto">
+        <form class="uk-form-horizontal" action="{% url 'edit' %}" method="post">
+            {% csrf_token %}
+            <table class="uk-table" style="max-width: 500px">
+                <tr>
+                    <td>
+                        <div class="uk-margin">
+                            <label class="uk-form-label" for="old_password">Current Password</label>
+                            <div class="uk-form-controls">
+                                <input class="uk-input" id="old_password" name="old_password" type="password" placeholder="">
+                                <small>{{form.errors.old_password.0}}</small>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="uk-margin">
+                            <label class="uk-form-label" for="new_password">New Password</label>
+                            <div class="uk-form-controls">
+                                <input class="uk-input" id="new_password" name="new_password1" type="password" placeholder="">
+                                <small>{{form.errors.new_password1.0}}</small>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="uk-margin">
+                            <label class="uk-form-label" for="repeat_password">New Password Confirmation</label>
+                            <div class="uk-form-controls">
+                                <input class="uk-input" id="repeat_password" name="new_password2" type="password" placeholder="">
+                                <small>{{form.errors.new_password2.0}}</small>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="float: right">
+                        <input type="submit" class="uk-button uk-button-primary" value="Change Password">
+                    </td>
+                </tr>
+            </table>
+        </form>
+    </div>
+</div>
+{% endblock %}
+{% block js_bottom %}{{ block.super }}
+<script>
+var notyf = new Notyf();
+$(document).ready(function() {
+    if(localStorage.getItem("edit") != undefined) {
+        notyf.success('Success!! updated password');
+        localStorage.removeItem("edit");
+    }
+});
+</script>
+{% endblock %}

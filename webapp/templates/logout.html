@@ -1,0 +1,21 @@
+{% load static %}
+<html>
+<head>
+    <title>Pygmy | Logout</title>
+    <link rel="stylesheet" href="{% static 'css/notyf.min.css' %}" />
+    <script src="{% static '/vendor/jquery/js/jquery.min.js' %}"></script>
+</head>
+<body>
+<div>
+    <h1>Logged out</h1>
+    <p>Successfully, </p>
+</div>
+<script src="{% static '/js/notyf.min.js' %}"></script>
+<script>
+    $(document).ready(function() {
+        localStorage.setItem("logout", true);
+        window.location.href = "{% url 'login' %}";
+    });
+</script>
+</body>
+</html>

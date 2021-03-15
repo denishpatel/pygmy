@@ -1,3 +1,4 @@
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views import View
@@ -5,7 +6,7 @@ from engine.aws_wrapper import AWSData
 from webapp.models import Settings
 
 
-class SettingsView(View):
+class SettingsView(LoginRequiredMixin, View):
     template = "settings/list.html"
 
     def get(self, request, *args, **kwargs):
@@ -23,7 +24,7 @@ class SettingsView(View):
         return super(SettingsView, self).dispatch(*args, **kwargs)
 
 
-class SettingsRefreshView(View):
+class SettingsRefreshView(LoginRequiredMixin, View):
     template = "settings/list.html"
 
     def get(self, request, *args, **kwargs):

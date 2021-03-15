@@ -1,0 +1,105 @@
+{% load static %}
+<html>
+<head>
+    <title>PyGMy | Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="{% static '/vendor/uikit/css/uikit.min.css' %}" />
+    <link rel="stylesheet" href="{% static 'css/notyf.min.css' %}" />
+    <script src="{% static '/vendor/uikit/js/uikit.min.js' %}"></script>
+    <script src="{% static '/vendor/uikit/js/uikit-icons.min.js' %}"></script>
+    <script src="{% static '/vendor/jquery/js/jquery.min.js' %}"></script>
+    <style>
+        #pgsql {
+            position: relative;
+            width: 142px;
+            height: 129px;
+            left: 0px;
+            top: 0px;
+            overflow: visible;
+        }
+        table {
+            margin: 0px auto;
+            max-width: 500px;
+        }
+
+        .uk-table-small td {
+            padding-bottom: 0px;
+        }
+
+        .uk-input {
+            max-width: 120%;
+            width: 120%;
+        }
+
+        @media (max-width: 960px) {
+            .logo {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="uk-container">
+        <div class="uk-text-center" style="margin-top: 15%">
+            <h1>Log In</h1>
+            {% if form.errors %}
+                <p>Your username and password didn't match. Please try again.</p>
+            {% endif %}
+            <form method="post" action="{% url 'login' %}">
+            {% csrf_token %}
+            {% if next %}
+                {% if user.is_authenticated %}
+                    <p>Your account doesn't have access to this page. To proceed,
+                    please login with an account that has access.</p>
+                {% else %}
+                    <p>Please login to see this page.</p>
+                {% endif %}
+            {% endif %}
+            <table class="uk-table uk-table-small">
+                <tr>
+                    <td class="logo uk-text-middle" rowspan="2" style="border-right: 1px solid #c4c4c4;">
+                        <div>
+                            <img id="pgsql" src="{% static 'img/pgsql.png' %}" srcset="{% static 'img/pgsql.png' %} 1x">
+                        </div>
+                    </td>
+                    <td>
+                        <div class="uk-margin">
+                            <div class="uk-inline">
+                                <span class="uk-form-icon" uk-icon="icon: user"></span>
+                                <input id="username" name="username" type="text" class="uk-input">
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                     <td>
+                         <div class="uk-margin">
+                            <div class="uk-inline">
+                                <span class="uk-form-icon" uk-icon="icon: lock"></span>
+                                <input id="password" name="password" class="uk-input" type="password" autocomplete="true">
+                            </div>
+                         </div>
+                    </td>
+                </tr>
+                <tr>
+                     <td colspan="2" style="text-align: right">
+                        <input type="submit" class="uk-button uk-button-primary" value="Login">
+                        <input type="hidden" name="next" value="{{ next }}">
+                    </td>
+                </tr>
+            </table>
+            </form>
+        </div>
+    </div>
+</body>
+<script src="{% static '/js/notyf.min.js' %}"></script>
+<script>
+var notyf = new Notyf();
+$(document).ready(function() {
+    if(localStorage.getItem("logout") != undefined) {
+        notyf.success('Success!! Logged out');
+        localStorage.removeItem("logout");
+    }
+});
+</script>
+</html>
