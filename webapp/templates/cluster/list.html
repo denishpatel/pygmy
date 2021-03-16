@@ -70,7 +70,9 @@
                                 <td>{{row.instance_object.state.Name}}</td>
                                 <td>{{row.instance_object.availabilityZone}}</td>
                                 <td>
+                                    {% if not row.isPrimary %}
                                     <a class="uk-button uk-button-primary uk-button-small" href="{% url 'instance_edit' 'ec2' row.instance_object.instanceId %}">Edit</a>
+                                    {% endif %}
                                 </td>
                             </tr>
                         {% endfor %}
@@ -99,7 +101,9 @@
                                 <td>{{row.instance_object.dbInstanceStatus}}</td>
                                 <td>{{row.instance_object.availabilityZone}}</td>
                                 <td>
+                                    {% if not row.isPrimary %}
                                     <a class="uk-button uk-button-primary uk-button-small" href="{% url 'instance_edit' 'rds' row.instance_object.dbInstanceIdentifier %}">Edit</a>
+                                    {% endif %}
                                 </td>
                             </tr>
                         {% endfor %}

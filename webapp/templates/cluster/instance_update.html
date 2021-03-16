@@ -63,6 +63,9 @@
             </div>
             {% endif %}
 
+            {% if dbInfo.isPrimary %}
+                <p>Not allow to edit Primary Instance</p>
+            {% else %}
             <form method="post" class="uk-form-horizontal" style="max-width: 500px">
                 {% csrf_token %}
                 <input name="instance" type="hidden" value="{% if dbInfo.type == 'EC2' %}{{ instance.instanceId }}{% else %}{{ instance.dbInstanceIdentifier}}{% endif %}">
@@ -83,6 +86,7 @@
                 <a class="uk-button uk-button-default uk-modal-close" href="{% url 'clusters' dbInfo.cluster.id %}">Back</a>
                 <button class="uk-button uk-button-primary" type="submit" id="create__btn">Scale Down/Up</button>
             </form>
+            {% endif %}
         </div>
     </div>
 </div>
