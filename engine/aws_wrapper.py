@@ -164,30 +164,30 @@ class AWSData:
     @staticmethod
     def save_ec2_data(instance):
         try:
-            aeid = AllEc2InstancesData.objects.get(instanceId=instance["InstanceId"])
+            db = AllEc2InstancesData.objects.get(instanceId=instance["InstanceId"])
         except AllEc2InstancesData.DoesNotExist:
             db = AllEc2InstancesData()
             db.instanceId = instance["InstanceId"]
-            db.name = next((tag["Value"] for tag in instance["Tags"] if tag["Key"] == "Name"), None)
-            db.instanceType = instance["InstanceType"]
-            db.keyName = instance["KeyName"]
-            db.launchTime = instance["LaunchTime"]
-            db.availabilityZone = instance["Placement"]["AvailabilityZone"]
-            db.privateDnsName = instance["PrivateDnsName"]
-            db.privateIpAddress = instance["PrivateIpAddress"]
-            db.publicDnsName = instance["PublicDnsName"]
-            db.publicIpAddress = instance["PublicIpAddress"]
-            db.state = instance["State"]
-            db.vpcId = instance["VpcId"]
-            db.subnetId = instance["SubnetId"]
-            db.architecture = instance["Architecture"]
-            db.blockDeviceMapping = instance["BlockDeviceMappings"]
-            db.ebsOptimized = instance["EbsOptimized"]
-            db.securityGroups = instance["SecurityGroups"]
-            db.tags = instance["Tags"]
-            db.virtualizationType = instance["VirtualizationType"]
-            db.cpuOptions = instance["CpuOptions"]
-            db.save()
+        db.name = next((tag["Value"] for tag in instance["Tags"] if tag["Key"] == "Name"), None)
+        db.instanceType = instance["InstanceType"]
+        db.keyName = instance["KeyName"]
+        db.launchTime = instance["LaunchTime"]
+        db.availabilityZone = instance["Placement"]["AvailabilityZone"]
+        db.privateDnsName = instance["PrivateDnsName"]
+        db.privateIpAddress = instance["PrivateIpAddress"]
+        db.publicDnsName = instance["PublicDnsName"]
+        db.publicIpAddress = instance["PublicIpAddress"]
+        db.state = instance["State"]
+        db.vpcId = instance["VpcId"]
+        db.subnetId = instance["SubnetId"]
+        db.architecture = instance["Architecture"]
+        db.blockDeviceMapping = instance["BlockDeviceMappings"]
+        db.ebsOptimized = instance["EbsOptimized"]
+        db.securityGroups = instance["SecurityGroups"]
+        db.tags = instance["Tags"]
+        db.virtualizationType = instance["VirtualizationType"]
+        db.cpuOptions = instance["CpuOptions"]
+        db.save()
 
     @staticmethod
     def save_rds_data(instance):
