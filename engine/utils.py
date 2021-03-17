@@ -139,15 +139,6 @@ class RuleUtils:
         rds_type = rule_json.get("rds_type")
 
         secondaryNode = Ec2DbInfo.objects.filter(cluster=rule_db.cluster, isPrimary=False)
-        # primaryNode = Ec2DbInfo.objects.filter(cluster=rule_db.cluster, isPrimary=True)
-
-        # check replication lag on primary Node
-        # if primaryNode.count() > 0:
-        #     for db in primaryNode:
-        #         db_conn = RuleUtils.create_connection(db)
-        #         cls.checkReplicationLag(db_conn, rule_json)
-        # else:
-        #     raise Exception("Primary node not found for cluster : {}".format(cluster.name))
 
         # Check no of connection and average load on secondary node
         for db in secondaryNode:
@@ -156,6 +147,9 @@ class RuleUtils:
             cls.checkConnections(db_conn, rule_json)
             if db.type == EC2:
                 cls.checkAverageLoad(db_conn, rule_json)
+            else:
+                # check avg load using cloudwatch metrics
+                pass
 
             # Scale down node
             RuleUtils.scaleDownNode(db, ec2_type, rds_type)
