@@ -45,6 +45,11 @@ Populate settings data ( Run only one time at starting )
 $ python manage.py populate_settings_data
 ```
 
+create user from command line
+```shell
+$ python manage.py createsuperuser
+```
+
 Load instance data
 ```shell
 $ python manage.py get_all_db_data

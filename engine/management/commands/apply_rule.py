@@ -4,7 +4,6 @@ from django.core.management import BaseCommand
 from engine.aws_wrapper import AWSData
 from engine.models import Rules, ActionLogs, ExceptionData, EC2, RDS
 from engine.utils import RuleUtils, set_retry_cron
-from datetime import datetime
 
 
 class Command(BaseCommand):
@@ -23,12 +22,12 @@ class Command(BaseCommand):
                 elif rule_db.cluster.type == RDS:
                     aws.describe_rds_instances()
                 try:
-                    exce_date = ExceptionData.objects.get(exception_date=datetime.now().date())
-                    if exce_date:
-                        # Check existing cluster is present in exception or not
-                        for cluster in exce_date.clusters:
-                            if rule_db.cluster.id == cluster["id"]:
-                                raise Exception("Rule execution on Cluster: {} is excluded for date: {}".format(rule_db.cluster.name, datetime.now().date()))
+                    exception_date_data = ExceptionData.objects.get(exception_date=timezone.now().date())
+                    # Check existing cluster is present in exception or not
+                    for cluster in exception_date_data.clusters:
+                        if rule_db.cluster.id == cluster["id"]:
+                            raise Exception("Rule execution on Cluster: {} is excluded for date: {}".format(
+                                rule_db.cluster.name, timezone.now().date()))
                 except ExceptionData.DoesNotExist:
                     pass
 

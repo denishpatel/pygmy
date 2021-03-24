@@ -239,6 +239,9 @@ class RuleUtils:
             cls.checkConnections(db_conn, rule_json)
             if db.type == EC2:
                 cls.checkAverageLoad(db_conn, rule_json)
+            else:
+                # check avg load using cloudwatch metrics
+                pass
 
             # Scale down node
             RuleUtils.scaleDownNode(db, ec2_type, rds_type)
