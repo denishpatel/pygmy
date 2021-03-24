@@ -59,6 +59,7 @@ class Ec2DbInfo(models.Model):
     isConnected = models.BooleanField(default=False)
     lastUpdated = models.DateTimeField(auto_now=True)
     type = models.CharField(choices=CLUSTER_TYPES, max_length=30)
+    last_instance_type = models.CharField(max_length=255, null=True)
 
 
 class AllEc2InstanceTypes(models.Model):
@@ -170,6 +171,7 @@ class Rules(models.Model):
     run_at = models.CharField(max_length=100, null=False)
     err_msg = models.CharField(max_length=255, null=True)
     last_run = models.DateTimeField(auto_created=True, null=True)
+    parent_rule = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True, related_name="child_rule")
 
 
 class ActionLogs(models.Model):

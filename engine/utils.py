@@ -53,6 +53,48 @@ def create_cron(rule):
     cron.write()
 
 
+def set_retry_cron(rule):
+    # Get Rule details
+    rule_json = rule.rule
+    retry_rule = rule_json.get("retry", None)
+
+    if not retry_rule:
+        return
+
+    retry_after = retry_rule.get("retry_after")
+    max_retry = retry_rule.get("retry_max")
+    no_of_tries = retry_rule.get("no_of_tries", 0)
+
+    if retry_after and max_retry:
+        retry_rule_comment = "retry_rule_{}".format(rule.id)
+        try:
+            # Update Crontab jobs
+            cron = CronTab(user=getpass.getuser())
+            if no_of_tries == 0:
+                job = cron.new(command="{0}/venv/bin/python {0}/manage.py apply_rule {1}".format(settings.BASE_DIR, rule.id), comment=retry_rule_comment)
+                job.minute.every(retry_after)
+
+            # Increase no of tries
+            no_of_tries += 1
+            if no_of_tries > int(max_retry):
+                print("remove all cron job")
+                no_of_tries = 0
+                cron.remove_all(comment=retry_rule_comment)
+            cron.write()
+        except Exception as e:
+            print(e)
+
+        # Update Rule json
+        rule.rules = rule_json.update({
+            "retry": dict({
+                "retry_after": retry_after,
+                "retry_max": max_retry,
+                "no_of_tries": no_of_tries
+            })
+        })
+        rule.save()
+
+
 def delete_cron(rule):
     if sys.platform == "win32":
         return
@@ -114,10 +156,19 @@ class RuleUtils:
                 })
             })
 
+        # Set Retry settings
+        enableRetry = data.get("enableRetry", None)
+        if enableRetry and enableRetry == "on":
+            rules.update({
+                "retry": dict({
+                    "retry_after": data.get("retryAfter", 15),
+                    "retry_max": data.get("retryMax", 3)
+                })
+            })
+
         rule_db.name = data.get("name", None)
         rule_db.action = data.get("action", None)
         rule_db.cluster_id = data.get("cluster_id", None)
-        # enableTime = data.get("enableTime", False)
         typeTime = data.get("typeTime", None)
 
         # Set time
@@ -131,6 +182,47 @@ class RuleUtils:
         rule_db.rule = rules
         rule_db.save()
         create_cron(rule_db)
+        RuleUtils.create_reverse_rule(data, rule_db)
+
+    @staticmethod
+    def create_reverse_rule(data, parent_rule):
+        reverse_enable = data.get("enableReverse", None)
+        if reverse_enable:
+            typeTime = data.get("typeTime", None)
+            reverse_action = data.get("reverse_action", None)
+
+            # Create Reverse Rule
+            reverse_rule = Rules()
+            if parent_rule.child_rule.all().count() > 0:
+                reverse_rule = parent_rule.child_rule.get()
+            reverse_rule.name = format(parent_rule.name)
+            reverse_rule.cluster = parent_rule.cluster
+            reverse_rule.rule = dict({})
+            reverse_rule.action = reverse_action
+            reverse_rule.run_type = typeTime
+            reverse_rule.parent_rule = parent_rule
+            if typeTime.upper() == DAILY:
+                reverse_rule.run_type = DAILY
+                reverse_rule.run_at = data.get("reverseDailyTime", None)
+            else:
+                reverse_rule.run_type = CRON
+                reverse_rule.run_at = data.get("reverseCronTime", None)
+            reverse_rule.save()
+
+            create_cron(reverse_rule)
+        else:
+            if parent_rule.child_rule.all().count() > 0:
+                for rule in parent_rule.child_rule.all():
+                    delete_cron(rule)
+                    rule.delete()
+
+    @classmethod
+    def reverse_rule(cls, rule_db):
+        secondaryNode = Ec2DbInfo.objects.filter(cluster=rule_db.cluster, isPrimary=False)
+
+        # Check no of connection and average load on secondary node
+        for db in secondaryNode:
+            cls.reverseScale(db)
 
     @classmethod
     def apply_rule(cls, rule_db):
@@ -139,15 +231,6 @@ class RuleUtils:
         rds_type = rule_json.get("rds_type")
 
         secondaryNode = Ec2DbInfo.objects.filter(cluster=rule_db.cluster, isPrimary=False)
-        # primaryNode = Ec2DbInfo.objects.filter(cluster=rule_db.cluster, isPrimary=True)
-
-        # check replication lag on primary Node
-        # if primaryNode.count() > 0:
-        #     for db in primaryNode:
-        #         db_conn = RuleUtils.create_connection(db)
-        #         cls.checkReplicationLag(db_conn, rule_json)
-        # else:
-        #     raise Exception("Primary node not found for cluster : {}".format(cluster.name))
 
         # Check no of connection and average load on secondary node
         for db in secondaryNode:
@@ -170,6 +253,20 @@ class RuleUtils:
 
     @staticmethod
     def scaleDownNode(db, ec2_type, rds_type):
+        RuleUtils.changeInstanceType(db, ec2_type, rds_type)
+        # save last instance type in db after scale down for reverse rule
+        db.last_instance_type = db.instance_object.instanceType
+        db.save()
+
+    @staticmethod
+    def reverseScale(db):
+        if db.type == EC2:
+            RuleUtils.changeInstanceType(db, db.last_instance_type, None)
+        elif db.type == RDS:
+            RuleUtils.changeInstanceType(db, None, db.last_instance_type)
+
+    @staticmethod
+    def changeInstanceType(db, ec2_type, rds_type):
         aws = AWSData()
         if db.type == EC2:
             aws.scale_ec2_instance(db.instance_id, ec2_type)
@@ -188,7 +285,7 @@ class RuleUtils:
     def checkConnections(db_conn, rule_json):
         rule = rule_json.get("checkConnection", None)
         if rule:
-            activeConnections = db_conn.get_no_of_active_connections()[3]
+            activeConnections = db_conn.get_no_of_active_connections()
             return RuleUtils.checkValue(rule, activeConnections, msg="Check Connection")
 
     @staticmethod

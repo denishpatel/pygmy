@@ -2,8 +2,8 @@ import time
 from django.utils import timezone
 from django.core.management import BaseCommand
 from engine.aws_wrapper import AWSData
-from engine.models import Rules, ActionLogs, ExceptionData
-from engine.utils import RuleUtils
+from engine.models import Rules, ActionLogs, ExceptionData, EC2, RDS
+from engine.utils import RuleUtils, set_retry_cron
 from datetime import datetime
 
 
@@ -17,6 +17,11 @@ class Command(BaseCommand):
         for rid in kwargs['rule_id']:
             try:
                 rule_db = Rules.objects.get(id=rid)
+                # Update db with latest info()
+                if rule_db.cluster.type == EC2:
+                    aws.describe_ec2_instances()
+                elif rule_db.cluster.type == RDS:
+                    aws.describe_rds_instances()
                 try:
                     exce_date = ExceptionData.objects.get(exception_date=datetime.now().date())
                     if exce_date:
@@ -27,27 +32,31 @@ class Command(BaseCommand):
                 except ExceptionData.DoesNotExist:
                     pass
 
-                RuleUtils.apply_rule(rule_db)
+                # Check rule is Reverse Rule or not
+                if rule_db.parent_rule:
+                    RuleUtils.reverse_rule(rule_db)
+                else:
+                    RuleUtils.apply_rule(rule_db)
                 rule_db.status = True
                 rule_db.err_msg = ""
                 msg = "Successfully Executed Rule"
+                # auto reload of the instances
+                time.sleep(60)
+                aws.describe_ec2_instances()
+                aws.describe_rds_instances()
+                print("Rule has completed successfully")
             except Exception as e:
                 rule_db.status = False
                 rule_db.err_msg = e
                 msg = e
                 print(str(e))
                 print("No rule found")
+                set_retry_cron(rule_db)
                 # msg = "Rule not matched"
             finally:
                 rule_db.last_run = timezone.now()
                 rule_db.save()
                 self.add_log_entry(rule_db, msg)
-
-            # auto reload of the instances
-            time.sleep(60)
-            aws.describe_ec2_instances()
-            aws.describe_rds_instances()
-            print("Rule has completed successfully")
 
     def add_log_entry(self, rule, msg):
         # Add Log entry

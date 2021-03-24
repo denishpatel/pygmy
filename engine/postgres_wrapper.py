@@ -103,7 +103,11 @@ class PostgresData:
         """
         query = "select datname,usename,application_name,count(*) as connection_count from pg_stat_activity "\
                 "where datname !='postgres' group by 1,2,3;"
-        return self.execute_and_return_data(query)[0]
+        result = self.execute_and_return_data(query)
+        if len(result) > 0:
+            return result[0][3]
+        else:
+            return 0
 
     def close(self):
         self.cursor.close()

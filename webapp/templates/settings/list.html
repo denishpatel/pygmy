@@ -13,9 +13,9 @@
             </ul>
         </div>
     </div>
-    <div class="uk-section-xsmall">
+    <div class="uk-section-xsmall" style="padding-bottom: 0px">
         <div class="uk-column-1-2" style="padding: 0px 40px">
-            <h2>Settings</h2>
+            <h4>Settings</h4>
             <div class="uk-container-small uk-align-right">
                 <div id="all-sync-spinner" style="display: none" uk-spinner></div>
                 <span id="all-sync-btn" class="uk-button uk-button-primary uk-button-small sync-btn" data-target="all">Sync All</span>
@@ -24,30 +24,70 @@
     </div>
     <div class="">
         <div class="uk-container uk-container-large">
-            <table class="uk-table uk-table-hover uk-table-responsive uk-table-divider" style="background: white">
-                <thead>
-                    <tr style="background: #232f3e">
-                        <th class="uk-table-expand">Name</th>
-                        <th class="">State</th>
-                        <th class="">Last Sync Time</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for s in settings %}
-                    <tr>
-                        <td>{{s.description}}</td>
-                        <td class="uk-width-1-5">
-                            {% if s.in_progress %}
-                            <span class="uk-label uk-label-warning">In-Progress</span>
-                            {% else %}
-                            <div id="{{s.name}}-sync-spinner" style="display: none" uk-spinner></div>
-                            <span id="{{s.name}}-sync-btn" class="uk-button uk-button-primary uk-button-small sync-btn" data-target="{{s.name}}">Sync</span>
-                            {% endif %}</td>
-                        <td class="uk-width-1-5">{{s.last_sync}}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            <ul uk-tab>
+                <li><a href="#">Configuration</a></li>
+                <li><a href="#">Sync</a></li>
+            </ul>
+            <ul class="uk-switcher uk-margin">
+                <li>
+                    <form method="post">
+                        {% csrf_token %}
+                    <table class="uk-table uk-table-responsive uk-table-divider uk-table-small" style="background: white">
+                        <thead>
+                            <tr style="background: #232f3e">
+                                <th class="uk-table-expand">Name</th>
+                                <th class="">Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in config %}
+                            <tr>
+                                <td>{{s.description}}</td>
+                                <td class="uk-width-1-5">
+                                    {% if "password" in s.name|lower %}
+                                    <input class="uk-input uk-form-small" type="password" name="{{s.name}}" value="dummypass" placeholder="password">
+                                    {% else %}
+                                    <input class="uk-input uk-form-small" type="text" name="{{s.name}}" value="{{s.value}}">
+                                    {% endif %}
+                                </td>
+<!--                                <td class="uk-width-1-5">{{s.last_sync}}</td>-->
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <div style="float: right; padding-bottom: 40px">
+                        <input type="submit" class="uk-button uk-button-primary uk-button-small" value="saven all">
+                    </div>
+                    </form>
+                </li>
+                <li>
+                    <table class="uk-table uk-table-hover uk-table-responsive uk-table-divider uk-table-small" style="background: white">
+                        <thead>
+                            <tr style="background: #232f3e">
+                                <th class="uk-table-expand">Name</th>
+                                <th class="">State</th>
+                                <th class="">Last Sync Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in sync %}
+                            <tr>
+                                <td>{{s.description}}</td>
+                                <td class="uk-width-1-5">
+                                    {% if s.in_progress %}
+                                    <span class="uk-label uk-label-warning">In-Progress</span>
+                                    {% else %}
+                                    <div id="{{s.name}}-sync-spinner" style="display: none" uk-spinner></div>
+                                    <span id="{{s.name}}-sync-btn" class="uk-button uk-button-primary uk-button-small sync-btn" data-target="{{s.name}}">Sync</span>
+                                    {% endif %}</td>
+                                <td class="uk-width-1-5">{{s.last_sync}}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </li>
+            </ul>
+
         </div>
     </div>
 </div>
@@ -79,6 +119,10 @@
                 notyf.error('Sync is Failed!');
             });
         });
+
+    {% if success %}
+    notyf.success('Saved config Successfully!');
+    {% endif %}
     });
 </script>
 {% endblock %}

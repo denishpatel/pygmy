@@ -37,11 +37,21 @@
                     {% for row in rules %}
                         <tr>
                             <td><input class="uk-checkbox" type="checkbox"></td>
-                            <td><a href="{% url 'edit_rule' row.id %}">{{row.name}}</a></td>
+                            <td>
+                                {% if row.parent_rule_id %}
+                                <a href="{% url 'edit_rule' row.parent_rule_id %}">REV-{{row.name}}</a>
+                                {% else %}
+                                <a href="{% url 'edit_rule' row.id %}">{{row.name}}</a>
+                                {% endif %}
+                            </td>
                             <td>{{row.cluster.name}}</td>
                             <td>{{row.action}}</td>
                             <td>{{row.run_at}}</td>
-                            <td>{% if row.status %}<span class="uk-label uk-label-success">Success</span>{% else %}<span class="uk-label">Yet To Run</span>{% endif %}</td>
+                            {% if not row.last_run %}
+                            <td><span class="uk-label">Yet To Run</span></td>
+                            {% else %}
+                            <td>{% if row.status %}<span class="uk-label uk-label-success">Success</span>{% else %}<span class="uk-label uk-label-danger">Failed</span>{% endif %}</td>
+                            {% endif %}
                             <td>{{row.last_run}}</td>
                         </tr>
                     {% endfor %}

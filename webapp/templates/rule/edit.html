@@ -17,13 +17,13 @@
     .autocomplete-group { padding: 2px 5px; }
     .autocomplete-group strong { display: block; border-bottom: 1px solid #000; }
 
-    @media (min-width: 960px) {
-        .1uk-form-horizontal .uk-form-label {
-            width: 200px;
-        }
-        .1uk-form-horizontal .uk-form-controls {
-            margin-left: 200px;
-        }
+    .table-cell {
+        display: flow-root;
+        padding: 10px;
+    }
+
+    .revert {
+        display: block;
     }
 </style>
 <div class="content-padder content-background">
@@ -66,43 +66,57 @@
         {% endif %}
         <form class="uk-form-horizontal" action="" method="post">
             {% csrf_token %}
-            <table class="uk-table">
-                <tr>
-                    <td>
-                        <div class="uk-margin">
-                            <label class="uk-form-label uk-text-default" for="form-horizontal-select">Rule Name</label>
-                            <div class="uk-form-controls">
-                                <input class="uk-input" name="name" type="text" placeholder="" value="{{data.name}}" required>
+            <div class="uk-grid-match uk-child-width-1-2@m" uk-grid>
+                <div style="padding-bottom: 0px;">
+                    <div class="uk-margin">
+                        <label class="uk-form-label uk-text-default">Name</label>
+                        <div class="uk-form-controls">
+                            <input class="uk-input" name="name" type="text" placeholder="Rule Name..." value="{{data.name}}" required>
+                        </div>
+                    </div>
+                </div>
+                <div style="padding-bottom: 0px;">
+                    <div class="uk-margin">
+                        <label class="uk-form-label uk-text-default">Cluster</label>
+                        <div class="uk-form-controls">
+                            <input class="uk-select cluster" name="cluster_name" type="text" placeholder="Cluster..." value="{{data.cluster.name}}" required>
+                            <input id="cluster" name="cluster_id" type="hidden" value="{{data.cluster.id}}" required>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <hr>
+            <div class="uk-child-width-1-2@m" uk-grid>
+                <div class="uk-card">
+                    <div class="uk-margin">
+                        <label class="uk-form-label uk-text-default" for="action-select">Action</label>
+                        <div class="uk-form-controls">
+                            <select name="action" class="uk-select" id="action-select">
+                                <option value="SCALE_DOWN" {% if data.action == "SCALE_DOWN"%}selected{% endif %}>Scale Down</option>
+                                <option value="SCALE_UP" {% if data.action == "SCALE_UP"%}selected{% endif %}>Scale Up</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="table-cell">
+                        <div class="uk-form-label uk-margin uk-grid-small uk-child-width-auto uk-grid">
+                            <label class="uk-text-default">Time</label>
+                        </div>
+                        <div id="inputTime" class="uk-form-controls">
+                            <div class="time_options">
+                                <label><input class="typeTime uk-radio" type="radio" name="typeTime" value="DAILY" {% if data.run_type == "DAILY" %}checked{% endif %}> Daily</label>
+                                <label style="padding-left: 30px;"><input class="typeTime uk-radio" type="radio" name="typeTime" value="CRON" style="align: right" {% if data.run_type == "CRON" %}checked{% endif %}> Cron</label>
+                            </div>
+                            <div id="check_daily_time_input" class="uk-margin" {% if data.run_type == "CRON" %}style="display: none"{% endif %}>
+                                <input id="dailyTime" name="dailyTime" class="uk-input flatpickr" type="text" placeholder="Time..."  {% if data.run_type == "DAILY" %}value="{{data.run_at}}"{% endif %}>
+                            </div>
+                            <div id="check_cron_time_input" class="uk-margin" {% if data.run_type == "DAILY" %}style="display: none"{% endif %}>
+                                <input id="cronTime" name="cronTime" class="uk-input crontime" type="text" placeholder="Time..."  {% if data.run_type == "CRON" %}value="{{data.run_at}}"{% endif %}>
                             </div>
                         </div>
-                        <hr>
-                    </td>
-                    <td>
-                        <div class="uk-margin">
-                            <label class="uk-form-label uk-text-default" for="form-horizontal-select">Cluster</label>
-                            <div class="uk-form-controls">
-                                <input class="uk-select cluster" name="cluster_name" type="text" placeholder="" value="{{data.cluster.name}}" required>
-                                <input id="cluster" name="cluster_id" type="hidden" value="{{data.cluster.id}}" required>
-                            </div>
-                        </div>
-                        <hr>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <div class="uk-margin">
-                            <label class="uk-form-label uk-text-default" for="form-horizontal-select">Action</label>
-                            <div class="uk-form-controls">
-                                <select name="action" class="uk-select" id="form-horizontal-select">
-                                    <option value="SCALE_DOWN" {% if data.action == "SCALE_DOWN" %}selected{% endif %}>Scale Down</option>
-                                    <option value="SCALE_UP" {% if data.action == "SCALE_UP" %}selected{% endif %}>Scale Up</option>
-                                </select>
-                            </div>
-                        </div>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
+                    </div>
+
+                    <div class="table-cell">
                         <div id="ec2_type_div" style="display: {% if data.cluster.type == 'EC2' %}block{% else %}none{% endif %}">
                             <label class="uk-form-label uk-width-1-4 uk-text-default ">EC2 Instance Type</label>
                             <div class="uk-form-controls">
@@ -115,34 +129,9 @@
                                 <input id="rds_type" name="rds_type" class="uk-select rds_types" type="text" placeholder="RDS types..." value="{{data.rule.rds_type}}">
                             </div>
                         </div>
-                    </td>
-                    <td></td>
-                </tr>
-                <tr>
-                    <td>
-                        <div class="uk-form-label uk-margin uk-grid-small uk-child-width-auto uk-grid">
-                            <label class="uk-text-default">
-<!--                                <input id="enableTime" name="enableTime" class="uk-checkbox" type="checkbox" {% if data.run_type %}checked{% endif %}> -->
-                                Time
-                            </label>
-                        </div>
-                        <div id="inputTime" class="uk-form-controls">
-                            <div class="time_options">
-                                <label><input class="typeTime uk-radio" type="radio" name="typeTime" value="DAILY" {% if data.run_type == "DAILY" %}checked{% endif %}> Daily</label>
-                                <label style="padding-left: 30px;"><input class="typeTime uk-radio" type="radio" name="typeTime" value="CRON" style="align: right" {% if data.run_type == "CRON" %}checked{% endif %}> Cron</label>
-                            </div>
-                            <div id="check_daily_time_input" class="uk-margin" {% if data.run_type == "CRON" %}style="display: none"{% endif %}>
-                                <input id="dailyTime" name="dailyTime" class="uk-input flatpickr" type="text" placeholder="Time..." value="{{data.run_at}}">
-                            </div>
-                            <div id="check_cron_time_input" class="uk-margin" {% if data.run_type == "DAILY" %}style="display: none"{% endif %}>
-                                <input id="cronTime" name="cronTime" class="uk-input crontime" type="text" placeholder="Time..." value="{{data.run_at}}">
-                            </div>
-                        </div>
-                    </td>
-                    <td></td>
-                </tr>
-                <tr>
-                    <td>
+                    </div>
+
+                    <div class="table-cell">
                         <div class="uk-form-label uk-margin uk-grid-small uk-child-width-auto uk-grid">
                             <label class="uk-text-default">
                                 <input id="enableReplicationLag" name="enableReplicationLag" class="uk-checkbox" type="checkbox" {% if data.rule.replicationLag %}checked{% endif %}> Replication Lag
@@ -156,11 +145,8 @@
                             </select>
                             <input id="replicationLag" name="replicationLag" class="uk-input uk-width-3-5" type="text" placeholder="Replication..." value="{{data.rule.replicationLag.value}}">
                         </div>
-                    </td>
-                    <td></td>
-                </tr>
-                <tr>
-                    <td>
+                    </div>
+                    <div class="table-cell">
                         <div class="uk-form-label uk-margin uk-grid-small uk-child-width-auto uk-grid">
                             <label class="uk-text-default">
                                 <input id="enableCheckConnection" name="enableCheckConnection" class="uk-checkbox" type="checkbox" {% if data.rule.checkConnection   %}checked{% endif %}> Connections
@@ -174,11 +160,9 @@
                             </select>
                             <input id="checkConnection" name="checkConnection" class="uk-input uk-width-3-5" type="text" placeholder="Connection..." value="{{data.rule.checkConnection.value}}">
                         </div>
-                    </td>
-                    <td></td>
-                </tr>
-                <tr>
-                    <td>
+                    </div>
+
+                    <div class="table-cell">
                         <div class="uk-form-label uk-margin uk-grid-small uk-child-width-auto uk-grid">
                             <label class="uk-text-default">
                                 <input id="enableAverageLoad" name="enableAverageLoad" class="uk-checkbox" type="checkbox" {% if data.rule.averageLoad %}checked{% endif %}> Average Load
@@ -192,9 +176,59 @@
                             </select>
                             <input id="averageLoad" name="averageLoad" class="uk-input uk-width-3-5" type="text" placeholder="Average Load..." value="{{data.rule.averageLoad.value}}">
                         </div>
-                    </td>
-                    <td></td>
-                </tr>
+                    </div>
+
+                    <div class="table-cell">
+                        <div class="uk-form-label">
+                            <label class="uk-text-default">
+                                <input id="enableRetry" name="enableRetry" class="uk-checkbox" type="checkbox" {% if data.rule.retry %}checked{% endif %}> Retry
+                            </label>
+                        </div>
+                        <div id="inputRetry" class="uk-form-controls">
+                            <div class="uk-margin">
+                                <span>after</span>
+                                <input id="retryAfter" name="retryAfter" class="uk-input uk-form-width-xsmall" type="text" value="15">
+                                <span>min, at max</span>
+                                <input id="retryMax" name="retryMax" class="uk-input uk-form-width-xsmall" type="text" value="3">
+                                <span>times</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="uk-card">
+                    <div>
+                        <label class="uk-form-label uk-text-default" for="action-select">
+                            <input id="enableReverse" name="enableReverse" class="uk-checkbox" type="checkbox" {% if reverse_rule %}checked{% endif %}> Reverse
+                        </label>
+                        <div class="revert uk-form-controls">
+                            <select class="uk-select" id="reverse-action-select" disabled>
+                                <option value="SCALE_UP" {% if data.action == "SCALE_UP"%}selected{% endif %}>Scale Up</option>
+                                <option value="SCALE_DOWN" {% if data.action == "SCALE_DOWN"%}selected{% endif %}>Scale Down</option>
+                            </select>
+                            <input type="hidden" id="reverse_action" name="reverse_action" value="SCALE_UP">
+                        </div>
+                    </div>
+                    <!-- Instance time -->
+                    <div class="revert table-cell">
+                    <div class="uk-form-label">
+                    </div>
+                    <div id="scaleUpInputTime" class="reverse-rule uk-form-controls">
+                        <div class="time_options" style="height: 44px"></div>
+                        <div id="reverse_check_daily_time_input" class="uk-margin" {% if data.run_type == "CRON" %}style="display: none"{% endif %}>
+                            <div>
+                                <input id="reverseDailyTime" name="reverseDailyTime" class="uk-input flatpickr" type="text" placeholder="Time..." {% if data.run_type == "DAILY" %}value="{{reverse_rule.run_at}}"{% endif %}>
+                            </div>
+                        </div>
+                        <div id="reverse_check_cron_time_input" class="uk-margin" {% if data.run_type == "DAILY" %}style="display: none"{% endif %}>
+                            <div>
+                                <input id="reverseCronTime" name="reverseCronTime" class="uk-input crontime" type="text" placeholder="Time..." {% if data.run_type == "CRON" %}value="{{reverse_rule.run_at}}"{% endif %}>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                </div>
+            </div>
+            <table class="uk-table">
                 <tr>
                     <td colspan="2" style="text-align: right;">
                         <button id="save_rule" class="uk-button uk-button-primary" type="submit">Save Rule</button>
@@ -215,6 +249,8 @@ var ec2_types = {{ ec2_types|safe }}
 var rds_types = {{ rds_types|safe }}
 var clusters = {{ clusters | safe }}
 var notyf = new Notyf();
+var currentClusterType = "";
+
 $(document).ready(function() {
     $(".ec2_types").autocomplete({
       lookup: ec2_types,
@@ -235,10 +271,20 @@ $(document).ready(function() {
         console.log("suggestion " + suggestion);
         $("#ec2_type_div").hide();
         $("#rds_type_div").hide();
-        if(suggestion.type == "RDS")
+        $("#scale_up_ec2_type_div").hide();
+        $("#scale_up_rds_type_div").hide();
+        var scaleDown = $("#action-select").val() == "SCALE_DOWN";
+        if(suggestion.type == "RDS") {
+            currentClusterType = "RDS";
             $("#rds_type_div").show();
-        else
+            if(scaleDown)
+                $("#scale_up_rds_type_div").show();
+        } else {
+            currentClusterType = "EC2";
             $("#ec2_type_div").show();
+            if(scaleDown)
+                $("#scale_up_ec2_type_div").show();
+        }
       }
     });
 
@@ -270,6 +316,15 @@ $(document).ready(function() {
     {% if not data.rule.averageLoad %}
         $("#inputAverageLoad").hide();
     {% endif %}
+    {% if not data.rule.retry %}
+        $("#inputRetry").hide();
+    {% endif %}
+    {% if not data.child_rule %}
+        $("#inputRetry").hide();
+    {% endif %}
+    {% if not reverse_rule %}
+        $(".revert").hide();
+    {% endif %}
 });
 
 function delete_rule() {
@@ -293,6 +348,15 @@ $("#enableTime").change(function() {
         $("#inputTime").show();
    } else {
         $("#inputTime").hide();
+   }
+});
+
+// Handle time check
+$("#enableReverse").change(function() {
+   if(this.checked) {
+        $(".revert").show();
+   } else {
+        $(".revert").hide();
    }
 });
 
@@ -320,15 +384,49 @@ $("#enableAverageLoad").change(function() {
    }
 });
 
+$("#enableRetry").change(function() {
+    if(this.checked) {
+        $("#inputRetry").show();
+   } else {
+        $("#inputRetry").hide();
+   }
+});
+
 // Handle Replication Lag
 $(".typeTime").change(function() {
     console.log("this ", this.value);
     if(this.value == "DAILY") {
         $("#check_cron_time_input").hide();
         $("#check_daily_time_input").show();
+        $("#reverse_check_cron_time_input").hide();
+        $("#reverse_check_daily_time_input").show();
     } else {
         $("#check_cron_time_input").show();
         $("#check_daily_time_input").hide();
+        $("#reverse_check_cron_time_input").show();
+        $("#reverse_check_daily_time_input").hide();
+    }
+});
+
+// Handle action change
+$("#action-select").change(function() {
+    console.log("this", this.value);
+    var cluster = $("#cluster").val();
+    if(this.value == "SCALE_DOWN") {
+        //$(".reverse-rule").show();
+        $("#reverse-action-select").val("SCALE_UP");
+        $("#reverse_action").val("SCALE_UP");
+        if(currentClusterType == "RDS")
+            $("#scale_up_rds_type_div").show();
+        else if(currentClusterType == "EC2")
+            $("#scale_up_ec2_type_div").show();
+    } else {
+        $("#reverse-action-select").val("SCALE_DOWN");
+        $("#reverse_action").val("SCALE_DOWN");
+
+        //$(".reverse-rule").hide();
+        $("#scale_up_ec2_type_div").hide();
+        $("#scale_up_rds_type_div").hide();
     }
 });
 {% endif %}

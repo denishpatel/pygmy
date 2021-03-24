@@ -62,7 +62,8 @@ class EditRuleView(LoginRequiredMixin, View):
                 "ec2_types": self.ec2,
                 "rds_types": self.rds,
                 "clusters": get_selection_list(ClusterInfo.objects.all(), "type", "name", "id"),
-                "data": rule
+                "data": rule,
+                "reverse_rule": rule.child_rule.get() if rule.child_rule.all().count() > 0 else None,
             }
         except Rules.DoesNotExist:
             ctx = {

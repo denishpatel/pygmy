@@ -32,7 +32,7 @@
             <tbody style="background-color: #ffffff; color: black;">
             {% for action in actions %}
                 <tr>
-                    <td>{{action.id}}</td>
+                    <td class="max-width: 10px">{{action.id}}</td>
                     <td width="100px">
                         <a href="{% url 'edit_rule' action.rule.id %}">{{action.rule.name}}
                             {% if action.rule.action == "SCALE_UP" %}
@@ -41,12 +41,12 @@
                             {% endif %}
                         </a>
                     </td>
-                    <td width="40%">
+                    <td style="max-width: 200px">
                         <div class="uk-panel uk-text-truncate">
                             {{action.msg}}
                         </div>
                     </td>
-                    <td>{{action.status}}</td>
+                    <td style="max-width: 100px"> {{action.status}}</td>
                     <td class="time_td">{{action.time}}</td>
                 </tr>
             {% endfor %}
