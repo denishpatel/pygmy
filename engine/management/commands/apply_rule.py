@@ -13,6 +13,8 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         aws = AWSData()
+        msg = ""
+        extra_info = ""
         for rid in kwargs['rule_id']:
             try:
                 rule_db = Rules.objects.get(id=rid)
@@ -26,6 +28,8 @@ class Command(BaseCommand):
                     # Check existing cluster is present in exception or not
                     for cluster in exception_date_data.clusters:
                         if rule_db.cluster.id == cluster["id"]:
+                            msg = "{} is listed as exception date for this cluster. Hence not applying rule".format(
+                                str(timezone.now().date()))
                             raise Exception("Rule execution on Cluster: {} is excluded for date: {}".format(
                                 rule_db.cluster.name, timezone.now().date()))
                 except ExceptionData.DoesNotExist:
@@ -57,7 +61,7 @@ class Command(BaseCommand):
                 rule_db.save()
                 self.add_log_entry(rule_db, msg)
 
-    def add_log_entry(self, rule, msg):
+    def add_log_entry(self, rule, msg, extra_info=None):
         # Add Log entry
         log = ActionLogs()
         log.rule = rule
