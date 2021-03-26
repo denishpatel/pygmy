@@ -258,7 +258,10 @@ class RuleUtils:
     def scaleDownNode(db, ec2_type, rds_type):
         RuleUtils.changeInstanceType(db, ec2_type, rds_type)
         # save last instance type in db after scale down for reverse rule
-        db.last_instance_type = db.instance_object.instanceType
+        if db.type == EC2:
+            db.last_instance_type = db.instance_object.instanceType
+        else:
+            db.last_instance_type = db.instance_object.dbInstanceClass
         db.save()
 
     @staticmethod
