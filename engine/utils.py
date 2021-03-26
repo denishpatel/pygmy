@@ -240,6 +240,7 @@ class RuleUtils:
             if db.type == EC2:
                 cls.checkAverageLoad(db_conn, rule_json)
             else:
+                # TODO bridge in rds using cloudwatch metrics
                 # check avg load using cloudwatch metrics
                 pass
 
@@ -285,6 +286,7 @@ class RuleUtils:
         replicationLagRule = rule_json.get("replicationLag", None)
         if replicationLagRule:
             replicationLag = db_conn.get_replication_lag()
+            print(replicationLag)
             return RuleUtils.checkValue(replicationLagRule, replicationLag, msg="Replication Lag")
 
     @staticmethod
@@ -292,6 +294,7 @@ class RuleUtils:
         rule = rule_json.get("checkConnection", None)
         if rule:
             activeConnections = db_conn.get_no_of_active_connections()
+            print(activeConnections)
             return RuleUtils.checkValue(rule, activeConnections, msg="Check Connection")
 
     @staticmethod
@@ -299,6 +302,7 @@ class RuleUtils:
         rule = rule_json.get("averageLoad", None)
         if rule:
             avgLoad = db_conn.get_system_load_avg()
+            print(avgLoad)
             return RuleUtils.checkValue(rule, avgLoad, msg="Average load")
 
     @staticmethod

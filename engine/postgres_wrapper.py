@@ -94,8 +94,8 @@ class PostgresData:
         Return avg system load in last 15 mins if available
         else return last 10 mins load
         """
-        query = "SELECT * FROM pg_sys_load_avg_info"
-        return self.execute_and_return_data(query)[0]
+        query = "SELECT * FROM pg_sys_load_avg_info()"
+        return self.execute_and_return_data(query)[0][2]
 
     def get_no_of_active_connections(self):
         """
