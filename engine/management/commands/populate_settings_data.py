@@ -1,5 +1,7 @@
 import logging
 from django.core.management import BaseCommand
+
+from engine.models import DbCredentials
 from webapp.models import Settings, SYNC, CONFIG
 
 logger = logging.getLogger(__name__)
@@ -26,15 +28,6 @@ class Command(BaseCommand):
                 setting.type = SYNC
                 setting.save()
 
-        # Add Config Keys
-        # # Filter Tag values
-        # EC2_INSTANCE_POSTGRES_TAG_KEY_NAME = "Role"
-        # EC2_INSTANCE_POSTGRES_TAG_KEY_VALUE = "pg-instance"
-        #
-        # # Read Tag Values
-        # EC2_INSTANCE_PROJECT_TAG_KEY_NAME = "Project"
-        # EC2_INSTANCE_ENV_TAG_KEY_NAME = "Environment"
-        # EC2_INSTANCE_CLUSTER_TAG_KEY_NAME = "Cluster"
         config = dict({
             "EC2_INSTANCE_POSTGRES_TAG_KEY_NAME": ("Tag Name to identify postgres EC2 instance", "Role"),
             "EC2_INSTANCE_POSTGRES_TAG_KEY_VALUE": ("Tag Value to identify postgres EC2 instance", "pg-instance"),
@@ -53,3 +46,17 @@ class Command(BaseCommand):
             config_set.last_sync = None
             config_set.type = CONFIG
             config_set.save()
+
+        # Secrets
+        secrets = dict({
+            "Postgres Secrets": ("postgres", "postgres"),
+            "AWS Secrets": ("AWS", "AWS")
+        })
+
+        for key, value in secrets.items():
+            print(value[0], value[1])
+            secret = DbCredentials()
+            secret.name = key
+            secret.user_name = value[0]
+            secret.password = value[1]
+            secret.save()

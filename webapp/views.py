@@ -5,6 +5,7 @@ from django.db.models import F
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views import View
+from rest_framework.response import Response
 
 from engine.aws_wrapper import AWSData
 from engine.models import DbCredentials, ClusterInfo, EC2, AllEc2InstancesData, RdsInstances, Ec2DbInfo, RDS, \
@@ -41,6 +42,24 @@ class SecretsView(LoginRequiredMixin, View):
 
     def dispatch(self, *args, **kwargs):
         return super(SecretsView, self).dispatch(*args, **kwargs)
+
+
+class SecretsEditView(LoginRequiredMixin, View):
+
+    def put(self, request, id, **kwargs):
+        try:
+            secret = DbCredentials.objects.get(id=id)
+            username = request.POST.get("username")
+            password = request.POST.get("password")
+            if username and password:
+                secret.user_name = username
+                secret.password = password
+                secret.save()
+            else:
+                return Response(status=400)
+        except DbCredentials.DoesNotExist:
+            return Response(status=400)
+        return Response(dict({"success": True}))
 
 
 class ClusterView(LoginRequiredMixin, View):
