@@ -42,6 +42,10 @@ class ClusterInfo(models.Model):
     primaryNodeIp = models.CharField(max_length=100)
     type = models.CharField(choices=CLUSTER_TYPES, max_length=30)
 
+    @property
+    def clusterName(self):
+        return "{}-({})".format(self.name, self.id)
+
 
 class DbCredentials(models.Model):
     name = models.CharField(max_length=100)

@@ -2,6 +2,7 @@ import json
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import F
+from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views import View
@@ -46,7 +47,7 @@ class SecretsView(LoginRequiredMixin, View):
 
 class SecretsEditView(LoginRequiredMixin, View):
 
-    def put(self, request, id, **kwargs):
+    def post(self, request, id, **kwargs):
         try:
             secret = DbCredentials.objects.get(id=id)
             username = request.POST.get("username")
@@ -59,7 +60,10 @@ class SecretsEditView(LoginRequiredMixin, View):
                 return Response(status=400)
         except DbCredentials.DoesNotExist:
             return Response(status=400)
-        return Response(dict({"success": True}))
+        return JsonResponse(data=dict({"success": True}),status=200)
+
+    def dispatch(self, *args, **kwargs):
+        return super(SecretsEditView, self).dispatch(*args, **kwargs)
 
 
 class ClusterView(LoginRequiredMixin, View):
