@@ -11,6 +11,68 @@ from engine.utils import RuleUtils, delete_cron
 
 
 class CreateRuleAPIView(APIView):
+    """
+    Rule for DAILY:
+    {
+        "name": "EC 2 Cluster Rule DAILY",
+        "typeTime": "DAILY",
+        "dailyTime": "21:00",
+        "cluster_id": 1,
+        "action": "SCALE_DOWN",
+        "ec2_type": "t2.nano",
+
+        "enableReplicationLag": "on",
+        "selectReplicationLagOp": "equal",
+        "replicationLag": "12",
+
+        "enableCheckConnection": "on",
+        "selectCheckConnectionOp":"greater",
+        "checkConnection": "12",
+
+        "enableAverageLoad": "on",
+        "selectAverageLoadOp": "less",
+        "averageLoad": "32",
+
+        "enableRetry": "on",
+        "retryAfter: "15",
+        "retryMax": "3",
+
+        "enableReverse": "on",
+        "reverse_action": "SCALE_UP",
+        "reverseDailyTime": "06:00"
+    },
+
+    Rule for RDS with CRON settings:
+    {
+        "name": "RDS Cluster Rule CRON",
+        "typeTime": "CRON",
+        "cronTime": "* */21 * * *",
+
+        "cluster_id": 2,
+        "action": "SCALE_DOWN",
+        "rds_type": "db.t2.small",
+
+        "enableReplicationLag": "on",
+        "selectReplicationLagOp": "equal",
+        "replicationLag": "12",
+
+        "enableCheckConnection": "on",
+        "selectCheckConnectionOp":"greater",
+        "checkConnection": "12",
+
+        "enableAverageLoad": "on",
+        "selectAverageLoadOp": "less",
+        "averageLoad": "32",
+
+        "enableRetry": "on",
+        "retryAfter: "15",
+        "retryMax": "3",
+
+        "enableReverse": "on",
+        "reverse_action": "SCALE_UP",
+        "reverseCronTime": "* */21 * * *"
+    }
+    """
     authentication_classes = []
     permission_classes = []
     parser_classes = [JSONParser]
