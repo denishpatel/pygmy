@@ -1,13 +1,12 @@
-import json
-
-from rest_framework import serializers, generics, filters
+from rest_framework import generics
 from rest_framework.parsers import JSONParser
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
-
 from engine.models import Rules, ClusterInfo, ExceptionData
 from engine.utils import RuleUtils, delete_cron
+from drf_yasg2.utils import swagger_auto_schema
+from webapp.serializers import RuleSerializer, ExceptionDataSerializer, ClusterSerializer, RuleCreateSerializer,\
+    ExceptionCreateSerializer
 
 
 class CreateRuleAPIView(APIView):
@@ -77,9 +76,11 @@ class CreateRuleAPIView(APIView):
     permission_classes = []
     parser_classes = [JSONParser]
 
+    @swagger_auto_schema(responses={200: RuleSerializer(many=True)})
     def get(self, request):
         return Response(RuleSerializer(Rules.objects.all(), many=True).data)
 
+    @swagger_auto_schema(request_body=RuleCreateSerializer(), responses={200: '{"success": True}'})
     def post(self, request, format=None):
         result = dict()
         try:
@@ -104,7 +105,8 @@ class EditRuleAPIView(APIView):
     permission_classes = []
     parser_classes = [JSONParser]
 
-    def post(self, request, id, format=None):
+    @swagger_auto_schema(request_body=RuleCreateSerializer(), responses={200: '{"success": True}'})
+    def put(self, request, id, format=None):
         result = dict()
         try:
             rule = Rules.objects.get(id=id)
@@ -132,24 +134,6 @@ class EditRuleAPIView(APIView):
         return Response({"success": True})
 
 
-class RuleSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Rules
-        fields = ['id', 'name', 'cluster', 'action', 'rule', 'run_at', 'action']
-
-
-class ClusterSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ClusterInfo
-        fields = ['id', 'name', 'primaryNodeIp', 'type']
-
-
-class ExceptionDataSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ExceptionData
-        fields = ['id', 'exception_date', 'clusters', 'added_on', 'updated_on']
-
-
 class ClusterAPIView(generics.ListAPIView):
     authentication_classes = []
     permission_classes = []
@@ -168,6 +152,7 @@ class ExceptionApiView(APIView):
     permission_classes = []
     parser_classes = [JSONParser]
 
+    @swagger_auto_schema(request_body=ExceptionCreateSerializer(), responses={200: '{"success": True}'})
     def post(self, request):
         dates = request.data.get("dates", None)
         clusters = request.data.get("clusterIds", None)
@@ -188,6 +173,7 @@ class ExceptionApiView(APIView):
             print(e)
         return Response(dict({"success": True}))
 
+    @swagger_auto_schema(responses={200: ExceptionDataSerializer(many=True)})
     def get(self, request):
         return Response(ExceptionDataSerializer(ExceptionData.objects.all(), many=True).data)
 
@@ -203,7 +189,8 @@ class ExceptionEditApiView(APIView):
     authentication_classes = []
     permission_classes = []
 
-    def post(self, request, id):
+    @swagger_auto_schema(request_body=ExceptionCreateSerializer(), responses={200: '{"status": "Success"}'})
+    def put(self, request, id):
         dates = request.data.get("dates")
         clusters = request.data.get("clusterIds")
         try:
