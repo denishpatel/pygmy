@@ -2,7 +2,7 @@ import os
 import boto3
 import datetime
 from django.utils import timezone
-from engine.models import AllEc2InstancesData, RdsInstances, ClusterInfo, EC2, RDS, Ec2DbInfo
+from engine.models import AllEc2InstancesData, RdsInstances, ClusterInfo, EC2, RDS, Ec2DbInfo, DbCredentials
 from engine.postgres_wrapper import PostgresData
 from webapp.models import Settings as SettingsModal
 from django.conf import settings
@@ -16,7 +16,8 @@ class AWSData:
         - AWS_REGION
     """
     def __init__(self):
-        self.aws_session = boto3.Session(region_name=os.getenv("AWS_REGION", ""))
+        cred = DbCredentials.objects.get(name="aws")
+        self.aws_session = boto3.Session(aws_access_key_id=cred.user_name, aws_secret_access_key=cred.password, region_name=os.getenv("AWS_REGION", ""))
         self.rds_client = self.aws_session.client('rds')
         self.ec2_client = self.aws_session.client('ec2')
         self.cloudwatch_client = self.aws_session.client('cloudwatch')
@@ -73,16 +74,16 @@ class AWSData:
 
     def describe_ec2_instances(self):
         all_instances = dict()
+        TAG_KEY_NAME = SettingsModal.objects.get(name="EC2_INSTANCE_POSTGRES_TAG_KEY_NAME")
+        TAG_KEY_VALUE = SettingsModal.objects.get(name="EC2_INSTANCE_POSTGRES_TAG_KEY_VALUE")
         filters = [{
-            'Name': 'tag:{}'.format(settings.EC2_INSTANCE_POSTGRES_TAG_KEY_NAME),
-            'Values': [
-                os.getenv(settings.EC2_INSTANCE_POSTGRES_TAG_KEY_VALUE),
-            ]
+            'Name': 'tag:{}'.format(TAG_KEY_NAME.value),
+            'Values': [TAG_KEY_VALUE.value,]
         }]
 
         # First describe instance
         all_pg_ec2_instances = self.ec2_client.describe_instances(
-            # Filters=filters,
+            #Filters=filters,
             MaxResults=200
         )
 
@@ -120,6 +121,9 @@ class AWSData:
         setting.last_sync = timezone.now()
         setting.save()
 
+        # Update Cluster Info
+        for instance in AllEc2InstancesData.objects.all():
+            self.process_ec2_cluster_info(instance)
         return all_instances
 
     def describe_ec2_instance_types(self):
@@ -298,19 +302,20 @@ class AWSData:
         try:
             db_conn = PostgresData(instance.publicDnsName, "pygmy", "pygmy", "postgres")
             db_info.isPrimary = db_conn.is_ec2_postgres_instance_primary()
-            if db_info.isPrimary:
-                db_info.cluster, created = ClusterInfo.objects.get_or_create(primaryNodeIp=instance.privateDnsName,
-                                                                             type=EC2)
             db_info.isConnected = True
+            print("publicIp: ", instance.publicDnsName, " isPrimary: ", db_conn.is_ec2_postgres_instance_primary())
+
+            # Handle primary node case
+            if db_info.isPrimary:
+                db_info.cluster = AWSData.get_or_create_cluster(instance, instance.privateIpAddress, cluster_type=EC2)
+                replicas = db_conn.get_all_slave_servers()
+                AWSData.update_cluster_info(instance.privateIpAddress, replicas)
         except Exception as e:
+            print("Fail to connect Server {}".format(instance.publicDnsName))
             db_info.isPrimary = False
             db_info.isConnected = False
-        db_info.save()
-
-        if db_info.isPrimary:
-            replicas = db_conn.get_all_slave_servers()
-            self.update_cluster_info(instance.privateDnsName, replicas)
-        print("publicIp: ", instance.publicDnsName, " isPrimary: ", db_conn.is_ec2_postgres_instance_primary())
+        finally:
+            db_info.save()
 
     @staticmethod
     def update_cluster_info(privateDnsName, replicas):

@@ -12,7 +12,7 @@ from engine.utils import RuleUtils, delete_cron
 
 class CreateRuleAPIView(APIView):
     """
-    Rule for DAILY:
+    Rule for EC2 DAILY:
     {
         "name": "EC 2 Cluster Rule DAILY",
         "typeTime": "DAILY",

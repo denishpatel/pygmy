@@ -14,3 +14,7 @@ from django.core.wsgi import get_wsgi_application
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'pygmy.settings')
 
 application = get_wsgi_application()
+
+from engine.management.commands.populate_settings_data import Command
+# Populate settings
+Command.populate_settings()

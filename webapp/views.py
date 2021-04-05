@@ -36,7 +36,7 @@ class SecretsView(LoginRequiredMixin, View):
     template = "credentials.html"
 
     def get(self, request, **kwargs):
-        credentials = DbCredentials.objects.all()
+        credentials = DbCredentials.objects.all().order_by("id")
         return render(request, self.template, {
             "secrets": credentials
         })

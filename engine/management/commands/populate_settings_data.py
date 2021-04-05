@@ -1,6 +1,6 @@
 import logging
 from django.core.management import BaseCommand
-
+from users.models import User
 from engine.models import DbCredentials
 from webapp.models import Settings, SYNC, CONFIG
 
@@ -12,6 +12,10 @@ class Command(BaseCommand):
         pass
 
     def handle(self, *args, **kwargs):
+        self.populate_settings()
+
+    @staticmethod
+    def populate_settings():
         syncSettings = {
             "ec2": "Sync EC2 Data",
             "rds": "Sync RDS Data",
@@ -34,29 +38,43 @@ class Command(BaseCommand):
             "EC2_INSTANCE_PROJECT_TAG_KEY_NAME": ("Project Tag NAME for Cluster Name", "Project"),
             "EC2_INSTANCE_ENV_TAG_KEY_NAME": ("Environment Tag NAME for Cluster Name", "Environment"),
             "EC2_INSTANCE_CLUSTER_TAG_KEY_NAME": ("Cluster Tag NAME for Cluster Name", "Cluster"),
-            "POSTGRES_USERNAME": ("Username for Postgres Server", "postgres"),
-            "POSTGRES_PASSWORD": ("Password for Postgres Server", "postgres"),
         })
 
         for key, value in config.items():
             print(value[0], value[1])
             config_set, created = Settings.objects.get_or_create(name=key)
-            config_set.description = value[0]
-            config_set.value = value[1]
-            config_set.last_sync = None
-            config_set.type = CONFIG
-            config_set.save()
+            if created:
+                config_set.description = value[0]
+                config_set.value = value[1]
+                config_set.last_sync = None
+                config_set.type = CONFIG
+                config_set.save()
 
         # Secrets
         secrets = dict({
-            "Postgres Secrets": ("postgres", "postgres"),
-            "AWS Secrets": ("AWS", "AWS")
+            "postgres": ("Postgres Secrets", "postgres", "postgres"),
+            "aws": ("AWS Secrets", "AWS", "AWS")
         })
 
         for key, value in secrets.items():
             print(value[0], value[1])
-            secret = DbCredentials()
-            secret.name = key
-            secret.user_name = value[0]
-            secret.password = value[1]
-            secret.save()
+            secret, created = DbCredentials.objects.get_or_create(name=key)
+            if created:
+                secret.description = value[0]
+                secret.user_name = value[1]
+                secret.password = value[2]
+                secret.save()
+
+        # Create user
+        Command.create_default_user()
+
+    @staticmethod
+    def create_default_user():
+        try:
+            user = User.objects.get(email='admin')
+        except User.DoesNotExist:
+            user = User.objects.create_user('admin', password='admin')
+            user.is_superuser = False
+            user.is_staff = True
+            user.save()
+

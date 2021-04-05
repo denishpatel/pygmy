@@ -47,7 +47,7 @@
                                     {% if "password" in s.name|lower %}
                                     <input class="uk-input uk-form-small" type="password" name="{{s.name}}" value="dummypass" placeholder="password">
                                     {% else %}
-                                    <input class="uk-input uk-form-small" type="text" name="{{s.name}}" value="{{s.value}}">
+                                    <input class="uk-input uk-form-small" type="text" name="{{s.name}}" value="{{s.value}}" disabled>
                                     {% endif %}
                                 </td>
 <!--                                <td class="uk-width-1-5">{{s.last_sync}}</td>-->
@@ -56,7 +56,7 @@
                         </tbody>
                     </table>
                     <div style="float: right; padding-bottom: 40px">
-                        <input type="submit" class="uk-button uk-button-primary uk-button-small" value="saven all">
+<!--                        <input type="submit" class="uk-button uk-button-primary uk-button-small" value="saven all">-->
                     </div>
                     </form>
                 </li>
