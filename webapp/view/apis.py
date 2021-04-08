@@ -76,11 +76,11 @@ class CreateRuleAPIView(APIView):
     permission_classes = []
     parser_classes = [JSONParser]
 
-    @swagger_auto_schema(responses={200: RuleSerializer(many=True)})
+    @swagger_auto_schema(tags=["Rules"], responses={200: RuleSerializer(many=True)})
     def get(self, request):
         return Response(RuleSerializer(Rules.objects.all(), many=True).data)
 
-    @swagger_auto_schema(request_body=RuleCreateSerializer(), responses={200: '{"success": True}'})
+    @swagger_auto_schema(tags=["Rules"], request_body=RuleCreateSerializer(), responses={200: '{"success": True}'})
     def post(self, request, format=None):
         result = dict()
         try:
@@ -105,7 +105,7 @@ class EditRuleAPIView(APIView):
     permission_classes = []
     parser_classes = [JSONParser]
 
-    @swagger_auto_schema(request_body=RuleCreateSerializer(), responses={200: '{"success": True}'})
+    @swagger_auto_schema(tags=["Rules"], request_body=RuleCreateSerializer(), responses={200: '{"success": True}'})
     def put(self, request, id, format=None):
         result = dict()
         try:
@@ -127,6 +127,7 @@ class EditRuleAPIView(APIView):
             result.update({"error": "missing parameter", "data": request.POST})
         return Response(result)
 
+    @swagger_auto_schema(tags=["Rules"])
     def delete(self, request, id):
         rule = Rules.objects.get(id=id)
         delete_cron(rule)
@@ -140,6 +141,10 @@ class ClusterAPIView(generics.ListAPIView):
     queryset = ClusterInfo.objects.all()
     serializer_class = ClusterSerializer
 
+    @swagger_auto_schema(tags=["Cluster"])
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
 
 class ExceptionApiView(APIView):
     """
@@ -152,7 +157,7 @@ class ExceptionApiView(APIView):
     permission_classes = []
     parser_classes = [JSONParser]
 
-    @swagger_auto_schema(request_body=ExceptionCreateSerializer(), responses={200: '{"success": True}'})
+    @swagger_auto_schema(tags=["Exceptions"], request_body=ExceptionCreateSerializer(), responses={200: '{"success": True}'})
     def post(self, request):
         dates = request.data.get("dates", None)
         clusters = request.data.get("clusterIds", None)
@@ -173,7 +178,7 @@ class ExceptionApiView(APIView):
             print(e)
         return Response(dict({"success": True}))
 
-    @swagger_auto_schema(responses={200: ExceptionDataSerializer(many=True)})
+    @swagger_auto_schema(tags=["Exceptions"], responses={200: ExceptionDataSerializer(many=True)})
     def get(self, request):
         return Response(ExceptionDataSerializer(ExceptionData.objects.all(), many=True).data)
 
@@ -189,7 +194,7 @@ class ExceptionEditApiView(APIView):
     authentication_classes = []
     permission_classes = []
 
-    @swagger_auto_schema(request_body=ExceptionCreateSerializer(), responses={200: '{"status": "Success"}'})
+    @swagger_auto_schema(tags=["Exceptions"], request_body=ExceptionCreateSerializer(), responses={200: '{"status": "Success"}'})
     def put(self, request, id):
         dates = request.data.get("dates")
         clusters = request.data.get("clusterIds")
@@ -210,6 +215,7 @@ class ExceptionEditApiView(APIView):
         except Exception as e:
             return Response({"status": "Failed"}, status=500)
 
+    @swagger_auto_schema(tags=["Exceptions"])
     def delete(self, request, id, **kwargs):
         exc_date = ExceptionData.objects.get(id=id)
         exc_date.delete()
