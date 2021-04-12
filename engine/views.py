@@ -2,25 +2,25 @@ from engine.models import AllEc2InstanceTypes, AllRdsInstanceTypes
 from engine.aws_wrapper import AWSData
 
 
-def update_all_ec2_instances_types_db():
+def update_all_ec2_instances_types_db(**kwargs):
     try:
-        all_instances = AWSData().describe_ec2_instance_types()
+        all_instances = AWSData().describe_ec2_instance_types(**kwargs)
         if AllEc2InstanceTypes.objects.count() != len(all_instances):
             for instance in all_instances:
                 try:
                     inst = AllEc2InstanceTypes.objects.get(instance_type=instance["InstanceType"])
                 except AllEc2InstanceTypes.DoesNotExist:
                     aeit = AllEc2InstanceTypes()
-                    aeit.instance_type = instance["InstanceType"]
-                    aeit.supported_usage_classes = instance["SupportedUsageClasses"]
-                    aeit.virtual_cpu_info = instance["VCpuInfo"]
+                    aeit.instance_type = instance.get("InstanceType")
+                    aeit.supported_usage_classes = instance.get("SupportedUsageClasses", {})
+                    aeit.virtual_cpu_info = instance.get("VCpuInfo", {})
                     aeit.memory_info = instance.get("MemoryInfo", {})
                     aeit.storage_info = instance.get("InstanceStorageInfo", {})
                     aeit.ebs_info = instance.get("EbsInfo", {})
-                    aeit.network_info = instance["NetworkInfo"]
-                    aeit.current_generation = instance["CurrentGeneration"]
-                    aeit.hibernation_supported = instance["HibernationSupported"]
-                    aeit.burstable_performance_supported = instance["BurstablePerformanceSupported"]
+                    aeit.network_info = instance.get("NetworkInfo", {})
+                    aeit.current_generation = instance.get("CurrentGeneration", True)
+                    aeit.hibernation_supported = instance.get("HibernationSupported", True)
+                    aeit.burstable_performance_supported = instance.get("BurstablePerformanceSupported", True)
                     aeit.save()
     except Exception as e:
         print(str(e))
@@ -53,7 +53,7 @@ def update_all_rds_instance_types_db():
                     arit.save()
     except Exception as e:
         print(str(e))
-        print(instance)
+        # print(instance)
         return
 
 

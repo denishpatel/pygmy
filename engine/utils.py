@@ -1,8 +1,11 @@
 import getpass
 import sys
 from crontab import CronTab
+from django.utils import timezone
+
 from engine.aws_wrapper import AWSData
-from engine.models import AllRdsInstanceTypes, AllEc2InstanceTypes, RDS, CRON, Rules, DAILY, Ec2DbInfo, EC2
+from engine.models import AllRdsInstanceTypes, AllEc2InstanceTypes, RDS, CRON, Rules, DAILY, Ec2DbInfo, EC2, \
+    ExceptionData
 from django.db.models import F
 import json
 from django.conf import settings
@@ -116,6 +119,17 @@ def delete_all_crons():
 class RuleUtils:
 
     @staticmethod
+    def check_exception_date(rule_db):
+        exception_date_data = ExceptionData.objects.get(exception_date=timezone.now().date())
+        # Check existing cluster is present in exception or not
+        for cluster in exception_date_data.clusters:
+            if rule_db.cluster.id == cluster["id"]:
+                msg = "{} is listed as exception date for this cluster. Hence not applying rule".format(
+                    str(timezone.now().date()))
+                raise Exception("Rule execution on Cluster: {} is excluded for date: {}".format(rule_db.cluster.name, timezone.now().date()))
+        return True
+
+    @staticmethod
     def add_rule_db(data, rule_db=None):
         if not rule_db:
             rule_db = Rules()
@@ -183,6 +197,7 @@ class RuleUtils:
         rule_db.save()
         create_cron(rule_db)
         RuleUtils.create_reverse_rule(data, rule_db)
+        return rule_db
 
     @staticmethod
     def create_reverse_rule(data, parent_rule):
@@ -232,20 +247,24 @@ class RuleUtils:
 
         secondaryNode = Ec2DbInfo.objects.filter(cluster=rule_db.cluster, isPrimary=False)
 
-        # Check no of connection and average load on secondary node
-        for db in secondaryNode:
-            db_conn = RuleUtils.create_connection(db)
-            cls.checkReplicationLag(db_conn, rule_json)
-            cls.checkConnections(db_conn, rule_json)
-            if db.type == EC2:
-                cls.checkAverageLoad(db_conn, rule_json)
-            else:
-                # TODO bridge in rds using cloudwatch metrics
-                # check avg load using cloudwatch metrics
-                pass
+        try:
+            # Check no of connection and average load on secondary node
+            for db in secondaryNode:
+                db_conn = RuleUtils.create_connection(db)
+                cls.checkReplicationLag(db_conn, rule_json)
+                cls.checkConnections(db_conn, rule_json)
+                if db.type == EC2:
+                    cls.checkAverageLoad(db_conn, rule_json)
+                else:
+                    # TODO bridge in rds using cloudwatch metrics
+                    # check avg load using cloudwatch metrics
+                    pass
 
-            # Scale down node
-            RuleUtils.scaleDownNode(db, ec2_type, rds_type)
+                # Scale down node
+                RuleUtils.scaleDownNode(db, ec2_type, rds_type)
+        except Exception as e:
+            set_retry_cron(rule_db)
+            raise e
 
     @staticmethod
     def create_connection(db):

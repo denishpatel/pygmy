@@ -47,6 +47,7 @@ class AWSData:
                     db_info.instance_object = rds
                     db_info.cluster = self.get_or_create_cluster(instance, rds.dbInstanceIdentifier, cluster_type=RDS)
                     db_info.isConnected = True
+                    db_info.last_instance_type = rds.dbInstanceClass
                     db_info.save()
                 else:
                     rds = self.save_rds_data(instance)
@@ -56,6 +57,7 @@ class AWSData:
                     db_info.instance_object = rds
                     db_info.isPrimary = False
                     db_info.isConnected = True
+                    db_info.last_instance_type = rds.dbInstanceClass
                     db_info.save()
             if all_pg_instances.get("NextToken", None) is None:
                 break
@@ -126,9 +128,9 @@ class AWSData:
             self.process_ec2_cluster_info(instance)
         return all_instances
 
-    def describe_ec2_instance_types(self):
+    def describe_ec2_instance_types(self, **kwargs):
         all_instance_types = []
-        describe_instance_type_resp = self.ec2_client.describe_instance_types(MaxResults=100)
+        describe_instance_type_resp = self.ec2_client.describe_instance_types(MaxResults=100, **kwargs)
         while True:
             all_instance_types.extend(describe_instance_type_resp.get("InstanceTypes"))
 
@@ -190,7 +192,7 @@ class AWSData:
         db.securityGroups = instance["SecurityGroups"]
         db.tags = instance["Tags"]
         db.virtualizationType = instance["VirtualizationType"]
-        db.cpuOptions = instance["CpuOptions"]
+        db.cpuOptions = instance.get("CpuOptions",{})
         db.save()
 
     @staticmethod
@@ -206,7 +208,7 @@ class AWSData:
         rds.dbVpcSecurityGroups = instance["VpcSecurityGroups"]
         rds.masterUsername = instance["MasterUsername"]
         rds.preferredBackupWindow = instance["PreferredBackupWindow"]
-        rds.availabilityZone = instance["AvailabilityZone"]
+        rds.availabilityZone = instance.get("AvailabilityZone", "")
         rds.dBParameterGroups = instance["DBParameterGroups"]
         rds.engineVersion = instance["EngineVersion"]
         rds.licenseModel = instance["LicenseModel"]
@@ -299,6 +301,7 @@ class AWSData:
         db_info, created = Ec2DbInfo.objects.get_or_create(instance_id=instance.instanceId)
         db_info.instance_object = instance
         db_info.type = EC2
+        db_info.last_instance_type = instance.instanceType
         try:
             db_conn = PostgresData(instance.publicDnsName, "pygmy", "pygmy", "postgres")
             db_info.isPrimary = db_conn.is_ec2_postgres_instance_primary()

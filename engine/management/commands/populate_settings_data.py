@@ -15,7 +15,7 @@ class Command(BaseCommand):
         self.populate_settings()
 
     @staticmethod
-    def populate_settings():
+    def populate_settings(aws_key="AWS", aws_secret="AWS"):
         syncSettings = {
             "ec2": "Sync EC2 Data",
             "rds": "Sync RDS Data",
@@ -53,7 +53,7 @@ class Command(BaseCommand):
         # Secrets
         secrets = dict({
             "postgres": ("Postgres Secrets", "postgres", "postgres"),
-            "aws": ("AWS Secrets", "AWS", "AWS")
+            "aws": ("AWS Secrets", aws_key, aws_secret)
         })
 
         for key, value in secrets.items():

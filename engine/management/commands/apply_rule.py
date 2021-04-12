@@ -24,14 +24,7 @@ class Command(BaseCommand):
                 elif rule_db.cluster.type == RDS:
                     aws.describe_rds_instances()
                 try:
-                    exception_date_data = ExceptionData.objects.get(exception_date=timezone.now().date())
-                    # Check existing cluster is present in exception or not
-                    for cluster in exception_date_data.clusters:
-                        if rule_db.cluster.id == cluster["id"]:
-                            msg = "{} is listed as exception date for this cluster. Hence not applying rule".format(
-                                str(timezone.now().date()))
-                            raise Exception("Rule execution on Cluster: {} is excluded for date: {}".format(
-                                rule_db.cluster.name, timezone.now().date()))
+                    RuleUtils.check_exception_date(rule_db)
                 except ExceptionData.DoesNotExist:
                     pass
 
@@ -54,7 +47,6 @@ class Command(BaseCommand):
                 msg = e
                 print(str(e))
                 print("No rule found")
-                set_retry_cron(rule_db)
                 # msg = "Rule not matched"
             finally:
                 rule_db.last_run = timezone.now()

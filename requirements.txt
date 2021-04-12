@@ -8,3 +8,4 @@ boto3==1.17.3
 drf-yasg2==1.19.4
 psycopg2==2.8.6
 python-crontab
+moto==2.0.4
