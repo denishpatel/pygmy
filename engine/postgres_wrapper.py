@@ -101,8 +101,8 @@ class PostgresData:
         """
         Return number of active connections
         """
-        query = "select datname,usename,application_name,count(*) as connection_count from pg_stat_activity "\
-                "where datname !='postgres' group by 1,2,3;"
+        query = "select datname,usename,application_name,state,count(*) as connection_count from pg_stat_activity "\
+                "where datname !='postgres' group by 1,2,3,4;"
         result = self.execute_and_return_data(query)
         if len(result) > 0:
             return result[0][3]
