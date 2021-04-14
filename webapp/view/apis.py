@@ -6,7 +6,7 @@ from engine.models import Rules, ClusterInfo, ExceptionData, Ec2DbInfo
 from engine.utils import RuleUtils, delete_cron
 from drf_yasg2.utils import swagger_auto_schema
 from webapp.serializers import RuleSerializer, ExceptionDataSerializer, ClusterSerializer, RuleCreateSerializer, \
-    ExceptionCreateSerializer, Ec2DbInfoSerializer
+    ExceptionCreateSerializer, Ec2DbInfoSerializer, DNSDataSerializer
 from rest_framework.generics import ListAPIView, CreateAPIView
 
 
@@ -231,3 +231,12 @@ class ListInstances(ListAPIView):
     permission_classes = []
     queryset = Ec2DbInfo.objects.all()
     serializer_class = Ec2DbInfoSerializer
+
+
+class CreateDNSEntry(CreateAPIView):
+    """
+    Create DNS entry
+    """
+    authentication_classes = []
+    permission_classes = []
+    serializer_class = DNSDataSerializer
