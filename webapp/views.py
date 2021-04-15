@@ -1,5 +1,4 @@
 import json
-
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import F
 from django.http import JsonResponse
@@ -7,7 +6,6 @@ from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views import View
 from rest_framework.response import Response
-
 from engine.aws_wrapper import AWSData
 from engine.models import DbCredentials, ClusterInfo, EC2, AllEc2InstancesData, RdsInstances, Ec2DbInfo, RDS, \
     AllEc2InstanceTypes
@@ -167,16 +165,3 @@ class InstanceView(LoginRequiredMixin, View):
 
     def dispatch(self, *args, **kwargs):
         return super(InstanceView, self).dispatch(*args, **kwargs)
-
-
-# class LoginView(View):
-#     template = "login.html"
-#
-#     def get(self, request):
-#         return render(request, self.template)
-#
-#     def post(self, request):
-#         return render(request, self.template)
-#
-#     def dispatch(self, *args, **kwargs):
-#         return super(LoginView, self).dispatch(*args, **kwargs)

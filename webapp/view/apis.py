@@ -2,11 +2,12 @@ from rest_framework import generics
 from rest_framework.parsers import JSONParser
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from engine.models import Rules, ClusterInfo, ExceptionData
+from engine.models import Rules, ClusterInfo, ExceptionData, Ec2DbInfo
 from engine.utils import RuleUtils, delete_cron
 from drf_yasg2.utils import swagger_auto_schema
-from webapp.serializers import RuleSerializer, ExceptionDataSerializer, ClusterSerializer, RuleCreateSerializer,\
-    ExceptionCreateSerializer
+from webapp.serializers import RuleSerializer, ExceptionDataSerializer, ClusterSerializer, RuleCreateSerializer, \
+    ExceptionCreateSerializer, Ec2DbInfoSerializer, DNSDataSerializer
+from rest_framework.generics import ListAPIView, CreateAPIView
 
 
 class CreateRuleAPIView(APIView):
@@ -220,3 +221,22 @@ class ExceptionEditApiView(APIView):
         exc_date = ExceptionData.objects.get(id=id)
         exc_date.delete()
         return Response({"success": True})
+
+
+class ListInstances(ListAPIView):
+    """
+    List all db instances
+    """
+    authentication_classes = []
+    permission_classes = []
+    queryset = Ec2DbInfo.objects.all()
+    serializer_class = Ec2DbInfoSerializer
+
+
+class CreateDNSEntry(CreateAPIView):
+    """
+    Create DNS entry
+    """
+    authentication_classes = []
+    permission_classes = []
+    serializer_class = DNSDataSerializer

@@ -7,11 +7,11 @@ from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelatio
 
 
 def getClusterName():
-    return "Cluster " + str(ClusterInfo.objects.all().count() + 1)
+    return "Cluster " + str(ClusterInfo.objects.count() + 1)
 
 
 def getRuleName():
-    return "Rule " + str(Rules.objects.all().count() + 1)
+    return "Rule " + str(Rules.objects.count() + 1)
 
 
 EC2 = "EC2"
@@ -59,7 +59,7 @@ class Ec2DbInfo(models.Model):
     instance_id = models.CharField(max_length=255)
     instance_object = GenericForeignKey('instance_type', 'instance_id')
     isPrimary = models.BooleanField(default=False)
-    cluster = models.ForeignKey(ClusterInfo, on_delete=models.DO_NOTHING, null=True)
+    cluster = models.ForeignKey(ClusterInfo, on_delete=models.DO_NOTHING, null=True, related_name="instance")
     dbName = models.CharField(max_length=255)
     isConnected = models.BooleanField(default=False)
     lastUpdated = models.DateTimeField(auto_now=True)
@@ -212,3 +212,13 @@ class ExceptionData(models.Model):
     clusters = models.JSONField(default=list)
     added_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
+
+
+class DNSData(models.Model):
+    """
+    All DNS data per cluster will be stored
+    here. Data will be stored here using API
+    """
+    hosted_zone_name = models.CharField(max_length=64)
+    dns_name = models.CharField(max_length=128)
+    instance_id = models.OneToOneField(Ec2DbInfo, on_delete=models.CASCADE, related_name="dns_entry")
