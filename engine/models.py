@@ -221,4 +221,5 @@ class DNSData(models.Model):
     """
     hosted_zone_name = models.CharField(max_length=64)
     dns_name = models.CharField(max_length=128)
-    instance_id = models.OneToOneField(Ec2DbInfo, on_delete=models.CASCADE, related_name="dns_entry")
+    instance_id = models.OneToOneField(Ec2DbInfo, to_field="instance_id", on_delete=models.CASCADE,
+                                       related_name="dns_entry")

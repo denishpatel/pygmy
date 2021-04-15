@@ -1,16 +1,16 @@
-import getpass
+import os
 import sys
-from crontab import CronTab
-from django.utils import timezone
-
-from engine.aws_wrapper import AWSData
-from engine.models import AllRdsInstanceTypes, AllEc2InstanceTypes, RDS, CRON, Rules, DAILY, Ec2DbInfo, EC2, \
-    ExceptionData
-from django.db.models import F
 import json
-from django.conf import settings
-
+import getpass
+import subprocess
+from crontab import CronTab
+from django.db.models import F
+from django.utils import timezone
+from engine.aws_wrapper import AWSData
 from engine.postgres_wrapper import PostgresData
+from engine.models import AllRdsInstanceTypes, AllEc2InstanceTypes, RDS, CRON, Rules, DAILY, Ec2DbInfo, EC2, \
+    ExceptionData, DbCredentials
+from django.conf import settings
 
 
 def get_instance_types(cluster_type):
@@ -114,6 +114,25 @@ def delete_all_crons():
 
     cron = CronTab(user=getpass.getuser())
     cron.remove_all()
+
+
+def run_dns_script(instance, primary_ip):
+    """
+    Run dns script only when dns entry present
+    """
+    if sys.platform == "win32":
+        return
+
+    zone_name = instance.dns_entry.hosted_zone_name
+    dns_name = instance.dns_entry.dns_name
+
+    script_path = os.path.join(settings.BASE_DIR, "route-53-dns-change.sh")
+    DB_CRED = DbCredentials.objects.get(description="AWS Secrets")
+    env_var = dict({
+        "AWS_ACCESS_KEY_ID": DB_CRED.user_name,
+        "AWS_SECRET_ACCESS_KEY": DB_CRED.password
+    })
+    return subprocess.check_output(["sh", script_path, zone_name, dns_name, primary_ip], env=env_var)
 
 
 class RuleUtils:
@@ -246,6 +265,7 @@ class RuleUtils:
         rds_type = rule_json.get("rds_type")
 
         secondaryNode = Ec2DbInfo.objects.filter(cluster=rule_db.cluster, isPrimary=False)
+        primaryNode = Ec2DbInfo.objects.filter(cluster=rule_db.cluster, isPrimary=True)
 
         try:
             # Check no of connection and average load on secondary node
@@ -262,6 +282,12 @@ class RuleUtils:
 
                 # Scale down node
                 RuleUtils.scaleDownNode(db, ec2_type, rds_type)
+
+                # update the DNS
+                if primaryNode[0].type == "RDS":
+                    run_dns_script(db, primaryNode[0].instance_object.dbEndpoint['Address'])
+                else:
+                    run_dns_script(db, primaryNode[0].instance_object.publicDnsName)
         except Exception as e:
             set_retry_cron(rule_db)
             raise e

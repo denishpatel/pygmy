@@ -195,7 +195,8 @@ class ExceptionEditApiView(APIView):
     authentication_classes = []
     permission_classes = []
 
-    @swagger_auto_schema(tags=["Exceptions"], request_body=ExceptionCreateSerializer(), responses={200: '{"status": "Success"}'})
+    @swagger_auto_schema(tags=["Exceptions"], request_body=ExceptionCreateSerializer(),
+                         responses={200: '{"status": "Success"}'})
     def put(self, request, id):
         dates = request.data.get("dates")
         clusters = request.data.get("clusterIds")

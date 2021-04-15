@@ -1,7 +1,9 @@
 #!/bin/sh
 
-# Get the hosted-zone-id from the client $1
-HOSTED_ZONE=$1
+# Get the hosted-zone-id from the hosted-zone-name $1
+HOSTED_ZONE_NAME=$1
+
+HOSTED_ZONE = `aws route53 list-hosted-zones-by-name --dns-name pygmy0.com | python3 -c "import sys, json; print(json.load(sys.stdin).get('HostedZones', {})[0].get('Id'))"`
 
 echo "Hosted zone id : $HOSTED_ZONE"
 

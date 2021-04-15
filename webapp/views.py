@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.views import View
 from rest_framework.response import Response
 from engine.aws_wrapper import AWSData
-from engine.models import DbCredentials, ClusterInfo, EC2, AllEc2InstancesData, RdsInstances, Ec2DbInfo, RDS, \
+from engine.models import DbCredentials, ClusterInfo, EC2, AllEc2InstancesData, RdsInstances, Ec2DbInfo, \
     AllEc2InstanceTypes
 from engine.utils import get_instance_types
 
@@ -16,11 +16,7 @@ class LandingView(LoginRequiredMixin, View):
     template = "home.html"
 
     def get(self, request, **kwargs):
-        # ad = AWSData()
-        # rds_instances = ad.describe_rds_instances()
-        # ec2_instances = ad.describe_ec2_instances()
-        # print(rds_instances)
-        # clusters = ClusterInfo.objects.all()
+
         dbInfo = Ec2DbInfo.objects.all()
         return render(request, self.template, {
             "dbs": dbInfo
