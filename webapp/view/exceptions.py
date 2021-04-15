@@ -102,10 +102,16 @@ class ExceptionsEditView(LoginRequiredMixin, View):
         })
 
     def delete(self, request, id, **kwargs):
-        exc_date = ExceptionData.objects.get(id=id)
-        exc_date.delete()
+        ExceptionUtils.delete(id)
         return JsonResponse({"success": True})
 
     def dispatch(self, *args, **kwargs):
         return super(ExceptionsEditView, self).dispatch(*args, **kwargs)
 
+
+class ExceptionUtils:
+
+    @staticmethod
+    def delete(id):
+        exc_date = ExceptionData.objects.get(id=id)
+        exc_date.delete()

@@ -6,12 +6,14 @@ from django.utils import timezone
 from moto import mock_ec2, mock_rds
 
 from engine.aws_wrapper import AWSData
-from engine.models import AllEc2InstanceTypes, AllEc2InstancesData, RdsInstances, AllRdsInstanceTypes, ExceptionData
+from engine.models import AllEc2InstanceTypes, AllEc2InstancesData, RdsInstances, AllRdsInstanceTypes, ExceptionData, \
+    ClusterInfo
 from engine.postgres_wrapper import PostgresData
 from engine.utils import RuleUtils
 from pygmy.mock_data import MockData, MockRdsData, MockEc2Data, MockPostgresData, MockRuleData
 from engine.views import update_all_ec2_instances_types_db, update_all_rds_instance_types_db
 from engine.management.commands.populate_settings_data import Command
+from webapp.view.exceptions import ExceptionUtils
 
 
 class AllEc2InstanceTypesTest(TestCase):
@@ -215,3 +217,52 @@ class AllEc2InstanceTypesTest(TestCase):
             self.assertTrue(False)
         except Exception as e:
             self.assertTrue(e.__str__() == "retried")
+
+    def test_cluster_discoverable(self):
+        cluster = ClusterInfo.objects.filter(type="EC2")
+        self.assertTrue(cluster.count()>0)
+        cluster = ClusterInfo.objects.filter(type="RDS")
+        self.assertTrue(cluster.count() > 0)
+
+    def test_cluster_name(self):
+        cluster_name_with_tags = ClusterInfo.objects.filter(type="EC2")
+        self.assertTrue(cluster_name_with_tags[0].name == 'ec2-testing-dummy')
+        cluster_name_without_tags = ClusterInfo.objects.filter(type="RDS")
+        self.assertTrue(cluster_name_without_tags[0].name == "Cluster 2")
+
+    @patch("engine.utils.create_cron")
+    def test_check_blackout_window(self, create_cron):
+        create_cron.return_value = True
+        rule = MockRuleData.create_ec2_scale_down_rule()
+        rule_db = RuleUtils.add_rule_db(rule)
+        exc, created = ExceptionData.objects.get_or_create(exception_date=timezone.now().date())
+        exc.clusters = [{"value": rule_db.cluster.name, "id": rule_db.cluster.id}]
+        exc.save()
+        self.assertTrue(exc.exception_date == timezone.now().date())
+
+    @patch("engine.utils.create_cron")
+    def test_altered_blackout_window(self, create_cron):
+        create_cron.return_value = True
+        rule = MockRuleData.create_ec2_scale_down_rule()
+        rule_db = RuleUtils.add_rule_db(rule)
+        exc, created = ExceptionData.objects.get_or_create(exception_date=timezone.now().date())
+        exc.clusters = [{"value": rule_db.cluster.name, "id": rule_db.cluster.id}]
+        exc.save()
+        exc.exception_date = timezone.now().date() + timezone.timedelta(days=1)
+        exc.save()
+        self.assertTrue(exc.exception_date == (timezone.now().date() + timezone.timedelta(days=1)))
+
+    @patch("engine.utils.create_cron")
+    def test_delete_exception_date(self, create_cron):
+        create_cron.return_value = True
+        rule = MockRuleData.create_ec2_scale_down_rule()
+        rule_db = RuleUtils.add_rule_db(rule)
+        exc, created = ExceptionData.objects.get_or_create(exception_date=timezone.now().date())
+        exc.clusters = [{"value": rule_db.cluster.name, "id": rule_db.cluster.id}]
+        exc.save()
+        ExceptionUtils.delete(exc.id)
+        try:
+            ExceptionData.objects.get(id=exc.id)
+            self.assertTrue(False)
+        except ExceptionData.DoesNotExist:
+            self.assertTrue(True)
