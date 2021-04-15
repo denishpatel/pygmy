@@ -35,7 +35,7 @@ class ExceptionCreateSerializer(serializers.Serializer):
 class Ec2DbInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ec2DbInfo
-        fields = ["instance_id", "instance_type", "isPrimary", "cluster"]
+        fields = ["id", "instance_id", "instance_type", "isPrimary", "cluster"]
 
 
 class DNSDataSerializer(serializers.ModelSerializer):

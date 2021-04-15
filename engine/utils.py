@@ -284,10 +284,11 @@ class RuleUtils:
                 RuleUtils.scaleDownNode(db, ec2_type, rds_type)
 
                 # update the DNS
-                if primaryNode[0].type == "RDS":
-                    run_dns_script(db, primaryNode[0].instance_object.dbEndpoint['Address'])
-                else:
-                    run_dns_script(db, primaryNode[0].instance_object.publicDnsName)
+                if hasattr(db, "dns_entry"):
+                    if primaryNode[0].type == "RDS":
+                        run_dns_script(db, primaryNode[0].instance_object.dbEndpoint['Address'])
+                    else:
+                        run_dns_script(db, primaryNode[0].instance_object.publicDnsName)
         except Exception as e:
             set_retry_cron(rule_db)
             raise e

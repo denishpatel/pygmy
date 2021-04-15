@@ -3,7 +3,12 @@
 # Get the hosted-zone-id from the hosted-zone-name $1
 HOSTED_ZONE_NAME=$1
 
-HOSTED_ZONE = `aws route53 list-hosted-zones-by-name --dns-name pygmy0.com | python3 -c "import sys, json; print(json.load(sys.stdin).get('HostedZones', {})[0].get('Id'))"`
+HOSTED_ZONE=`aws route53 list-hosted-zones-by-name --dns-name $1 | python3 -c "import sys, json; print(json.load(sys.stdin).get('HostedZones', {})[0].get('Id'))"`
+
+if [ $? -ne 0 ]
+then
+   exit 2
+fi
 
 echo "Hosted zone id : $HOSTED_ZONE"
 

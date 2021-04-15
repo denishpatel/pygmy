@@ -1,10 +1,8 @@
 import os
 from unittest.mock import patch
-
 from django.test import TestCase
 from django.utils import timezone
 from moto import mock_ec2, mock_rds
-
 from engine.aws_wrapper import AWSData
 from engine.models import AllEc2InstanceTypes, AllEc2InstancesData, RdsInstances, AllRdsInstanceTypes, ExceptionData, \
     ClusterInfo
