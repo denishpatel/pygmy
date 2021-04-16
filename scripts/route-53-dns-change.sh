@@ -1,5 +1,11 @@
 #!/bin/sh
 
+if [ $# -ne 4 ]
+then
+  echo "Usage: $0 HOSTED_NAME DNS_NAME DNS_IP/DNS_NAME RECORD_TYPE"
+  exit 1
+fi
+
 # Get the hosted-zone-id from the hosted-zone-name $1
 HOSTED_ZONE_NAME=$1
 
@@ -20,7 +26,12 @@ echo "DNS Entry to change: $DNS_NAME"
 # Get the value of the ip to set
 DNS_IP=$3
 
-echo "IP to be set: $DNS_IP"
+echo "IP/DNS_NAME to be set: $DNS_IP"
+
+# Set the record type 'A' for EC2 and 'CNAME' for RDS
+RECORD_TYPE=$4
+
+echo "TYPE of Record to be set: $RECORD_TYPE"
 
 cat <<EOF >req.json
 {
@@ -30,7 +41,7 @@ cat <<EOF >req.json
       "Action": "UPSERT",
       "ResourceRecordSet": {
         "Name": "$DNS_NAME",
-        "Type": "A",
+        "Type": "$RECORD_TYPE",
         "TTL": 60,
         "ResourceRecords": [
           {

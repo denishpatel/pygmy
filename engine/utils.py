@@ -116,23 +116,31 @@ def delete_all_crons():
     cron.remove_all()
 
 
-def run_dns_script(instance, primary_ip):
+def run_dns_script(instance, primary_ip, ins_type="EC2"):
     """
     Run dns script only when dns entry present
     """
     if sys.platform == "win32":
         return
 
+    if ins_type == "EC2":
+        RECORD_TYPE = "A"
+    else:
+        RECORD_TYPE = "CNAME"
+
     zone_name = instance.dns_entry.hosted_zone_name
     dns_name = instance.dns_entry.dns_name
 
-    script_path = os.path.join(settings.BASE_DIR, "route-53-dns-change.sh")
+    script_path = os.path.join(settings.BASE_DIR, "scripts", "route-53-dns-change.sh")
     DB_CRED = DbCredentials.objects.get(description="AWS Secrets")
     env_var = dict({
         "AWS_ACCESS_KEY_ID": DB_CRED.user_name,
         "AWS_SECRET_ACCESS_KEY": DB_CRED.password
     })
-    return subprocess.check_output(["sh", script_path, zone_name, dns_name, primary_ip], env=env_var)
+    print(script_path, zone_name, dns_name, primary_ip)
+    test = subprocess.check_output(["sh", script_path, zone_name, dns_name, primary_ip, RECORD_TYPE], env=env_var)
+    print(test)
+    return
 
 
 class RuleUtils:
@@ -286,9 +294,9 @@ class RuleUtils:
                 # update the DNS
                 if hasattr(db, "dns_entry"):
                     if primaryNode[0].type == "RDS":
-                        run_dns_script(db, primaryNode[0].instance_object.dbEndpoint['Address'])
+                        run_dns_script(db, primaryNode[0].instance_object.dbEndpoint['Address'], ins_type="RDS")
                     else:
-                        run_dns_script(db, primaryNode[0].instance_object.publicDnsName)
+                        run_dns_script(db, primaryNode[0].instance_object.publicIpAddress)
         except Exception as e:
             set_retry_cron(rule_db)
             raise e
