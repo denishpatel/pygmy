@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from engine.models import Rules, ClusterInfo, ExceptionData, Ec2DbInfo, DNSData
+from engine.models import Rules, ClusterInfo, ExceptionData, Ec2DbInfo, DNSData, ClusterManagement
 
 
 class RuleSerializer(serializers.ModelSerializer):
@@ -41,4 +41,10 @@ class Ec2DbInfoSerializer(serializers.ModelSerializer):
 class DNSDataSerializer(serializers.ModelSerializer):
     class Meta:
         model = DNSData
+        fields = "__all__"
+
+
+class ClusterManagementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClusterManagement
         fields = "__all__"

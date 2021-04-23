@@ -222,3 +222,11 @@ class DNSData(models.Model):
     hosted_zone_name = models.CharField(max_length=64)
     dns_name = models.CharField(max_length=128)
     instance_id = models.OneToOneField(Ec2DbInfo, on_delete=models.CASCADE, related_name="dns_entry")
+
+
+class ClusterManagement(models.Model):
+    """
+    All cluster management settings
+    """
+    avg_load = models.CharField(max_length=255)
+    cluster_id = models.OneToOneField(ClusterInfo, on_delete=models.CASCADE, related_name="load_management")

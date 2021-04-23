@@ -9,7 +9,9 @@ from django.utils import timezone
 from engine.aws_wrapper import AWSData
 from engine.postgres_wrapper import PostgresData
 from engine.models import AllRdsInstanceTypes, AllEc2InstanceTypes, RDS, CRON, Rules, DAILY, Ec2DbInfo, EC2, \
-    ExceptionData, DbCredentials
+    ExceptionData, DbCredentials, ClusterManagement
+from django.db.models import F
+import json
 from django.conf import settings
 
 
@@ -272,6 +274,11 @@ class RuleUtils:
         ec2_type = rule_json.get("ec2_type")
         rds_type = rule_json.get("rds_type")
 
+        db_instances = dict()
+        db_avg_load = dict()
+        cluster_mgmt = ClusterManagement.objects.filter(id=rule_db.cluster.id)
+        is_cluster_managed = cluster_mgmt.count() > 0
+
         secondaryNode = Ec2DbInfo.objects.filter(cluster=rule_db.cluster, isPrimary=False)
         primaryNode = Ec2DbInfo.objects.filter(cluster=rule_db.cluster, isPrimary=True)
 
@@ -281,13 +288,30 @@ class RuleUtils:
                 db_conn = RuleUtils.create_connection(db)
                 cls.checkReplicationLag(db_conn, rule_json)
                 cls.checkConnections(db_conn, rule_json)
+                db_instances[db.id] = db
+                db_avg_load[db.id] = db_conn.get_system_load_avg()
+
+            # check cluster load
+            if is_cluster_managed:
+                primary_conn = RuleUtils.create_connection(primaryNode[0])
+                primary_avg_load = primary_conn.get_system_load_avg()
+
+                # Sorted avg load dict
+                sorted_avg_load = dict(sorted(db_avg_load.items(), key=lambda item: item[1]))
+
+                for id, s_avg_load in sorted_avg_load.items():
+                    if (primary_avg_load + s_avg_load) < int(cluster_mgmt[0].avg_load):
+                        RuleUtils.scaleDownNode(db_instances[id], ec2_type, rds_type)
+                        primary_avg_load += s_avg_load
+                    else:
+                        break
+            else:
                 if db.type == EC2:
                     cls.checkAverageLoad(db_conn, rule_json)
                 else:
                     # TODO bridge in rds using cloudwatch metrics
                     # check avg load using cloudwatch metrics
                     pass
-
                 # Scale down node
                 RuleUtils.scaleDownNode(db, ec2_type, rds_type)
 
@@ -348,7 +372,6 @@ class RuleUtils:
         rule = rule_json.get("checkConnection", None)
         if rule:
             activeConnections = db_conn.get_no_of_active_connections()
-            print(activeConnections)
             return RuleUtils.checkValue(rule, activeConnections, msg="Check Connection")
 
     @staticmethod
@@ -356,7 +379,6 @@ class RuleUtils:
         rule = rule_json.get("averageLoad", None)
         if rule:
             avgLoad = db_conn.get_system_load_avg()
-            print(avgLoad)
             return RuleUtils.checkValue(rule, avgLoad, msg="Average load")
 
     @staticmethod

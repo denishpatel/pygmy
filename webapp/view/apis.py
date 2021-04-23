@@ -2,11 +2,11 @@ from rest_framework import generics
 from rest_framework.parsers import JSONParser
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from engine.models import Rules, ClusterInfo, ExceptionData, Ec2DbInfo
+from engine.models import Rules, ClusterInfo, ExceptionData, Ec2DbInfo, ClusterManagement
 from engine.utils import RuleUtils, delete_cron
 from drf_yasg2.utils import swagger_auto_schema
 from webapp.serializers import RuleSerializer, ExceptionDataSerializer, ClusterSerializer, RuleCreateSerializer, \
-    ExceptionCreateSerializer, Ec2DbInfoSerializer, DNSDataSerializer
+    ExceptionCreateSerializer, Ec2DbInfoSerializer, DNSDataSerializer, ClusterManagementSerializer
 from rest_framework.generics import ListAPIView, CreateAPIView
 
 
@@ -241,3 +241,13 @@ class CreateDNSEntry(CreateAPIView):
     authentication_classes = []
     permission_classes = []
     serializer_class = DNSDataSerializer
+
+
+class CreateClusterManagement(CreateAPIView, ListAPIView):
+    """
+    Create Cluster Management
+    """
+    queryset = ClusterManagement.objects.all()
+    authentication_classes = []
+    permission_classes = []
+    serializer_class = ClusterManagementSerializer

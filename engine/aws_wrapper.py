@@ -102,7 +102,7 @@ class AWSData:
                         "availability_zone": instance["Placement"]["AvailabilityZone"],
                         "ip": dict({
                             "private_ip": instance["PrivateIpAddress"],
-                            "public_ip": instance["PublicIpAddress"]
+                            "public_ip": instance.get("PublicIpAddress", "")
                         }),
                         "tags": instance["Tags"],
                         "launch_time": instance["LaunchTime"]
@@ -182,7 +182,7 @@ class AWSData:
         db.privateDnsName = instance["PrivateDnsName"]
         db.privateIpAddress = instance["PrivateIpAddress"]
         db.publicDnsName = instance["PublicDnsName"]
-        db.publicIpAddress = instance["PublicIpAddress"]
+        db.publicIpAddress = instance.get("PublicIpAddress", "")
         db.state = instance["State"]
         db.vpcId = instance["VpcId"]
         db.subnetId = instance["SubnetId"]
