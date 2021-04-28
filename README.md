@@ -11,7 +11,7 @@ $ sudo apt install build-essential python3-dev libpq-dev python3-virtualenv
 
 Create virtualenv
 ```shell
-$ virualenv -p python3 venv
+$ virtualenv -p python3 venv
 ```
 
 ### Start Project
@@ -27,12 +27,12 @@ $ pip install -r requirements.txt
 
 Make Migrations
 ```shell
-$ python manage makemigrations
+$ python manage.py makemigrations
 ```
 
 Run Migration
 ```shell
-$ python manage migrate
+$ python manage.py migrate
 ```
 
 Load instance types data
