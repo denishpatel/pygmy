@@ -30,6 +30,9 @@ Make Migrations
 $ python manage.py makemigrations
 ```
 
+Alter DB connection parameters.
+Either modify `pygmy/settings.py` or set DB_NAME, DB_USER, DB_PASSWORD, and DB_HOST as needed.
+
 Run Migration
 ```shell
 $ python manage.py migrate
