@@ -9,7 +9,7 @@ from django.utils import timezone
 from engine.aws_wrapper import AWSData
 from engine.postgres_wrapper import PostgresData
 from engine.models import AllRdsInstanceTypes, AllEc2InstanceTypes, RDS, CRON, Rules, DAILY, Ec2DbInfo, EC2, \
-    ExceptionData, DbCredentials, ClusterManagement
+    ExceptionData, DbCredentials, ClusterManagement, SCALE_DOWN
 from django.db.models import F
 import json
 from django.conf import settings
@@ -302,6 +302,7 @@ class RuleUtils:
                 for id, s_avg_load in sorted_avg_load.items():
                     if (primary_avg_load + s_avg_load) < int(cluster_mgmt[0].avg_load):
                         RuleUtils.scaleDownNode(db_instances[id], ec2_type, rds_type)
+                        RuleUtils.update_dns_entries(rule_db, db_instances[id], primaryNode[0])
                         primary_avg_load += s_avg_load
                     else:
                         break
@@ -314,16 +315,24 @@ class RuleUtils:
                     pass
                 # Scale down node
                 RuleUtils.scaleDownNode(db, ec2_type, rds_type)
+                RuleUtils.update_dns_entries(rule_db, db, primaryNode[0])
 
-                # update the DNS
-                if hasattr(db, "dns_entry"):
-                    if primaryNode[0].type == "RDS":
-                        run_dns_script(db, primaryNode[0].instance_object.dbEndpoint['Address'], ins_type="RDS")
-                    else:
-                        run_dns_script(db, primaryNode[0].instance_object.publicIpAddress)
         except Exception as e:
             set_retry_cron(rule_db)
             raise e
+
+    @staticmethod
+    def update_dns_entries(rule_db, db, primaryNode):
+        # update the DNS
+        if hasattr(db, "dns_entry"):
+            # check action of rule scale up or scale down,
+            # for scale up assign replica address to replica dns.
+            # for scale down assign primary node address to replica dns
+            if rule_db.action == SCALE_DOWN:
+                dns_address = primaryNode.instance_object.dbEndpoint['Address'] if db.type == "RDS" else primaryNode.instance_object.publicIpAddress
+            else:
+                dns_address = db.instance_object.dbEndpoint['Address'] if db.type == "RDS" else db.instance_object.publicIpAddress
+            run_dns_script(db, dns_address, ins_type=db.type)
 
     @staticmethod
     def create_connection(db):
@@ -335,13 +344,14 @@ class RuleUtils:
 
     @staticmethod
     def scaleDownNode(db, ec2_type, rds_type):
-        RuleUtils.changeInstanceType(db, ec2_type, rds_type)
+        data = RuleUtils.changeInstanceType(db, ec2_type, rds_type)
         # save last instance type in db after scale down for reverse rule
         if db.type == EC2:
             db.last_instance_type = db.instance_object.instanceType
         else:
             db.last_instance_type = db.instance_object.dbInstanceClass
         db.save()
+        return data
 
     @staticmethod
     def reverseScale(db):
@@ -355,9 +365,18 @@ class RuleUtils:
         aws = AWSData()
         if db.type == EC2:
             aws.scale_ec2_instance(db.instance_id, ec2_type)
+
         elif db.type == RDS:
             db_parameter = db.instance_object.dBParameterGroups[0]['DBParameterGroupName']
             aws.scale_rds_instance(db.instance_id, rds_type, db_parameter)
+
+        # wait till instance status get up
+        status = aws.wait_till_status_up(db.instance_id, db.type)
+        if not status:
+            status = aws.start_instance(db.instance_id, db.type)
+            if not status:
+                raise Exception("Failed to scale up")
+        return status
 
     @staticmethod
     def checkReplicationLag(db_conn, rule_json):
