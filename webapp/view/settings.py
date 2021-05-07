@@ -55,6 +55,7 @@ class SettingsRefreshView(LoginRequiredMixin, View):
                     aws.describe_rds_instances()
             return JsonResponse({})
         except Exception as e:
+            print(str(e))
             return JsonResponse({}, status=500)
 
     def post(self, request, *args, **kwargs):

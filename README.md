@@ -49,6 +49,11 @@ Populate settings data ( Run only one time at starting )
 $ python manage.py populate_settings_data
 ```
 
+Optional You can enter secrets using following command (COMMAND LINE)
+```shell
+$ python manage.py set_secrets
+```
+
 create user from command line
 ```shell
 $ python manage.py createsuperuser

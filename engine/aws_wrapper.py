@@ -1,4 +1,6 @@
 import os
+import time
+
 import boto3
 import datetime
 from django.utils import timezone
@@ -21,6 +23,68 @@ class AWSData:
         self.rds_client = self.aws_session.client('rds')
         self.ec2_client = self.aws_session.client('ec2')
         self.cloudwatch_client = self.aws_session.client('cloudwatch')
+
+    def check_instance_status(self, instance_id, instance_type):
+        if instance_type == "RDS":
+            response = self.rds_client.describe_db_instances(DBInstanceIdentifier=instance_id)
+            self.save_rds_data(response.get("DBInstances")[0])
+            return response
+        else:
+            response = self.ec2_client.describe_instances(InstanceIds=[instance_id])
+            self.save_ec2_data(response.get("Reservations")[0]["Instances"][0])
+            return response
+
+    def check_instance_running(self, data):
+        # check is it EC2 response data
+        if data.get("Reservations"):
+            instance = data.get("Reservations")[0]["Instances"][0]
+            state = instance["State"]
+            if state.get("Code") == 16:
+                return dict({
+                    "PublicDnsName": instance.get("PublicDnsName"),
+                    "PublicIpAddress": instance.get("PublicIpAddress"),
+                    "PrivateDnsName": instance.get("PrivateDnsName"),
+                    "PrivateIpAddress": instance.get("PrivateIpAddress"),
+                    "State": state
+                })
+        # check status of RDS response data
+        if data.get("DBInstances"):
+            status = data.get("DBInstances")[0]["DBInstanceStatus"]
+            instance = data.get("DBInstances")[0]
+            # print(instance)
+            if status == "available":
+                return dict({
+                    "PubliclyAccessible": instance.get("PubliclyAccessible"),
+                    "StatusInfo": instance.get("StatusInfo"),
+                    "Endpoint": instance.get("Endpoint")
+                })
+        return None
+
+    def wait_till_rds_status_up(self, instance_id):
+        return self.wait_till_status_up(instance_id, "RDS")
+
+    def wait_till_status_up(self, instance_id, instance_type="EC2"):
+        # TODO check streaming status after we confirm that its running.
+        # TODO To be run on replica
+        try:
+            for i in range(0, 6):
+                data = self.check_instance_status(instance_id, instance_type)
+                status = self.check_instance_running(data)
+                if status:
+                    return status
+                time.sleep(20)
+        except Exception as e:
+            print(str(e))
+            pass
+        return None
+
+    def start_instance(self, instance_id, instance_type="EC2"):
+        if instance_type == "RDS":
+            self.rds_client.start_db_instance(DBInstanceIdentifier=instance_id)
+        else:
+            self.ec2_client.start_instances(InstanceIds=[instance_id])
+        # fetch instance details after start
+        return self.wait_till_status_up(instance_id, instance_type)
 
     def describe_rds_instances(self):
         all_instances = dict()
