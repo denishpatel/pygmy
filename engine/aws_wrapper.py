@@ -33,7 +33,6 @@ class AWSData:
             response = self.ec2_client.describe_instances(InstanceIds=[instance_id])
             self.save_ec2_data(response.get("Reservations")[0]["Instances"][0])
             return response
-        return None
 
     def check_instance_running(self, data):
         # check is it EC2 response data
@@ -65,14 +64,17 @@ class AWSData:
         return self.wait_till_status_up(instance_id, "RDS")
 
     def wait_till_status_up(self, instance_id, instance_type="EC2"):
+        # TODO check streaming status after we confirm that its running.
+        # TODO To be run on replica
         try:
-            for i in range(0, 3):
+            for i in range(0, 6):
                 data = self.check_instance_status(instance_id, instance_type)
                 status = self.check_instance_running(data)
                 if status:
                     return status
                 time.sleep(20)
         except Exception as e:
+            print(str(e))
             pass
         return None
 
