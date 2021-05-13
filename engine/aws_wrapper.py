@@ -1,13 +1,13 @@
 import os
 import time
-
 import boto3
 import datetime
+import botocore.exceptions
+from django.conf import settings
 from django.utils import timezone
-from engine.models import AllEc2InstancesData, RdsInstances, ClusterInfo, EC2, RDS, Ec2DbInfo, DbCredentials
 from engine.postgres_wrapper import PostgresData
 from webapp.models import Settings as SettingsModal
-from django.conf import settings
+from engine.models import AllEc2InstancesData, RdsInstances, ClusterInfo, EC2, RDS, Ec2DbInfo, DbCredentials
 
 
 class AWSData:
@@ -19,7 +19,8 @@ class AWSData:
     """
     def __init__(self):
         cred = DbCredentials.objects.get(name="aws")
-        self.aws_session = boto3.Session(aws_access_key_id=cred.user_name, aws_secret_access_key=cred.password, region_name=os.getenv("AWS_REGION", ""))
+        self.aws_session = boto3.Session(aws_access_key_id=cred.user_name, aws_secret_access_key=cred.password,
+                                         region_name=os.getenv("AWS_REGION", ""))
         self.rds_client = self.aws_session.client('rds')
         self.ec2_client = self.aws_session.client('ec2')
         self.cloudwatch_client = self.aws_session.client('cloudwatch')
@@ -300,7 +301,7 @@ class AWSData:
             print(str(e))
             return False
 
-    def scale_ec2_instance(self, ec2_instance_id, ec2_instance_type):
+    def scale_ec2_instance(self, ec2_instance_id, ec2_instance_type, previous_instance_type):
         """
         scale up and down the ec2 instances
         """
@@ -316,7 +317,19 @@ class AWSData:
 
             # Start the instance
             self.ec2_client.start_instances(InstanceIds=[ec2_instance_id])
+            waiter = self.ec2_client.get_waiter('instance_running')
+            waiter.wait(InstanceIds=[ec2_instance_id])
             return True
+        except botocore.exceptions.WaiterError:
+            # instance not stopped or not running again
+            # Change the instance type to previous
+            self.ec2_client.modify_instance_attribute(InstanceId=ec2_instance_id, Attribute='instanceType',
+                                                      Value=previous_instance_type)
+
+            # Start the instance
+            self.ec2_client.start_instances(InstanceIds=[ec2_instance_id])
+            waiter = self.ec2_client.get_waiter('instance_running')
+            waiter.wait(InstanceIds=[ec2_instance_id])
         except Exception as e:
             print(str(e))
             print("failed in scaling ec2 instance")

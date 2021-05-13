@@ -14,7 +14,6 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         aws = AWSData()
         msg = ""
-        extra_info = ""
         for rid in kwargs['rule_id']:
             try:
                 rule_db = Rules.objects.get(id=rid)
@@ -36,8 +35,8 @@ class Command(BaseCommand):
                 rule_db.status = True
                 rule_db.err_msg = ""
                 msg = "Successfully Executed Rule"
+
                 # auto reload of the instances
-                time.sleep(60)
                 aws.describe_ec2_instances()
                 aws.describe_rds_instances()
                 print("Rule has completed successfully")
