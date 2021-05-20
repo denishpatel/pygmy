@@ -1,10 +1,8 @@
 import os
 import sys
-import json
 import getpass
 import subprocess
 from crontab import CronTab
-from django.db.models import F
 from django.utils import timezone
 from engine.aws_wrapper import AWSData
 from engine.postgres_wrapper import PostgresData
@@ -301,7 +299,7 @@ class RuleUtils:
 
                 for id, s_avg_load in sorted_avg_load.items():
                     if (primary_avg_load + s_avg_load) < int(cluster_mgmt[0].avg_load):
-                        RuleUtils.scaleDownNode(db_instances[id], ec2_type, rds_type)
+                        RuleUtils.scaleNode(db_instances[id], ec2_type, rds_type)
                         RuleUtils.update_dns_entries(rule_db, db_instances[id], primaryNode[0])
                         primary_avg_load += s_avg_load
                     else:
@@ -313,8 +311,8 @@ class RuleUtils:
                     # TODO bridge in rds using cloudwatch metrics
                     # check avg load using cloudwatch metrics
                     pass
-                # Scale down node
-                RuleUtils.scaleDownNode(db, ec2_type, rds_type)
+                # Scale node
+                RuleUtils.scaleNode(db, ec2_type, rds_type)
                 RuleUtils.update_dns_entries(rule_db, db, primaryNode[0])
 
         except Exception as e:
@@ -343,7 +341,7 @@ class RuleUtils:
             return PostgresData(db.instance_object.publicDnsName, "pygmy", "pygmy", "postgres")
 
     @staticmethod
-    def scaleDownNode(db, ec2_type, rds_type):
+    def scaleNode(db, ec2_type, rds_type):
         data = RuleUtils.changeInstanceType(db, ec2_type, rds_type)
         # save last instance type in db after scale down for reverse rule
         if db.type == EC2:
@@ -364,7 +362,7 @@ class RuleUtils:
     def changeInstanceType(db, ec2_type, rds_type):
         aws = AWSData()
         if db.type == EC2:
-            aws.scale_ec2_instance(db.instance_id, ec2_type)
+            aws.scale_ec2_instance(db.instance_id, ec2_type, db.instance_object.instanceType)
 
         elif db.type == RDS:
             db_parameter = db.instance_object.dBParameterGroups[0]['DBParameterGroupName']

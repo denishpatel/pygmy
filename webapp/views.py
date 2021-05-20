@@ -104,10 +104,6 @@ class ClusterEditView(LoginRequiredMixin, View):
                 cluster.name = name
                 cluster.save()
                 return redirect(reverse("clusters", args=[cluster.id]))
-                # return render(request, self.template, {
-                #     "success": True,
-                #     "cluster": cluster
-                # })
         except ClusterInfo.DoesNotExist:
             return render(request, self.template, {"error": "not found"})
 
@@ -135,7 +131,7 @@ class InstanceView(LoginRequiredMixin, View):
         try:
             instance, db_info = self.get_instance(cluster_type, id)
             if cluster_type.upper() == EC2:
-                AWSData().scale_ec2_instance(instance.instanceId, instance_type)
+                AWSData().scale_ec2_instance(instance.instanceId, instance_type, instance.instanceType)
             else:
                 AWSData().scale_rds_instance(instance.dbInstanceIdentifier, instance_type, instance.dBParameterGroups)
             return render(request, self.template, {
