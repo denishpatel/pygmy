@@ -34,14 +34,14 @@ class Command(BaseCommand):
 
         config = dict({
             "EC2_INSTANCE_POSTGRES_TAG_KEY_NAME": ("Tag Name to identify postgres EC2 instance", "Role"),
-            "EC2_INSTANCE_POSTGRES_TAG_KEY_VALUE": ("Tag Value to identify postgres EC2 instance", "pg-instance"),
+            "EC2_INSTANCE_POSTGRES_TAG_KEY_VALUE": ("Tag Value to identify postgres EC2 instance", "PostgreSQL"),
             "EC2_INSTANCE_PROJECT_TAG_KEY_NAME": ("Project Tag NAME for Cluster Name", "Project"),
             "EC2_INSTANCE_ENV_TAG_KEY_NAME": ("Environment Tag NAME for Cluster Name", "Environment"),
             "EC2_INSTANCE_CLUSTER_TAG_KEY_NAME": ("Cluster Tag NAME for Cluster Name", "Cluster"),
         })
 
         for key, value in config.items():
-            print(value[0], value[1])
+            print(value[0], "gets initial value of:", value[1])
             config_set, created = Settings.objects.get_or_create(name=key)
             if created:
                 config_set.description = value[0]
