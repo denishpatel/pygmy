@@ -1,9 +1,11 @@
+import threading
+from django.utils import timezone
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views import View
 from engine.aws_wrapper import AWSData
-from webapp.models import Settings, SYNC, CONFIG
+from webapp.models import Settings, SYNC, CONFIG, AWS_REGION
 
 
 class SettingsView(LoginRequiredMixin, View):
@@ -12,7 +14,8 @@ class SettingsView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
         return render(request, self.template, {
             "sync": Settings.objects.filter(type=SYNC).order_by("id"),
-            "config": Settings.objects.filter(type=CONFIG).order_by("id")
+            "config": Settings.objects.filter(type=CONFIG).order_by("id"),
+            "aws_region": Settings.objects.filter(type=AWS_REGION).order_by("id")
         })
 
     def post(self, request, *args, **kwargs):
@@ -29,6 +32,7 @@ class SettingsView(LoginRequiredMixin, View):
         return render(request, self.template, {
             "sync": Settings.objects.filter(type=SYNC).order_by("id"),
             "config": Settings.objects.filter(type=CONFIG).order_by("id"),
+            "aws_region": Settings.objects.filter(type=AWS_REGION).order_by("id"),
             "success": True
         })
 
@@ -44,15 +48,10 @@ class SettingsRefreshView(LoginRequiredMixin, View):
         try:
             if settingId:
                 aws = AWSData()
-                if settingId == "ec2":
-                    aws.describe_ec2_instances()
-                elif settingId == "rds":
-                    aws.describe_rds_instances()
-                elif settingId == "logs":
-                    pass
-                elif settingId == "all":
-                    aws.describe_ec2_instances()
-                    aws.describe_rds_instances()
+                sync_setting = Settings.objects.get(name=settingId)
+                if not sync_setting.in_progress:
+                    thread = threading.Thread(target=start_background_sync, args=(sync_setting,))
+                    thread.start()
             return JsonResponse({})
         except Exception as e:
             print(str(e))
@@ -63,3 +62,19 @@ class SettingsRefreshView(LoginRequiredMixin, View):
 
     def dispatch(self, *args, **kwargs):
         return super(SettingsRefreshView, self).dispatch(*args, **kwargs)
+
+
+def start_background_sync(sync_setting):
+    aws = AWSData()
+    sync_setting.in_progress = True
+    sync_setting.last_sync = timezone.now()
+    sync_setting.save()
+    if sync_setting.name == "ec2":
+        aws.describe_ec2_instances()
+    elif sync_setting.name == "rds":
+        aws.describe_rds_instances()
+    elif sync_setting.name == "logs":
+        pass
+    sync_setting.in_progress = False
+    sync_setting.last_sync = timezone.now()
+    sync_setting.save()

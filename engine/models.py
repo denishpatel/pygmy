@@ -108,6 +108,7 @@ class AllRdsInstanceTypes(models.Model):
 
 class AllEc2InstancesData(models.Model):
     instanceId = models.CharField(max_length=255, null=False, primary_key=True)
+    region = models.CharField(max_length=255)
     name = models.CharField(max_length=255)
     instanceType = models.CharField(max_length=255, null=False)
     keyName = models.CharField(max_length=255, null=False)
@@ -132,9 +133,13 @@ class AllEc2InstancesData(models.Model):
     dbInfo = GenericRelation(Ec2DbInfo, object_id_field='instance_id', content_type_field='instance_type',
                              related_query_name='ec2')
 
+    class Meta:
+        unique_together = (('instanceId', 'region'),)
+
 
 class RdsInstances(models.Model):
     dbInstanceIdentifier = models.CharField(max_length=255, primary_key=True)
+    region = models.CharField(max_length=255)
     dbInstanceClass = models.CharField(max_length=255)
     dbName = models.CharField(max_length=255)
     engine = models.CharField(max_length=255)
@@ -152,6 +157,9 @@ class RdsInstances(models.Model):
     tagList = models.JSONField()
     dbInfo = GenericRelation(Ec2DbInfo, object_id_field='instance_id', content_type_field='instance_type',
                              related_query_name='rds')
+
+    class Meta:
+        unique_together = (('dbInstanceIdentifier', 'region'),)
 
 
 class InstanceStateInfo(models.Model):

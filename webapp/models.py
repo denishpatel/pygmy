@@ -2,10 +2,12 @@ from django.db import models
 
 SYNC = "SYNC"
 CONFIG = "CONFIG"
+AWS_REGION = "AWS_REGION"
 
 SETTINGS_TYPE = (
     (SYNC, "SYNC"),
-    (CONFIG, "CONFIG")
+    (CONFIG, "CONFIG"),
+    (AWS_REGION, "AWS_REGION")
 )
 
 

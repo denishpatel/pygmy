@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from engine.aws_wrapper import AWSData
 from engine.models import DbCredentials, ClusterInfo, EC2, AllEc2InstancesData, RdsInstances, Ec2DbInfo, \
     AllEc2InstanceTypes
+from engine.sync.aws import AwsSync
 from engine.utils import get_instance_types
 
 
@@ -50,6 +51,8 @@ class SecretsEditView(LoginRequiredMixin, View):
                 secret.user_name = username
                 secret.password = password
                 secret.save()
+                if secret.name in ["aws"]:
+                    AwsSync.update_aws_region_list()
             else:
                 return Response(status=400)
         except DbCredentials.DoesNotExist:

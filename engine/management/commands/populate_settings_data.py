@@ -1,8 +1,11 @@
 import logging
 from django.core.management import BaseCommand
+
+from engine.aws_wrapper import AWSData
+from engine.sync.aws import AwsSync
 from users.models import User
 from engine.models import DbCredentials
-from webapp.models import Settings, SYNC, CONFIG
+from webapp.models import Settings, SYNC, CONFIG, AWS_REGION
 
 logger = logging.getLogger(__name__)
 
@@ -23,14 +26,15 @@ class Command(BaseCommand):
         }
         for key, value in syncSettings.items():
             try:
-                Settings.objects.get(name=key)
+                setting = Settings.objects.get(name=key)
             except Settings.DoesNotExist:
                 setting = Settings()
                 setting.name = key
                 setting.last_sync = None
                 setting.description = value
                 setting.type = SYNC
-                setting.save()
+            setting.in_progress = False
+            setting.save()
 
         config = dict({
             "EC2_INSTANCE_POSTGRES_TAG_KEY_NAME": ("Tag Name to identify postgres EC2 instance", "Role"),
@@ -67,6 +71,7 @@ class Command(BaseCommand):
 
         # Create user
         Command.create_default_user()
+        Command.populate_aws_regions()
 
     @staticmethod
     def create_default_user():
@@ -77,4 +82,22 @@ class Command(BaseCommand):
             user.is_superuser = False
             user.is_staff = True
             user.save()
+
+    @staticmethod
+    def populate_aws_regions():
+        if AwsSync.check_aws_validity_from_db():
+            aws = AWSData()
+            for region in aws.get_all_regions():
+                region_name = region.get("RegionName")
+                print("region name ", region_name)
+                region_setting, created = Settings.objects.get_or_create(name="AWS_{0}".format(region_name))
+                if created:
+                    region_setting.description = region_name
+                    region_setting.value = False
+                    region_setting.last_sync = None
+                    region_setting.type = AWS_REGION
+                    region_setting.save()
+            print("updated aws regions")
+        else:
+            print("AWS credentials are not valid")
 

@@ -20,9 +20,10 @@
                     <th>Cluster</th>
                     <th>Type</th>
                     <th>Primary</th>
-                    <th>Zone</th>
                     <th>Type</th>
                     <th>Status</th>
+                    <th>Zone</th>
+                    <th>Region</th>
 <!--                    <th>Version</th>-->
                 </tr>
             </thead>
@@ -41,7 +42,6 @@
                         {% endif %}
                         <td>{{ row.instance_id }}</td>
                         <td>{{ row.isPrimary }}</td>
-                        <td>{{ row.instance_object.availabilityZone }}</td>
                         {% if row.type ==  "RDS" %}
                         <td>{{ row.instance_object.dbInstanceClass }}</td>
                         <td>{{ row.instance_object.dbInstanceStatus }}</td>
@@ -49,6 +49,8 @@
                         <td>{{ row.instance_object.instanceType }}</td>
                         <td>{{ row.instance_object.state.Name }}</td>
                         {% endif %}
+                        <td>{{ row.instance_object.availabilityZone }}</td>
+                        <td>{{ row.instance_object.region }}</td>
                     </tr>
                 {% endfor %}
                 {% for key, value in clusters.items %}
@@ -93,6 +95,7 @@
                         <td>{{ row.instance_type }}</td>
                         <td>{{ row.state.Name }}</td>
                         <td>{{ row.db_postgres_engine_version }}</td>
+                        <td>{{row.region}}</td>
                     </tr>
                 {% endfor %}
             </tbody>

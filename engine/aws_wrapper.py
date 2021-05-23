@@ -6,11 +6,16 @@ import botocore.exceptions
 from django.conf import settings
 from django.utils import timezone
 from engine.postgres_wrapper import PostgresData
+from engine.singleton import Singleton
+from engine.sync.aws import AwsSync
 from webapp.models import Settings as SettingsModal
 from engine.models import AllEc2InstancesData, RdsInstances, ClusterInfo, EC2, RDS, Ec2DbInfo, DbCredentials
 
 
-class AWSData:
+class AWSData(metaclass=Singleton):
+    ec2_client_region_dict = dict()
+    rds_client_region_dict = dict()
+    cloudwatch_client_region_dict = dict()
     """
     Environment Variables to be set
         - AWS_ACCESS_KEY_ID
@@ -19,11 +24,18 @@ class AWSData:
     """
     def __init__(self):
         cred = DbCredentials.objects.get(name="aws")
-        self.aws_session = boto3.Session(aws_access_key_id=cred.user_name, aws_secret_access_key=cred.password,
-                                         region_name=os.getenv("AWS_REGION", ""))
-        self.rds_client = self.aws_session.client('rds')
-        self.ec2_client = self.aws_session.client('ec2')
-        self.cloudwatch_client = self.aws_session.client('cloudwatch')
+        self.aws_session = boto3.Session(aws_access_key_id=cred.user_name, aws_secret_access_key=cred.password)
+        self.ec2_client = self.aws_session.client('ec2', region_name=settings.DEFAULT_REGION)
+        for region in self.ec2_client.describe_regions()["Regions"]:
+            region_name = region["RegionName"]
+            self.ec2_client_region_dict[region_name] = self.aws_session.client('ec2', region_name=region_name)
+            self.rds_client_region_dict[region_name] = self.aws_session.client('rds', region_name=region_name)
+            self.cloudwatch_client_region_dict[region_name] = self.aws_session.client('cloudwatch', region_name=region_name)
+
+    def get_all_regions(self):
+        regions = self.ec2_client.describe_regions()
+        print("all regions ", regions)
+        return regions["Regions"]
 
     def check_instance_status(self, instance_id, instance_type):
         if instance_type == "RDS":
@@ -96,42 +108,38 @@ class AWSData:
             ]},
         ]
 
-        # First describe instance
-        all_pg_instances = self.rds_client.describe_db_instances(
-            Filters=filters,
-            MaxRecords=100
-        )
-
-        while True:
-            for instance in all_pg_instances.get("DBInstances", []):
-                slave_identifier = instance.get("ReadReplicaSourceDBInstanceIdentifier", None)
-                if slave_identifier is None:
-                    rds = self.save_rds_data(instance)
-                    db_info, created = Ec2DbInfo.objects.get_or_create(instance_id=rds.dbInstanceIdentifier, type=RDS)
-                    db_info.isPrimary = True
-                    db_info.instance_object = rds
-                    db_info.cluster = self.get_or_create_cluster(instance, rds.dbInstanceIdentifier, cluster_type=RDS)
-                    db_info.isConnected = True
-                    db_info.last_instance_type = rds.dbInstanceClass
-                    db_info.save()
-                else:
-                    rds = self.save_rds_data(instance)
-                    cluster, created = ClusterInfo.objects.get_or_create(primaryNodeIp=slave_identifier, type=RDS)
-                    db_info, created = Ec2DbInfo.objects.get_or_create(instance_id=rds.dbInstanceIdentifier, type=RDS)
-                    db_info.cluster = cluster
-                    db_info.instance_object = rds
-                    db_info.isPrimary = False
-                    db_info.isConnected = True
-                    db_info.last_instance_type = rds.dbInstanceClass
-                    db_info.save()
-            if all_pg_instances.get("NextToken", None) is None:
-                break
-
-            all_pg_instances = self.rds_client.describe_db_instances(
+        for region in AwsSync.get_enabled_regions():
+            # First describe instance
+            all_pg_instances = self.rds_client_region_dict[region].describe_db_instances(
                 Filters=filters,
-                MaxResults=100,
-                NextToken=all_pg_instances.get("NextToken")
+                MaxRecords=100
             )
+
+            while True:
+                for instance in all_pg_instances.get("DBInstances", []):
+                    slave_identifier = instance.get("ReadReplicaSourceDBInstanceIdentifier", None)
+                    rds = self.save_rds_data(instance, region)
+                    db_info, created = Ec2DbInfo.objects.get_or_create(instance_id=rds.dbInstanceIdentifier, type=RDS)
+                    db_info.instance_object = rds
+                    if slave_identifier is None:
+                        db_info.isPrimary = True
+                        db_info.cluster = self.get_or_create_cluster(instance, rds.dbInstanceIdentifier, cluster_type=RDS)
+                    else:
+                        cluster, created = ClusterInfo.objects.get_or_create(primaryNodeIp=slave_identifier, type=RDS)
+                        db_info.cluster = cluster
+                        db_info.isPrimary = False
+                    db_info.isConnected = True
+                    db_info.last_instance_type = rds.dbInstanceClass
+                    db_info.save()
+
+                if all_pg_instances.get("NextToken", None) is None:
+                    break
+
+                all_pg_instances = self.rds_client.describe_db_instances(
+                    Filters=filters,
+                    MaxResults=100,
+                    NextToken=all_pg_instances.get("NextToken")
+                )
 
         # Settings update
         setting = SettingsModal.objects.get(name="rds")
@@ -149,39 +157,41 @@ class AWSData:
         }]
 
         # First describe instance
-        all_pg_ec2_instances = self.ec2_client.describe_instances(
-            #Filters=filters,
-            MaxResults=200
-        )
-
-        while True:
-            # For handling pagination
-            for reservation in all_pg_ec2_instances.get("Reservations", []):
-                for instance in reservation.get("Instances", []):
-                    all_instances[instance["InstanceId"]] = dict({
-                        "instance_id": instance["InstanceId"],
-                        "instance_type": instance["InstanceType"],
-                        "image_id": instance["ImageId"],
-                        "state": instance["State"],
-                        "vpc_id": instance["VpcId"],
-                        "availability_zone": instance["Placement"]["AvailabilityZone"],
-                        "ip": dict({
-                            "private_ip": instance["PrivateIpAddress"],
-                            "public_ip": instance.get("PublicIpAddress", "")
-                        }),
-                        "tags": instance["Tags"],
-                        "launch_time": instance["LaunchTime"]
-                    })
-                    self.save_ec2_data(instance)
-
-            if all_pg_ec2_instances.get("NextToken", None) is None:
-                break
-
-            all_pg_ec2_instances = self.ec2_client.describe_instances(
-                Filters=filters,
-                MaxResults=200,
-                NextToken=all_pg_ec2_instances.get("NextToken")
+        for region in AwsSync.get_enabled_regions():
+            all_pg_ec2_instances = self.ec2_client_region_dict[region].describe_instances(
+                #Filters=filters,
+                MaxResults=200
             )
+
+            while True:
+                # For handling pagination
+                for reservation in all_pg_ec2_instances.get("Reservations", []):
+                    for instance in reservation.get("Instances", []):
+                        all_instances[instance["InstanceId"]] = dict({
+                            "instance_id": instance["InstanceId"],
+                            "region": region,
+                            "instance_type": instance["InstanceType"],
+                            "image_id": instance["ImageId"],
+                            "state": instance["State"],
+                            "vpc_id": instance["VpcId"],
+                            "availability_zone": instance["Placement"]["AvailabilityZone"],
+                            "ip": dict({
+                                "private_ip": instance["PrivateIpAddress"],
+                                "public_ip": instance.get("PublicIpAddress", "")
+                            }),
+                            "tags": instance["Tags"],
+                            "launch_time": instance["LaunchTime"]
+                        })
+                        self.save_ec2_data(instance, region=region)
+
+                if all_pg_ec2_instances.get("NextToken", None) is None:
+                    break
+
+                all_pg_ec2_instances = self.ec2_client.describe_instances(
+                    Filters=filters,
+                    MaxResults=200,
+                    NextToken=all_pg_ec2_instances.get("NextToken")
+                )
 
         # Settings update
         setting = SettingsModal.objects.get(name="ec2")
@@ -232,13 +242,13 @@ class AWSData:
 
         return all_instance_types
 
-    @staticmethod
-    def save_ec2_data(instance):
+    def save_ec2_data(self, instance, region=settings.DEFAULT_REGION):
         try:
-            db = AllEc2InstancesData.objects.get(instanceId=instance["InstanceId"])
+            db = AllEc2InstancesData.objects.get(instanceId=instance["InstanceId"], region=region)
         except AllEc2InstancesData.DoesNotExist:
             db = AllEc2InstancesData()
             db.instanceId = instance["InstanceId"]
+            db.region = region
         db.name = next((tag["Value"] for tag in instance["Tags"] if tag["Key"] == "Name"), None)
         db.instanceType = instance["InstanceType"]
         db.keyName = instance["KeyName"]
@@ -257,13 +267,14 @@ class AWSData:
         db.securityGroups = instance["SecurityGroups"]
         db.tags = instance["Tags"]
         db.virtualizationType = instance["VirtualizationType"]
-        db.cpuOptions = instance.get("CpuOptions",{})
+        db.cpuOptions = instance.get("CpuOptions", {})
         db.save()
 
     @staticmethod
-    def save_rds_data(instance):
+    def save_rds_data(instance, region=settings.DEFAULT_REGION):
         rds = RdsInstances()
         rds.dbInstanceIdentifier = instance["DBInstanceIdentifier"]
+        rds.region = region
         rds.dbInstanceClass = instance["DBInstanceClass"]
         rds.dbName = instance["DBName"]
         rds.engine = instance["Engine"]

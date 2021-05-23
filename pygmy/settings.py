@@ -173,6 +173,8 @@ REDOC_SETTINGS = {
     'LAZY_RENDERING': False,
 }
 
+DEFAULT_REGION = "us-east-1"
+
 # Login Redirect to
 LOGIN_REDIRECT_URL = 'landing'
 LOGIN_URL = "login"

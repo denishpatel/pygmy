@@ -25,10 +25,68 @@
     <div class="">
         <div class="uk-container uk-container-large">
             <ul uk-tab>
-                <li><a href="#">Configuration</a></li>
                 <li><a href="#">Sync</a></li>
+                <li><a href="#">AWS Regions</a></li>
+                <li><a href="#">Configuration</a></li>
             </ul>
             <ul class="uk-switcher uk-margin">
+                <li>
+                    <table class="uk-table uk-table-hover uk-table-responsive uk-table-divider uk-table-small" style="background: white">
+                        <thead>
+                            <tr style="background: #232f3e">
+                                <th class="uk-table-expand">Name</th>
+                                <th class="">State</th>
+                                <th class="">Last Sync Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in sync %}
+                            <tr>
+                                <td>{{s.description}}</td>
+                                <td class="uk-width-1-5">
+                                    {% if s.in_progress %}
+                                    <span class="uk-label uk-label-warning">In-Progress</span>
+                                    {% else %}
+                                    <div id="{{s.name}}-sync-spinner" style="display: none" uk-spinner></div>
+                                    <span id="{{s.name}}-sync-btn" class="uk-button uk-button-primary uk-button-small sync-btn" data-target="{{s.name}}">Sync</span>
+                                    {% endif %}</td>
+                                <td class="uk-width-1-5">{{s.last_sync}}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </li>
+                <li>
+                    {% if aws_region|length == 0 %}
+                    <div>
+                        AWS settings are not configured correctly. <br/>
+                        Please check AWS credentials in <a href="{% url 'secrets' %}">secrets</a>
+                    </div>
+                    {% else %}
+                    <table class="uk-table uk-table-striped uk-table-responsive uk-table-divider uk-table-small" style="background: white">
+                        <thead style="background: #232f3e">
+                            <tr>
+                                <th style="width: 20px">ID</th>
+                                <th class="uk-table-expand">Name</th>
+                                <th class="uk-width-small" style="text-align: center">Enabled</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for region in aws_region %}
+                                <tr>
+                                    <td>{{forloop.counter}}</td>
+                                    <td>{{region.description|upper}}</td>
+                                    <td style="text-align: center">
+                                        <label>
+                                            <input class="uk-checkbox region_setting" name="{{region.name}}" type="checkbox" {% if region.value == "True" %}checked{% endif %}>
+                                        </label>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endif %}
+                </li>
                 <li>
                     <form method="post">
                         {% csrf_token %}
@@ -60,42 +118,30 @@
                     </div>
                     </form>
                 </li>
-                <li>
-                    <table class="uk-table uk-table-hover uk-table-responsive uk-table-divider uk-table-small" style="background: white">
-                        <thead>
-                            <tr style="background: #232f3e">
-                                <th class="uk-table-expand">Name</th>
-                                <th class="">State</th>
-                                <th class="">Last Sync Time</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for s in sync %}
-                            <tr>
-                                <td>{{s.description}}</td>
-                                <td class="uk-width-1-5">
-                                    {% if s.in_progress %}
-                                    <span class="uk-label uk-label-warning">In-Progress</span>
-                                    {% else %}
-                                    <div id="{{s.name}}-sync-spinner" style="display: none" uk-spinner></div>
-                                    <span id="{{s.name}}-sync-btn" class="uk-button uk-button-primary uk-button-small sync-btn" data-target="{{s.name}}">Sync</span>
-                                    {% endif %}</td>
-                                <td class="uk-width-1-5">{{s.last_sync}}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </li>
-            </ul>
 
+            </ul>
         </div>
     </div>
+    <br>
+    <br>
+    <br>
+
 </div>
 {% endblock %}
 {% block js_bottom %}{{ block.super }}
 <script>
+var notyf = new Notyf({
+    position: { x: "left"},
+    types: [
+    {
+      type: 'warning',
+      background: 'orange',
+      icon: {
+        className: 'notyf__icon--success',
+        tagName: 'i',
+      }
+    }]});
     $(document).ready(function(){
-        var notyf = new Notyf();
         $(".sync-btn").on("click", function(e) {
             let settingId = e.target.dataset["target"];
             $("#"+settingId+"-sync-btn").hide();
@@ -107,9 +153,9 @@
                 },
             }).done(function(result) {
                 console.log("passing");
-                notyf.success('Sync is completed Successfully!');
-                $("#"+settingId+"-sync-spinner").hide();
-                $("#"+settingId+"-sync-btn").show();
+                notyf.success('Sync is started Successfully!');
+                //$("#"+settingId+"-sync-spinner").hide();
+                //$("#"+settingId+"-sync-btn").show();
                 setTimeout(function() {
                     location.reload();
                 }, 5000);
@@ -120,9 +166,31 @@
             });
         });
 
-    {% if success %}
-    notyf.success('Saved config Successfully!');
-    {% endif %}
+        {% if success %}
+        notyf.success('Saved config Successfully!');
+        {% endif %}
+
+        $("input.region_setting").change(function() {
+            console.log("name ", this.checked ? "True" : "False");
+            updateSetting(this.name, this.checked ? "True" : "False")
+        });
     });
+
+    function updateSetting(name, value) {
+        $.ajax({
+            method: "POST",
+            url: "{% url 'settings' %}",
+            data: {
+                [name]: value
+            }
+        }).done(function(result) {
+            if(value == "True")
+                notyf.success('Enable region sync Successfully!');
+            else
+                notyf.open({type: 'warning', message: 'Disabled region sync Successfully!'});
+        }).fail(function(result) {
+            notyf.error('Saved config Successfully!');
+        })
+    }
 </script>
 {% endblock %}
