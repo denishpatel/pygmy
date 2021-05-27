@@ -39,14 +39,14 @@ Run Migration
 $ python manage.py migrate
 ```
 
-Load instance types data
-```shell
-$ python manage.py refresh_all_db_instance_types
-```
-
 Populate settings data ( Run only one time at starting )
 ```shell
 $ python manage.py populate_settings_data
+```
+
+Load instance types data
+```shell
+$ python manage.py refresh_all_db_instance_types
 ```
 
 Optional You can enter secrets using following command (COMMAND LINE)
