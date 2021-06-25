@@ -1,8 +1,9 @@
-import time
 from django.utils import timezone
-from engine.aws_wrapper import AWSData
+from engine.aws.aws_utils import AWSUtil
 from django.core.management import BaseCommand
-from engine.utils import RuleUtils, set_retry_cron
+
+from engine.rules.LoggerUtils import ActionLogger
+from engine.utils import RuleUtils
 from engine.models import Rules, ActionLogs, ExceptionData, EC2, RDS
 
 
@@ -12,16 +13,19 @@ class Command(BaseCommand):
                             "rule ids to run multiple rule")
 
     def handle(self, *args, **kwargs):
-        aws = AWSData()
+
         msg = ""
         for rid in kwargs['rule_id']:
             try:
                 rule_db = Rules.objects.get(id=rid)
+                ActionLogger.add_log(rule_db, "rule execution is started")
+                aws = AWSUtil.get_aws_service(rule_db.cluster.type)
+                aws.get_instances();
                 # Update db with latest info()
-                if rule_db.cluster.type == EC2:
-                    aws.describe_ec2_instances()
-                elif rule_db.cluster.type == RDS:
-                    aws.describe_rds_instances()
+                # if rule_db.cluster.type == EC2:
+                #     aws.describe_ec2_instances()
+                # elif rule_db.cluster.type == RDS:
+                #     aws.describe_rds_instances()
                 try:
                     RuleUtils.check_exception_date(rule_db)
                 except ExceptionData.DoesNotExist:

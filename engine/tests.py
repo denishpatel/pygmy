@@ -3,7 +3,8 @@ from unittest.mock import patch
 from django.test import TestCase
 from django.utils import timezone
 from moto import mock_ec2, mock_rds
-from engine.aws_wrapper import AWSData
+from engine.aws.ec_wrapper import EC2Service
+from engine.aws.rds_wrapper import RDSService
 from engine.models import AllEc2InstanceTypes, AllEc2InstancesData, RdsInstances, AllRdsInstanceTypes, ExceptionData, \
     ClusterInfo
 from engine.postgres_wrapper import PostgresData
@@ -31,13 +32,13 @@ class AllEc2InstanceTypesTest(TestCase):
         patch.object(PostgresData, "is_ec2_postgres_instance_primary", new=MockPostgresData.is_ec2_postgres_instance_primary),\
         patch.object(PostgresData, "get_all_slave_servers", new=MockPostgresData.get_all_slave_servers):
             MockEc2Data.create_ec2_instances()
-            AWSData().describe_ec2_instances()
+            EC2Service().get_instances()
 
-        aws = AWSData()
+        aws = EC2Service()
         aws.ec2_client.describe_instances(MaxResults=200)
 
         MockRdsData.create_data_bases()
-        AWSData().describe_rds_instances()
+        RDSService().get_instances()
 
     def test_ec2_instance_types(self):
         """

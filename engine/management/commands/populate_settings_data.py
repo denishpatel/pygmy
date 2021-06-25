@@ -1,8 +1,7 @@
 import logging
 from django.core.management import BaseCommand
-
-from engine.aws_wrapper import AWSData
-from engine.sync.aws import AwsSync
+from engine.aws.ec_wrapper import EC2Service
+from engine.aws.aws_utils import AWSUtil
 from users.models import User
 from engine.models import DbCredentials
 from webapp.models import Settings, SYNC, CONFIG, AWS_REGION
@@ -85,8 +84,8 @@ class Command(BaseCommand):
 
     @staticmethod
     def populate_aws_regions():
-        if AwsSync.check_aws_validity_from_db():
-            aws = AWSData()
+        if AWSUtil.check_aws_validity_from_db():
+            aws = EC2Service()
             for region in aws.get_all_regions():
                 region_name = region.get("RegionName")
                 print("region name ", region_name)

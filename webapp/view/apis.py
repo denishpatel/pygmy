@@ -7,7 +7,7 @@ from engine.utils import RuleUtils, delete_cron
 from drf_yasg2.utils import swagger_auto_schema
 from webapp.serializers import RuleSerializer, ExceptionDataSerializer, ClusterSerializer, RuleCreateSerializer, \
     ExceptionCreateSerializer, Ec2DbInfoSerializer, DNSDataSerializer, ClusterManagementSerializer
-from rest_framework.generics import ListAPIView, CreateAPIView
+from rest_framework.generics import ListAPIView, CreateAPIView, RetrieveUpdateDestroyAPIView
 
 
 class CreateRuleAPIView(APIView):
@@ -246,6 +246,16 @@ class CreateDNSEntry(CreateAPIView):
 class CreateClusterManagement(CreateAPIView, ListAPIView):
     """
     Create Cluster Management
+    """
+    queryset = ClusterManagement.objects.all()
+    authentication_classes = []
+    permission_classes = []
+    serializer_class = ClusterManagementSerializer
+
+
+class EditClusterManagement(RetrieveUpdateDestroyAPIView):
+    """
+        Update Cluster Management
     """
     queryset = ClusterManagement.objects.all()
     authentication_classes = []

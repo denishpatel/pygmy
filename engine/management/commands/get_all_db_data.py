@@ -1,7 +1,8 @@
 import logging
 from django.core.management import BaseCommand
-from engine.aws_wrapper import AWSData
-from engine.models import AllEc2InstancesData, Ec2DbInfo, ClusterInfo, EC2
+from engine.aws.ec_wrapper import EC2Service
+from engine.aws.rds_wrapper import RDSService
+from engine.models import AllEc2InstancesData, Ec2DbInfo, EC2
 from engine.postgres_wrapper import PostgresData
 
 logger = logging.getLogger(__name__)
@@ -13,15 +14,15 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         try:
-            AWSData().describe_ec2_instances()
+            EC2Service().get_instances()
 
             # update ec2 instances data
-            all_instances = AllEc2InstancesData.objects.all()
-            for db in all_instances:
-                self.get_ec2_info(db)
+            # all_instances = AllEc2InstancesData.objects.all()
+            # for db in all_instances:
+            #     self.get_ec2_info(db)
 
             # update rds data
-            AWSData().describe_rds_instances()
+            RDSService().get_instances()
         except Exception as e:
             logger.exception(e)
             return
@@ -39,7 +40,7 @@ class Command(BaseCommand):
 
             # Handle primary node case
             if db_info.isPrimary:
-                db_info.cluster = AWSData.get_or_create_cluster(instance, instance.privateIpAddress, cluster_type=EC2)
+                db_info.cluster = EC2Service().get_or_create_cluster(instance, instance.privateIpAddress)
                 # db_info.save()
                 replicas = db_conn.get_all_slave_servers()
                 self.update_cluster_info(instance.privateIpAddress, replicas)
@@ -56,6 +57,6 @@ class Command(BaseCommand):
             instance = AllEc2InstancesData.objects.get(privateIpAddress=node)
             db_info, created = Ec2DbInfo.objects.get_or_create(instance_id=instance.instanceId)
             # db_info.cluster = ClusterInfo.objects.get(primaryNodeIp=privateDnsName, type=EC2)
-            db_info.cluster = AWSData.get_or_create_cluster(instance, privateIpAddress, cluster_type=EC2)
+            db_info.cluster = EC2Service().get_or_create_cluster(instance, privateIpAddress)
             db_info.content_object = instance
             db_info.save()

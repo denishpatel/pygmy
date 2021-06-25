@@ -71,7 +71,7 @@
                                 <td>{{row.instance_object.availabilityZone}}</td>
                                 <td>
                                     {% if not row.isPrimary %}
-                                    <a class="uk-button uk-button-primary uk-button-small" href="{% url 'instance_edit' 'ec2' row.instance_object.instanceId %}">Edit</a>
+                                    <a class="uk-button uk-button-primary uk-button-small" href="{% url 'instance_edit' 'ec2' row.id %}">Edit</a>
                                     {% endif %}
                                 </td>
                             </tr>
@@ -102,7 +102,7 @@
                                 <td>{{row.instance_object.availabilityZone}}</td>
                                 <td>
                                     {% if not row.isPrimary %}
-                                    <a class="uk-button uk-button-primary uk-button-small" href="{% url 'instance_edit' 'rds' row.instance_object.dbInstanceIdentifier %}">Edit</a>
+                                    <a class="uk-button uk-button-primary uk-button-small" href="{% url 'instance_edit' 'rds' row.id %}">Edit</a>
                                     {% endif %}
                                 </td>
                             </tr>
@@ -145,14 +145,6 @@
                { orderable: false, targets: [0, 6] }
             ],
             order: [[1, 'asc']],
-        });
-
-        var instances_types = {{instance_types|safe}};
-        $("#instance_types").autocomplete({
-          lookup: instances_types,
-          //onSelect: function (suggestion) {
-          //      alert('You selected: ' + suggestion.value + ', ' + suggestion.data);
-          //}
         });
 
         $("#modal-scale-down").on("show.bs.modal", function(e) {

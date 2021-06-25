@@ -4,7 +4,8 @@ import getpass
 import subprocess
 from crontab import CronTab
 from django.utils import timezone
-from engine.aws_wrapper import AWSData
+
+from engine.aws.aws_utils import AWSUtil
 from engine.postgres_wrapper import PostgresData
 from engine.models import AllRdsInstanceTypes, AllEc2InstanceTypes, RDS, CRON, Rules, DAILY, Ec2DbInfo, EC2, \
     ExceptionData, DbCredentials, ClusterManagement, SCALE_DOWN
@@ -265,6 +266,7 @@ class RuleUtils:
         # Check no of connection and average load on secondary node
         for db in secondaryNode:
             cls.reverseScale(db)
+            RuleUtils.update_dns_entries(rule_db, db)
 
     @classmethod
     def apply_rule(cls, rule_db):
@@ -290,7 +292,7 @@ class RuleUtils:
                 db_avg_load[db.id] = db_conn.get_system_load_avg()
 
             # check cluster load
-            if is_cluster_managed:
+            if is_cluster_managed and cluster_mgmt[0].avg_load:
                 primary_conn = RuleUtils.create_connection(primaryNode[0])
                 primary_avg_load = primary_conn.get_system_load_avg()
 
@@ -299,7 +301,7 @@ class RuleUtils:
 
                 for id, s_avg_load in sorted_avg_load.items():
                     if (primary_avg_load + s_avg_load) < int(cluster_mgmt[0].avg_load):
-                        RuleUtils.scaleNode(db_instances[id], ec2_type, rds_type)
+                        RuleUtils.scaleNode(db_instances[id], ec2_type, rds_type, cluster_mgmt[0])
                         RuleUtils.update_dns_entries(rule_db, db_instances[id], primaryNode[0])
                         primary_avg_load += s_avg_load
                     else:
@@ -327,6 +329,8 @@ class RuleUtils:
             # for scale up assign replica address to replica dns.
             # for scale down assign primary node address to replica dns
             if rule_db.action == SCALE_DOWN:
+                if not primaryNode:
+                    primaryNode = Ec2DbInfo.objects.filter(cluster=rule_db.cluster, isPrimary=True)
                 dns_address = primaryNode.instance_object.dbEndpoint['Address'] if db.type == "RDS" else primaryNode.instance_object.publicIpAddress
             else:
                 dns_address = db.instance_object.dbEndpoint['Address'] if db.type == "RDS" else db.instance_object.publicIpAddress
@@ -360,18 +364,20 @@ class RuleUtils:
 
     @staticmethod
     def changeInstanceType(db, ec2_type, rds_type):
-        aws = AWSData()
+        aws = AWSUtil.get_aws_service(db.type.upper())
+
         if db.type == EC2:
-            aws.scale_ec2_instance(db.instance_id, ec2_type, db.instance_object.instanceType)
+            aws.scale_instance(db, ec2_type)
 
         elif db.type == RDS:
-            db_parameter = db.instance_object.dBParameterGroups[0]['DBParameterGroupName']
-            aws.scale_rds_instance(db.instance_id, rds_type, db_parameter)
+            aws.scale_instance(db, rds_type)
+            # db_parameter = db.instance_object.dBParameterGroups[0]['DBParameterGroupName']
+            # RDSService().scale_rds_instance(db.instance_id, rds_type, db_parameter)
 
         # wait till instance status get up
-        status = aws.wait_till_status_up(db.instance_id, db.type)
+        status = aws.wait_till_status_up(db)
         if not status:
-            status = aws.start_instance(db.instance_id, db.type)
+            status = aws.start_instance(db)
             if not status:
                 raise Exception("Failed to scale up")
         return status

@@ -1,10 +1,11 @@
+from engine.aws.ec_wrapper import EC2Service
+from engine.aws.rds_wrapper import RDSService
 from engine.models import AllEc2InstanceTypes, AllRdsInstanceTypes
-from engine.aws_wrapper import AWSData
 
 
 def update_all_ec2_instances_types_db(**kwargs):
     try:
-        all_instances = AWSData().describe_ec2_instance_types(**kwargs)
+        all_instances = EC2Service().get_instances(**kwargs)
         if AllEc2InstanceTypes.objects.count() != len(all_instances):
             for instance in all_instances:
                 try:
@@ -30,7 +31,7 @@ def update_all_ec2_instances_types_db(**kwargs):
 
 def update_all_rds_instance_types_db():
     try:
-        all_instances = AWSData().describe_rds_instance_types()
+        all_instances = RDSService().get_instances()
         if AllRdsInstanceTypes.objects.count() != len(all_instances):
             for instance in all_instances:
                 try:
@@ -58,7 +59,7 @@ def update_all_rds_instance_types_db():
 
 
 def update_ec2_data():
-    all_instances = AWSData().describe_ec2_instances()
+    all_instances = EC2Service().get_instances()
     # for db in all_instances:
     #     dbInfo = DBInfo
     pass
