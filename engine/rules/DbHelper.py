@@ -8,7 +8,7 @@ from engine.aws.aws_utils import AWSUtil
 class DbHelper:
     conn = None
 
-    def __init__(self, db):
+    def __init__(self, db: Ec2DbInfo):
         self.db_info = db
         self.type = db.type
         self.aws = AWSUtil.get_aws_service(db.type)
@@ -30,21 +30,21 @@ class DbHelper:
         if replication_lag_rule:
             replication_lag = self.db_conn().get_replication_lag()
             print(replication_lag)
-            return self.check_value(replication_lag_rule, replication_lag, msg="Replication Lag")
+            return self._check_value(replication_lag_rule, replication_lag, msg="Replication Lag")
 
     def check_average_load(self, rule_json):
         rule = rule_json.get("averageLoad", None)
         if rule:
             avg_load = self.db_conn().get_system_load_avg()
-            return self.check_value(rule, avg_load, msg="Average load")
+            return self._check_value(rule, avg_load, msg="Average load")
 
     def check_connections(self, rule_json):
         rule = rule_json.get("checkConnection", None)
         if rule:
             active_connections = self.db_conn().get_no_of_active_connections()
-            return self.check_value(rule, active_connections, msg="Check Connection")
+            return self._check_value(rule, active_connections, msg="Check Connection")
 
-    def check_value(self, rule, value, msg=None):
+    def _check_value(self, rule, value, msg=None):
         result = False
         if rule.get("op") == "equal":
             result = value == int(rule.get("value"))
@@ -71,6 +71,12 @@ class DbHelper:
         if not status:
             status = self.aws.start_instance(self.instance)
 
+    def get_endpoint_address(self):
+        return self.table.get_endpoint_address(self.instance)
+
+    def get_system_load_avg(self):
+        return self.db_conn().get_system_load_avg()
+
 
 class EC2DBHelper:
     @staticmethod
@@ -78,9 +84,17 @@ class EC2DBHelper:
         return json.dumps(list(AllEc2InstanceTypes.objects.all().values('instance_type').annotate(value=F('instance_type'),
                                                                                         data=F('instance_type'))))
 
+    @staticmethod
+    def get_endpoint_address(instance):
+        return instance.dbEndpoint["Address"]
+
 
 class RDSDBHelper:
     @staticmethod
     def get_instances_types():
         return json.dumps(list(AllRdsInstanceTypes.objects.all().values('instance_type').annotate(value=F('instance_type'),
                                                                                         data=F('instance_type'))))
+
+    @staticmethod
+    def get_endpoint_address(instance):
+        return instance.publicIpAddress

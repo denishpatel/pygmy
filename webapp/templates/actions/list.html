@@ -19,7 +19,7 @@
         </div>
     </div>
     <div class="uk-section-xsmall uk-container uk-container-large uk-overflow-auto">
-        <table id="example" class="uk-table uk-table-small uk-table-middle uk-table-hover uk-table-divider .uk-table-striped" style="width:100%">
+        <table id="logs" class="uk-table uk-table-small uk-table-middle uk-table-hover uk-table-divider .uk-table-striped" style="width:100%">
             <thead style="background: #232f3e;">
                 <tr>
                     <th>ID</th>
@@ -57,6 +57,8 @@
 {% endblock %}
 {% block js_bottom %}{{ block.super }}
 <script>
-
+    $(document).ready(function() {
+        $("#logs").DataTable();
+    });
 </script>
 {% endblock %}

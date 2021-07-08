@@ -1,7 +1,7 @@
 import botocore
 
 from engine.aws.aws_services import AWSServices
-from engine.models import AllEc2InstancesData, EC2, Ec2DbInfo, ClusterInfo
+from engine.models import AllEc2InstancesData, EC2, Ec2DbInfo, ClusterInfo, DbCredentials, AllEc2InstanceTypes
 from engine.postgres_wrapper import PostgresData
 from django.conf import settings
 
@@ -17,9 +17,10 @@ class EC2Service(AWSServices, metaclass=Singleton):
         super(EC2Service, self).__init__()
 
     def create_connection(self, db):
+        credentials = DbCredentials.objects.get(name="ec2")
         host = db.publicDnsName
-        username = "pygmy"
-        password = "pygmy"
+        username = credentials.user_name
+        password = credentials.password
         db_name = "postgres"
         return PostgresData(host, username, password, db_name)
 
@@ -215,3 +216,17 @@ class EC2Service(AWSServices, metaclass=Singleton):
         db.virtualizationType = instance["VirtualizationType"]
         db.cpuOptions = instance.get("CpuOptions", {})
         db.save()
+
+    def save_instance_types(self):
+        try:
+            all_instances = self.get_instance_types()
+            if AllEc2InstanceTypes.objects.count() != len(all_instances):
+                for instance in all_instances:
+                    try:
+                        inst = AllEc2InstanceTypes.objects.get(instance_type=instance["InstanceType"])
+                    except AllEc2InstanceTypes.DoesNotExist:
+                        aeit = AllEc2InstanceTypes()
+                        aeit.save_instance_types(instance)
+        except Exception as e:
+            print(str(e))
+            print(instance)

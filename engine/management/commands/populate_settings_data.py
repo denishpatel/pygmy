@@ -55,7 +55,8 @@ class Command(BaseCommand):
 
         # Secrets
         secrets = dict({
-            "postgres": ("Postgres Secrets", "postgres", "postgres"),
+            "ec2": ("EC2 Postgres Secrets", "postgres", "postgres"),
+            "rds": ("RDS Postgres Secrets", "postgres", "postgres"),
             "aws": ("AWS Secrets", aws_key, aws_secret)
         })
 

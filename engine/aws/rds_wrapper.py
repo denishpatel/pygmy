@@ -1,5 +1,5 @@
 from engine.aws.aws_services import AWSServices
-from engine.models import RdsInstances, Ec2DbInfo, ClusterInfo, RDS
+from engine.models import RdsInstances, Ec2DbInfo, ClusterInfo, RDS, AllRdsInstanceTypes, DbCredentials
 from engine.postgres_wrapper import PostgresData
 from django.conf import settings
 
@@ -17,10 +17,11 @@ class RDSService(AWSServices, metaclass=Singleton):
         regions = self.ec2_client.describe_regions()
 
     def create_connection(self, db):
+        credentials = DbCredentials.objects.get(name="rds")
         host = db.instance_object.dbEndpoint["Address"]
         username = db.instance_object.masterUsername
         db_name = db.instance_object.dbName
-        password = "postgres123"
+        password = credentials.password #"postgres123"
         return PostgresData(host, username, password, db_name)
 
     def check_instance_status(self, instance):
@@ -91,7 +92,26 @@ class RDSService(AWSServices, metaclass=Singleton):
         return all_instances
 
     def get_instance_types(self):
-        pass
+        all_instance_types = []
+        describe_instance_type_resp = self.rds_client.describe_orderable_db_instance_options(
+            Engine='postgres',
+            MaxRecords=100
+        )
+
+        while True:
+            all_instance_types.extend(describe_instance_type_resp.get("OrderableDBInstanceOptions"))
+
+            # For handling pagination
+            if describe_instance_type_resp.get("Marker", None) is None:
+                break
+
+            describe_instance_type_resp = self.rds_client.describe_orderable_db_instance_options(
+                Engine='postgres',
+                MaxRecords=100,
+                Marker=describe_instance_type_resp.get("Marker")
+            )
+
+        return all_instance_types
 
     @classmethod
     def get_tag_map(cls, instance):
@@ -177,3 +197,19 @@ class RDSService(AWSServices, metaclass=Singleton):
         except Exception as e:
             print(str(e))
             return False
+
+    def save_instance_types(self):
+        try:
+            all_instances = self.get_instance_types()
+            if AllRdsInstanceTypes.objects.count() != len(all_instances):
+                for instance in all_instances:
+                    try:
+                        inst = AllRdsInstanceTypes.objects.get(instance_type=instance["DBInstanceClass"],
+                                                               engine=instance["Engine"],
+                                                               engine_version=instance["EngineVersion"])
+                    except AllRdsInstanceTypes.DoesNotExist:
+                        arit = AllRdsInstanceTypes()
+                        arit.save_instance_types(instance)
+        except Exception as e:
+            print(str(e))
+            return

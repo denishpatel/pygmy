@@ -2,8 +2,12 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views import View
-from engine.models import EC2, RDS, Rules, SCALE_UP, SCALE_DOWN, ClusterInfo, DAILY, CRON
-from engine.utils import get_instance_types, create_cron, get_selection_list, delete_cron, RuleUtils
+
+from engine.models import Rules
+from engine.rules.ClusterHelper import ClusterHelper
+from engine.rules.DbHelper import EC2DBHelper, RDSDBHelper
+from engine.rules.RulesHelper import RuleHelper
+from engine.rules.cronutils import CronUtil
 
 
 class CreateRulesView(LoginRequiredMixin, View):
@@ -11,14 +15,14 @@ class CreateRulesView(LoginRequiredMixin, View):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.ec2 = get_instance_types(EC2)
-        self.rds = get_instance_types(RDS)
+        self.ec2 = EC2DBHelper.get_instances_types()
+        self.rds = RDSDBHelper.get_instances_types()
 
     def get(self, request, **kwargs):
         return render(request, self.template, {
             "ec2_types": self.ec2,
             "rds_types": self.rds,
-            "clusters": get_selection_list(ClusterInfo.objects.all(), "type", "name", "id")
+            "clusters": ClusterHelper.get_cluster_list()
         })
 
     def post(self, request, **kwargs):
@@ -44,7 +48,7 @@ class CreateRulesView(LoginRequiredMixin, View):
         return super(CreateRulesView, self).dispatch(*args, **kwargs)
 
     def create_rule(self, data):
-        RuleUtils.add_rule_db(data)
+        RuleHelper.add_rule_db(data)
 
 
 class EditRuleView(LoginRequiredMixin, View):
@@ -52,8 +56,8 @@ class EditRuleView(LoginRequiredMixin, View):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.ec2 = get_instance_types(EC2)
-        self.rds = get_instance_types(RDS)
+        self.ec2 = EC2DBHelper.get_instances_types()
+        self.rds = RDSDBHelper.get_instances_types()
 
     def get(self, request, id, **kwargs):
         try:
@@ -61,7 +65,7 @@ class EditRuleView(LoginRequiredMixin, View):
             ctx = {
                 "ec2_types": self.ec2,
                 "rds_types": self.rds,
-                "clusters": get_selection_list(ClusterInfo.objects.all(), "type", "name", "id"),
+                "clusters": ClusterHelper.get_cluster_list(),
                 "data": rule,
                 "reverse_rule": rule.child_rule.get() if rule.child_rule.all().count() > 0 else None,
             }
@@ -73,7 +77,7 @@ class EditRuleView(LoginRequiredMixin, View):
 
     def delete(self, request, id, **kwargs):
         rule = Rules.objects.get(id=id)
-        delete_cron(rule)
+        CronUtil.delete_cron(rule)
         rule.delete()
         return JsonResponse({"success": True})
 
@@ -102,7 +106,7 @@ class EditRuleView(LoginRequiredMixin, View):
         return super(EditRuleView, self).dispatch(*args, **kwargs)
 
     def update_rule(self, rule_db, data):
-        RuleUtils.add_rule_db(data, rule_db)
+        RuleHelper.add_rule_db(data, rule_db)
 
 
 class RulesView(LoginRequiredMixin, View):

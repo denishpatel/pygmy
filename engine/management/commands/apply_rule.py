@@ -1,10 +1,9 @@
 from django.utils import timezone
-from engine.aws.aws_utils import AWSUtil
 from django.core.management import BaseCommand
 
 from engine.rules.LoggerUtils import ActionLogger
-from engine.utils import RuleUtils
-from engine.models import Rules, ActionLogs, ExceptionData, EC2, RDS
+from engine.rules.RulesHelper import RuleHelper
+from engine.models import Rules, ActionLogs
 
 
 class Command(BaseCommand):
@@ -19,30 +18,12 @@ class Command(BaseCommand):
             try:
                 rule_db = Rules.objects.get(id=rid)
                 ActionLogger.add_log(rule_db, "rule execution is started")
-                aws = AWSUtil.get_aws_service(rule_db.cluster.type)
-                aws.get_instances();
-                # Update db with latest info()
-                # if rule_db.cluster.type == EC2:
-                #     aws.describe_ec2_instances()
-                # elif rule_db.cluster.type == RDS:
-                #     aws.describe_rds_instances()
-                try:
-                    RuleUtils.check_exception_date(rule_db)
-                except ExceptionData.DoesNotExist:
-                    pass
-
-                # Check rule is Reverse Rule or not
-                if rule_db.parent_rule:
-                    RuleUtils.reverse_rule(rule_db)
-                else:
-                    RuleUtils.apply_rule(rule_db)
+                helper = RuleHelper.from_id(rid)
+                helper.check_exception_date()
+                helper.apply_rule()
                 rule_db.status = True
                 rule_db.err_msg = ""
                 msg = "Successfully Executed Rule"
-
-                # auto reload of the instances
-                aws.describe_ec2_instances()
-                aws.describe_rds_instances()
                 print("Rule has completed successfully")
             except Exception as e:
                 rule_db.status = False

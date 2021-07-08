@@ -83,6 +83,19 @@ class AllEc2InstanceTypes(models.Model):
     hibernation_supported = models.BooleanField(default=True)
     burstable_performance_supported = models.BooleanField(default=True)
 
+    def save_instance_types(self, instance):
+        self.instance_type = instance.get("InstanceType")
+        self.supported_usage_classes = instance.get("SupportedUsageClasses", {})
+        self.virtual_cpu_info = instance.get("VCpuInfo", {})
+        self.memory_info = instance.get("MemoryInfo", {})
+        self.storage_info = instance.get("InstanceStorageInfo", {})
+        self.ebs_info = instance.get("EbsInfo", {})
+        self.network_info = instance.get("NetworkInfo", {})
+        self.current_generation = instance.get("CurrentGeneration", True)
+        self.hibernation_supported = instance.get("HibernationSupported", True)
+        self.burstable_performance_supported = instance.get("BurstablePerformanceSupported", True)
+        self.save()
+
 
 class AllRdsInstanceTypes(models.Model):
     """
@@ -104,6 +117,20 @@ class AllRdsInstanceTypes(models.Model):
     class Meta:
         unique_together = ['engine', 'engine_version', 'instance_type']
         index_together = ['engine', 'engine_version', 'instance_type']
+
+    def save_instance_types(self, instance):
+        self.instance_type = instance["DBInstanceClass"]
+        self.engine = instance["Engine"]
+        self.engine_version = instance["EngineVersion"]
+        self.support_storage_encryption = instance["SupportsStorageEncryption"]
+        self.multi_az_capable = instance["MultiAZCapable"]
+        self.read_replica_capable = instance.get("ReadReplicaCapable", False)
+        self.storage_type = instance.get("StorageType", "")
+        self.support_iops = instance.get("SupportsIops", False)
+        self.min_storage_size = instance["MinStorageSize"]
+        self.max_storage_size = instance["MaxStorageSize"]
+        self.support_storage_auto_scaling = instance["SupportsStorageAutoscaling"]
+        self.save()
 
 
 class AllEc2InstancesData(models.Model):

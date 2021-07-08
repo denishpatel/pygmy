@@ -3,7 +3,8 @@ from rest_framework.parsers import JSONParser
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from engine.models import Rules, ClusterInfo, ExceptionData, Ec2DbInfo, ClusterManagement
-from engine.utils import RuleUtils, delete_cron
+from engine.rules.RulesHelper import RuleHelper
+from engine.rules.cronutils import CronUtil
 from drf_yasg2.utils import swagger_auto_schema
 from webapp.serializers import RuleSerializer, ExceptionDataSerializer, ClusterSerializer, RuleCreateSerializer, \
     ExceptionCreateSerializer, Ec2DbInfoSerializer, DNSDataSerializer, ClusterManagementSerializer
@@ -91,7 +92,7 @@ class CreateRuleAPIView(APIView):
             action = request.data.get("action", None)
             if name and cluster and action and typeTime:
                 # Scale down Rule
-                RuleUtils.add_rule_db(request.data)
+                RuleHelper.add_rule_db(request.data)
                 result.update({"success": True})
             else:
                 raise Exception
@@ -117,7 +118,7 @@ class EditRuleAPIView(APIView):
             action = request.data.get("action", None)
             if name and cluster and action and typeTime:
                 # Scale down Rule
-                RuleUtils.add_rule_db(rule, request.data)
+                RuleHelper.add_rule_db(rule, request.data)
                 result.update({"success": True})
             else:
                 raise Exception
@@ -131,7 +132,7 @@ class EditRuleAPIView(APIView):
     @swagger_auto_schema(tags=["Rules"])
     def delete(self, request, id):
         rule = Rules.objects.get(id=id)
-        delete_cron(rule)
+        CronUtil.delete_cron(rule)
         rule.delete()
         return Response({"success": True})
 
