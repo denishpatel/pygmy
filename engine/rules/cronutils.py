@@ -1,6 +1,7 @@
 import sys
 from crontab import CronTab
 import getpass
+from django.conf import settings
 
 
 class CronUtil:

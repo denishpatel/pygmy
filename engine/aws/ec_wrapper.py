@@ -7,6 +7,9 @@ from django.conf import settings
 
 from engine.singleton import Singleton
 from webapp.models import Settings as SettingsModal
+import logging
+
+log = logging.getLogger("db")
 
 
 class EC2Service(AWSServices, metaclass=Singleton):
@@ -69,42 +72,49 @@ class EC2Service(AWSServices, metaclass=Singleton):
 
         return all_instance_types
 
-    def scale_instance(self, instance, new_instance_type):
+    def scale_instance(self, instance, new_instance_type, fallback_instances=None):
         """
             scale up and down the ec2 instances
         """
         ec2_instance_id = instance.instanceId
         previous_instance_type = instance.instanceType
-
         try:
-            # stop the instance
-            self.ec2_client.stop_instances(InstanceIds=[ec2_instance_id])
-            waiter = self.ec2_client.get_waiter('instance_stopped')
-            waiter.wait(InstanceIds=[ec2_instance_id])
-
-            # Change the instance type
-            self.ec2_client.modify_instance_attribute(InstanceId=ec2_instance_id, Attribute='instanceType',
-                                                      Value=new_instance_type)
-
-            # Start the instance
-            self.ec2_client.start_instances(InstanceIds=[ec2_instance_id])
-            waiter = self.ec2_client.get_waiter('instance_running')
-            waiter.wait(InstanceIds=[ec2_instance_id])
-            return True
+            self.__scale_instance(ec2_instance_id, new_instance_type)
         except botocore.exceptions.WaiterError:
-            # instance not stopped or not running again
-            # Change the instance type to previous
-            self.ec2_client.modify_instance_attribute(InstanceId=ec2_instance_id, Attribute='instanceType',
-                                                      Value=previous_instance_type)
-
-            # Start the instance
-            self.ec2_client.start_instances(InstanceIds=[ec2_instance_id])
-            waiter = self.ec2_client.get_waiter('instance_running')
-            waiter.wait(InstanceIds=[ec2_instance_id])
+            # Fall backing instances
+            for fallback_instance in fallback_instances:
+                try:
+                    log.info("Setting fallback instance type {}.", fallback_instance)
+                    self.__scale_instance(ec2_instance_id, fallback_instance)
+                    return True
+                except botocore.exceptions.WaiterError:
+                    log.error("Failed to set fallback instance type {}.", fallback_instance)
         except Exception as e:
             print(str(e))
             print("failed in scaling ec2 instance")
             return False
+
+        # Change the instance type to previous
+        self.__scale_instance(ec2_instance_id, previous_instance_type)
+
+    def __scale_instance(self, ec2_instance_id, new_instance_type):
+        """
+           scale up and down the ec2 instances
+       """
+        # stop the instance
+        self.ec2_client.stop_instances(InstanceIds=[ec2_instance_id])
+        waiter = self.ec2_client.get_waiter('instance_stopped')
+        waiter.wait(InstanceIds=[ec2_instance_id])
+
+        # Change the instance type
+        self.ec2_client.modify_instance_attribute(InstanceId=ec2_instance_id, Attribute='instanceType',
+                                                  Value=new_instance_type)
+
+        # Start the instance
+        self.ec2_client.start_instances(InstanceIds=[ec2_instance_id])
+        waiter = self.ec2_client.get_waiter('instance_running')
+        waiter.wait(InstanceIds=[ec2_instance_id])
+        return True
 
     def get_instances(self):
         all_instances = dict()

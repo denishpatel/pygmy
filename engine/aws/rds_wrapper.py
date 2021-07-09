@@ -4,7 +4,8 @@ from engine.postgres_wrapper import PostgresData
 from django.conf import settings
 
 from engine.singleton import Singleton
-
+import logging
+log = logging.getLogger("db")
 
 class RDSService(AWSServices, metaclass=Singleton):
     rds_client_region_dict = dict()
@@ -139,7 +140,7 @@ class RDSService(AWSServices, metaclass=Singleton):
         rds.save()
         return rds
 
-    def scale_instance(self, instance, new_instance_type, apply_immediately=True):
+    def scale_instance(self, instance, new_instance_type, fallback_instances=None):
         """
             scale up and down the rds instance
         """
@@ -148,16 +149,27 @@ class RDSService(AWSServices, metaclass=Singleton):
         db_parameter_group = instance.dBParameterGroups[0]['DBParameterGroupName']
 
         try:
-            self.rds_client.modify_db_instance(
-                DBInstanceIdentifier=db_instance_id,
-                DBInstanceClass=db_instance_type,
-                DBParameterGroupName=db_parameter_group,
-                ApplyImmediately=apply_immediately
-            )
+            self.__scale_instance(db_instance_id, db_instance_type, db_parameter_group)
             return True
         except Exception as e:
             print(str(e))
-            return False
+            for fallback_instance in fallback_instances:
+                try:
+                    self.__scale_instance(db_instance_id, fallback_instance, db_parameter_group)
+                    return True
+                except Exception as e:
+                    log.error("Failed update instance type ", fallback_instance)
+        return False
+
+    def __scale_instance(self, db_instance_id, db_instance_type, db_parameter_group):
+        self.rds_client.modify_db_instance(
+            DBInstanceIdentifier=db_instance_id,
+            DBInstanceClass=db_instance_type,
+            DBParameterGroupName=db_parameter_group,
+            ApplyImmediately=True
+        )
+        waiter = self.rds_client.get_waiter("db_instance_available")
+        waiter.wait(DBInstanceIdentifier=db_instance_id)
 
     def copy_pygmy_parameter_group(self, source_parameter_group_name):
         """

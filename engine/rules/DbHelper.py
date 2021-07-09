@@ -64,8 +64,8 @@ class DbHelper:
     def get_supported_types(self):
         return self.table.get_instances_types()
 
-    def update_instance_type(self, instance_type, action_type=None):
-        self.aws.scale_instance(self.instance, instance_type)
+    def update_instance_type(self, instance_type, fallback_instances=[]):
+        self.aws.scale_instance(self.instance, instance_type, fallback_instances)
         # wait till instance status get up
         status = self.aws.wait_till_status_up(self.instance)
         if not status:
@@ -86,7 +86,7 @@ class EC2DBHelper:
 
     @staticmethod
     def get_endpoint_address(instance):
-        return instance.dbEndpoint["Address"]
+        return instance.publicIpAddress
 
 
 class RDSDBHelper:
@@ -97,4 +97,4 @@ class RDSDBHelper:
 
     @staticmethod
     def get_endpoint_address(instance):
-        return instance.publicIpAddress
+        return instance.dbEndpoint["Address"]

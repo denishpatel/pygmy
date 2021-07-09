@@ -6,7 +6,7 @@ import sys
 from django.conf import settings
 from django.utils import timezone
 from engine.rules.DbHelper import DbHelper
-from engine.models import Rules, RDS, Ec2DbInfo, ExceptionData, SCALE_DOWN, EC2, DbCredentials, DAILY, CRON
+from engine.models import Rules, RDS, Ec2DbInfo, ExceptionData, SCALE_DOWN, EC2, DbCredentials, DAILY, CRON, SCALE_UP
 from engine.rules.cronutils import CronUtil
 
 logdb = logging.getLogger("db")
@@ -26,8 +26,10 @@ class RuleHelper:
         self._is_cluster_managed = hasattr(self.rule.cluster, "load_management")
         self.cluster_mgmt = self.rule.cluster.load_management if self._is_cluster_managed else None
         self.is_reverse = True if self.rule.parent_rule else False
-
+        self.fallback_instances = list()
         self._db_avg_load = dict()
+        if self.cluster_mgmt:
+            self.fallback_instances = self.cluster_mgmt.fallback_instances_scale_up if self.action == SCALE_UP else self.cluster_mgmt.fallback_instances_scale_down
 
     @classmethod
     def from_id(cls, rule_id):
@@ -177,7 +179,7 @@ class RuleHelper:
 
                 for id, s_avg_load in sorted_avg_load.items():
                     if (primary_avg_load + s_avg_load) < int(self.cluster_mgmt[0].avg_load):
-                        db_instances[id].update_instance_type(self.new_instance_type)
+                        db_instances[id].update_instance_type(self.new_instance_type, self.fallback_instances)
                         self.update_dns_entries(db_instances[id].instance, db_instances[id])
                         primary_avg_load += s_avg_load
                     else:
@@ -185,8 +187,8 @@ class RuleHelper:
             else:
                 for id, helper in db_instances.items():
                     helper.check_average_load(self.rule_json)
-                    helper.update_instance_type(self.new_instance_type)
-                    self.update_dns_entries(helper.instance, helper)
+                    helper.update_instance_type(self.new_instance_type, self.fallback_instances)
+                    self.update_dns_entries(helper)
         except Exception as e:
             logdb.error("#Rule {}: Failed to apply", self.rule.id)
             CronUtil.set_retry_cron(self.rule)
@@ -196,15 +198,15 @@ class RuleHelper:
         for db in self.secondary_dbs:
             db_helper = DbHelper(db)
             db_helper.update_instance_type(db.last_instance_type, self.action)
-            self.update_dns_entries(db, helper=db_helper)
+            self.update_dns_entries(db_helper)
 
-    def update_dns_entries(self, db, helper):
-        if hasattr(db, "dns_entry"):
+    def update_dns_entries(self, helper):
+        if hasattr(helper.db_info, "dns_entry"):
             if self.action == SCALE_DOWN:
                 dns_address = self.get_primary_address()
             else:
                 dns_address = helper.get_endpoint_address()
-            self.run_dns_script(db, dns_address)
+            self.run_dns_script(helper.db_info, dns_address)
         return None
 
     def get_primary_address(self):

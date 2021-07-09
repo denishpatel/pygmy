@@ -55,5 +55,10 @@ cat <<EOF >req.json
 EOF
 
 aws route53 change-resource-record-sets --hosted-zone-id $HOSTED_ZONE --change-batch file://req.json
+output=$?
 
-exit $?
+# Delete request file
+rm req.json
+
+# Exit Script
+exit $output
