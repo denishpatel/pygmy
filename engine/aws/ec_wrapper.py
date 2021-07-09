@@ -118,7 +118,7 @@ class EC2Service(AWSServices, metaclass=Singleton):
         # First describe instance
         for region in AWSServices.get_enabled_regions():
             all_pg_ec2_instances = self.ec2_client_region_dict[region].describe_instances(
-                # Filters=filters,
+                Filters=filters,
                 MaxResults=200
             )
 
