@@ -2,10 +2,10 @@ from engine.aws.aws_services import AWSServices
 from engine.models import RdsInstances, Ec2DbInfo, ClusterInfo, RDS, AllRdsInstanceTypes, DbCredentials
 from engine.postgres_wrapper import PostgresData
 from django.conf import settings
-
 from engine.singleton import Singleton
 import logging
 log = logging.getLogger("db")
+
 
 class RDSService(AWSServices, metaclass=Singleton):
     rds_client_region_dict = dict()

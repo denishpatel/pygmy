@@ -1,10 +1,8 @@
 import botocore
-
 from engine.aws.aws_services import AWSServices
 from engine.models import AllEc2InstancesData, EC2, Ec2DbInfo, ClusterInfo, DbCredentials, AllEc2InstanceTypes
 from engine.postgres_wrapper import PostgresData
 from django.conf import settings
-
 from engine.singleton import Singleton
 from webapp.models import Settings as SettingsModal
 import logging
