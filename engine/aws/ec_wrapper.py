@@ -18,7 +18,7 @@ class EC2Service(AWSServices, metaclass=Singleton):
         super(EC2Service, self).__init__()
 
     def create_connection(self, db):
-        credentials = DbCredentials.objects.get(name="ec2")
+        credentials = DbCredentials.objects.get(name="postgres")
         host = db.publicDnsName
         username = credentials.user_name
         password = credentials.password

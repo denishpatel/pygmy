@@ -184,7 +184,7 @@ STATIC_ROOT = os.path.join(BASE_DIR, "static")
 
 # Filter Tag values
 EC2_INSTANCE_POSTGRES_TAG_KEY_NAME = "Role"
-EC2_INSTANCE_POSTGRES_TAG_KEY_VALUE = "postgresql"
+EC2_INSTANCE_POSTGRES_TAG_KEY_VALUE = "PostgreSQL"
 
 # Read Tag Values
 EC2_INSTANCE_PROJECT_TAG_KEY_NAME = "Project"

@@ -17,7 +17,7 @@ class Command(BaseCommand):
         self.populate_settings()
 
     @staticmethod
-    def populate_settings(aws_key="AWS", aws_secret="AWS"):
+    def populate_settings():
         syncSettings = {
             "ec2": "Sync EC2 Data",
             "rds": "Sync RDS Data",
@@ -28,6 +28,11 @@ class Command(BaseCommand):
                 setting = Settings.objects.get(name=key)
             except Settings.DoesNotExist:
                 setting = Settings()
+                enable_flag = input("Enable {} sync? (y/n): ".format(key))
+                if enable_flag.lower() in ["y", "yes", "true"]:
+                    setting.value = True
+                else:
+                    setting.value = False
                 setting.name = key
                 setting.last_sync = None
                 setting.description = value
@@ -55,19 +60,28 @@ class Command(BaseCommand):
 
         # Secrets
         secrets = dict({
-            "ec2": ("EC2 Postgres Secrets", "postgres", "postgres"),
-            "rds": ("RDS Postgres Secrets", "postgres", "postgres"),
-            "aws": ("AWS Secrets", aws_key, aws_secret)
+            "ec2": ("EC2 Postgres Secrets", "postgres", "postgres_password"),
+            "rds": ("RDS Postgres Secrets", "postgres", "postgres_password"),
+            "aws": ("AWS Secrets", "aws", "aws_secret")
         })
 
         for key, value in secrets.items():
-            print(value[0], value[1])
             secret, created = DbCredentials.objects.get_or_create(name=key)
             if created:
                 secret.description = value[0]
-                secret.user_name = value[1]
-                secret.password = value[2]
+                if key in ["ec2", "rds"]:
+                    user_name = input("Enter username for {} postgres: ".format(value[0]))
+                    password = input("Enter password for {} postgres: ".format(value[1]))
+                    secret.user_name = user_name
+                    secret.password = password
+                else:
+                    aws_key = input("Enter AWS key: ".format(value[0]))
+                    aws_secret = input("Enter AWS secret: ".format(value[1]))
+                    secret.user_name = aws_key
+                    secret.password = aws_secret
                 secret.save()
+            else:
+                print("Use set_secrets command to reset the aws/postgres secrets")
 
         # Create user
         Command.create_default_user()
@@ -79,24 +93,46 @@ class Command(BaseCommand):
             user = User.objects.get(email='admin')
         except User.DoesNotExist:
             user = User.objects.create_user('admin', password='admin')
-            user.is_superuser = False
+            user.is_superuser = True
             user.is_staff = True
             user.save()
 
     @staticmethod
     def populate_aws_regions():
+        valid_regions = []
         if AWSUtil.check_aws_validity_from_db():
             aws = EC2Service()
-            for region in aws.get_all_regions():
-                region_name = region.get("RegionName")
-                print("region name ", region_name)
-                region_setting, created = Settings.objects.get_or_create(name="AWS_{0}".format(region_name))
-                if created:
-                    region_setting.description = region_name
-                    region_setting.value = False
-                    region_setting.last_sync = None
-                    region_setting.type = AWS_REGION
-                    region_setting.save()
+            ENABLE = input("Do you want to enable sync across regions? (y/n): ")
+            if ENABLE.lower() in ["y", "yes", "true"]:
+                for region in aws.get_all_regions():
+                    region_name = region.get("RegionName")
+                    print("region name ", region_name)
+                    region_setting, created = Settings.objects.get_or_create(name="AWS_{0}".format(region_name))
+                    if created:
+                        region_setting.description = region_name
+                        region_setting.value = True
+                        region_setting.last_sync = None
+                        region_setting.type = AWS_REGION
+                        region_setting.save()
+                    valid_regions.append(region_name)
+            else:
+                for region in aws.get_all_regions():
+                    region_name = region.get("RegionName")
+                    print("region name ", region_name)
+                    enable_flag = input("Enable sync for {} (y/n): ".format(region_name))
+                    if enable_flag.lower() in ["y", "yes", "true"]:
+                        REGION_ENABLE = True
+                    else:
+                        REGION_ENABLE = False
+
+                    region_setting, created = Settings.objects.get_or_create(name="AWS_{0}".format(region_name))
+                    if created:
+                        region_setting.description = region_name
+                        region_setting.value = REGION_ENABLE
+                        region_setting.last_sync = None
+                        region_setting.type = AWS_REGION
+                        region_setting.save()
+                    valid_regions.append(region_name)
             print("updated aws regions")
         else:
             print("AWS credentials are not valid")
