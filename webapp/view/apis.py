@@ -35,7 +35,7 @@ class CreateRuleAPIView(APIView):
         "averageLoad": "32",
 
         "enableRetry": "on",
-        "retryAfter: "15",
+        "retryAfter": "15",
         "retryMax": "3",
 
         "enableReverse": "on",
@@ -66,7 +66,7 @@ class CreateRuleAPIView(APIView):
         "averageLoad": "32",
 
         "enableRetry": "on",
-        "retryAfter: "15",
+        "retryAfter": "15",
         "retryMax": "3",
 
         "enableReverse": "on",
@@ -118,7 +118,7 @@ class EditRuleAPIView(APIView):
             action = request.data.get("action", None)
             if name and cluster and action and typeTime:
                 # Scale down Rule
-                RuleHelper.add_rule_db(rule, request.data)
+                RuleHelper.add_rule_db(request.data, rule)
                 result.update({"success": True})
             else:
                 raise Exception

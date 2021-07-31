@@ -1,3 +1,4 @@
+from engine.utils import CryptoUtil
 from django.db import models
 from datetime import datetime
 from django.utils import timezone
@@ -47,11 +48,31 @@ class ClusterInfo(models.Model):
         return "{}-({})".format(self.name, self.id)
 
 
+class SecureField(models.CharField):
+
+    def __init__(self, *args, **kwargs):
+        self.crypto_util = CryptoUtil()
+        super(SecureField, self).__init__(*args, **kwargs)
+
+    def from_db_value(self, value, expression, connection):
+        return self.to_python(value)
+
+    def to_python(self, value):
+        return self.crypto_util.decode(value)
+
+    def get_prep_value(self, value):
+        if not value:
+            return value
+        if not isinstance(value, str):
+            value = str(value)
+        return self.crypto_util.encode(value)
+
+
 class DbCredentials(models.Model):
     name = models.CharField(max_length=100)
     description = models.CharField(max_length=255)
     user_name = models.CharField(max_length=255)
-    password = models.CharField(max_length=255)
+    password = SecureField(max_length=255)
 
 
 class Ec2DbInfo(models.Model):
