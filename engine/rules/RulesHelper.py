@@ -180,13 +180,15 @@ class RuleHelper:
                 for id, s_avg_load in sorted_avg_load.items():
                     if (primary_avg_load + s_avg_load) < int(self.cluster_mgmt[0].avg_load):
                         db_instances[id].update_instance_type(self.new_instance_type, self.fallback_instances)
-                        self.update_dns_entries(db_instances[id].instance, db_instances[id])
+                        self.__check_open_connections(db_instances[id])
+                        self.update_dns_entries(db_instances[id])
                         primary_avg_load += s_avg_load
                     else:
                         break
             else:
                 for id, helper in db_instances.items():
                     helper.check_average_load(self.rule_json)
+                    self.__check_open_connections(helper)
                     helper.update_instance_type(self.new_instance_type, self.fallback_instances)
                     self.update_dns_entries(helper)
         except Exception as e:
@@ -195,10 +197,24 @@ class RuleHelper:
             raise e
 
     def reverse_rule(self):
-        for db in self.secondary_dbs:
-            db_helper = DbHelper(db)
-            db_helper.update_instance_type(db.last_instance_type, self.action)
-            self.update_dns_entries(db_helper)
+        try:
+            for db in self.secondary_dbs:
+                db_helper = DbHelper(db)
+                self.__check_open_connections(db_helper)
+                db_helper.update_instance_type(db.last_instance_type, self.fallback_instances)
+                self.update_dns_entries(db_helper)
+        except Exception as e:
+            logdb.error("Reverse #Rule {}: Failed to apply", self.rule.id)
+            CronUtil.set_retry_cron(self.rule)
+
+    def __check_open_connections(self, db_helper):
+        if self.action == SCALE_DOWN:
+            users = self.cluster_mgmt.check_active_users
+            active_connections = db_helper.get_no_of_connections(users)
+            if active_connections > 0:
+                logdb.error("{} active connections are open for users {}".format(active_connections, users))
+                raise Exception("connections are opened")
+        return True
 
     def update_dns_entries(self, helper):
         if hasattr(helper.db_info, "dns_entry"):

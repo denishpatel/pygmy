@@ -64,6 +64,9 @@ class DbHelper:
     def get_supported_types(self):
         return self.table.get_instances_types()
 
+    def get_no_of_connections(self, users):
+        return self.db_conn().kill_all_postgres_connections(users)
+
     def update_instance_type(self, instance_type, fallback_instances=[]):
         self.aws.scale_instance(self.instance, instance_type, fallback_instances)
         # wait till instance status get up

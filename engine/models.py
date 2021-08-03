@@ -287,4 +287,5 @@ class ClusterManagement(models.Model):
     avg_load = models.CharField(max_length=255)
     fallback_instances_scale_up = models.JSONField(null=True)
     fallback_instances_scale_down = models.JSONField(null=True)
+    check_active_users = models.JSONField(null=True)
     cluster_id = models.OneToOneField(ClusterInfo, on_delete=models.CASCADE, related_name="load_management")
