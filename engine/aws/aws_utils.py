@@ -1,6 +1,5 @@
 import botocore
 import boto3
-
 from engine.aws.ec_wrapper import EC2Service
 from engine.aws.rds_wrapper import RDSService
 from engine.models import DbCredentials, RDS, EC2
@@ -54,21 +53,3 @@ class AWSUtil:
         cred = AWSUtil.get_aws_credentials()
         session = boto3.Session(aws_access_key_id=cred.user_name, aws_secret_access_key=cred.password)
         return session.client(service_type, region_name=region)
-
-
-# def sync_ec2_cluster(self):
-    #     db_instances = self.aws.describe_rds_instances()
-    #     for db in db_instances:
-    #         all_instances = self.aws.describe_ec2_instances(db)
-    #         for instance in all_instances:
-    #             self.aws.process_ec2_cluster_info(instance)
-    #     self.update_setting_db("ec2")
-    #
-    # def sync_rds_cluster(self):
-    #     self.update_setting_db("rds")
-    #
-    # def update_setting_db(self, s_type):
-    #     # Settings update
-    #     setting = Settings.objects.get(name=s_type)
-    #     setting.last_sync = timezone.now()
-    #     setting.save()

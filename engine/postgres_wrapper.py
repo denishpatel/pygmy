@@ -109,6 +109,20 @@ class PostgresData:
         else:
             return 0
 
+    def kill_all_postgres_connections(self, usernames):
+        """
+        Kills the connections except sent it usernames
+        """
+        user_lst = list(map(lambda x: "username like %{}%".format(x), usernames))
+        user_query = " or ".join(user_lst)
+
+        query = "SELECT count(*) FROM pg_stat_activity WHERE state='active' AND ({})".format(user_query)
+        result = self.execute_and_return_data(query)
+        if len(result) > 0:
+            return result[0][0]
+        else:
+            return 0
+
     def close(self):
         self.cursor.close()
         self.conn.close()
