@@ -40,13 +40,9 @@ $ python manage.py migrate
 ```
 
 Populate settings data ( Run only one time at starting )
+This will also enable 
 ```shell
 $ python manage.py populate_settings_data
-```
-
-Load instance types data
-```shell
-$ python manage.py refresh_all_db_instance_types
 ```
 
 Optional You can enter secrets using following command (COMMAND LINE)
@@ -54,10 +50,22 @@ Optional You can enter secrets using following command (COMMAND LINE)
 $ python manage.py set_secrets
 ```
 
+Load instance types data
+```shell
+$ python manage.py refresh_all_db_instance_types
+```
+
 create user from command line
 ```shell
 $ python manage.py createsuperuser
 ```
+
+Pygmy will scan instances which have following Tag-Value set
+"EC2_INSTANCE_POSTGRES_TAG_KEY_NAME": "Role"
+"EC2_INSTANCE_POSTGRES_TAG_KEY_VALUE": "PostgreSQL"
+"EC2_INSTANCE_PROJECT_TAG_KEY_NAME": "Project"
+"EC2_INSTANCE_ENV_TAG_KEY_NAME": "Environment"
+"EC2_INSTANCE_CLUSTER_TAG_KEY_NAME": "Cluster"
 
 Load instance data
 ```shell

@@ -1,6 +1,8 @@
 import logging
 from django.core.management.base import BaseCommand
-from engine.views import update_all_ec2_instances_types_db, update_all_rds_instance_types_db
+from engine.aws.ec_wrapper import EC2Service
+from engine.aws.rds_wrapper import RDSService
+
 logger = logging.getLogger(__name__)
 
 
@@ -10,10 +12,11 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         try:
-            update_all_ec2_instances_types_db()
-            print("EC2 refresh complete")
-            update_all_rds_instance_types_db()
-            print("RDS instances refresh complete!")
+            EC2Service().save_instance_types()
+            logger.info("EC2 refresh complete")
+            RDSService().save_instance_types()
+            logger.info("RDS instances refresh complete!")
+            print("Done")
         except Exception as e:
             logger.exception(e)
             return

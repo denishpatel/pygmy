@@ -4,7 +4,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views import View
-from engine.aws_wrapper import AWSData
+from engine.aws.aws_utils import AWSUtil
 from webapp.models import Settings, SYNC, CONFIG, AWS_REGION
 
 
@@ -47,7 +47,7 @@ class SettingsRefreshView(LoginRequiredMixin, View):
         settingId = request.GET.get("settingId", None)
         try:
             if settingId:
-                aws = AWSData()
+                # aws = AWSData()
                 sync_setting = Settings.objects.get(name=settingId)
                 if not sync_setting.in_progress:
                     thread = threading.Thread(target=start_background_sync, args=(sync_setting,))
@@ -65,15 +65,13 @@ class SettingsRefreshView(LoginRequiredMixin, View):
 
 
 def start_background_sync(sync_setting):
-    aws = AWSData()
+    aws = AWSUtil.get_aws_service(sync_setting.name.upper())
     sync_setting.in_progress = True
     sync_setting.last_sync = timezone.now()
     sync_setting.save()
-    if sync_setting.name == "ec2":
-        aws.describe_ec2_instances()
-    elif sync_setting.name == "rds":
-        aws.describe_rds_instances()
-    elif sync_setting.name == "logs":
+    aws.get_instances()
+
+    if sync_setting.name == "logs":
         pass
     sync_setting.in_progress = False
     sync_setting.last_sync = timezone.now()

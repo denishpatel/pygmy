@@ -1,3 +1,4 @@
+from engine.utils import CryptoUtil
 from django.db import models
 from datetime import datetime
 from django.utils import timezone
@@ -47,11 +48,31 @@ class ClusterInfo(models.Model):
         return "{}-({})".format(self.name, self.id)
 
 
+class SecureField(models.CharField):
+
+    def __init__(self, *args, **kwargs):
+        self.crypto_util = CryptoUtil()
+        super(SecureField, self).__init__(*args, **kwargs)
+
+    def from_db_value(self, value, expression, connection):
+        return self.to_python(value)
+
+    def to_python(self, value):
+        return self.crypto_util.decode(value)
+
+    def get_prep_value(self, value):
+        if not value:
+            return value
+        if not isinstance(value, str):
+            value = str(value)
+        return self.crypto_util.encode(value)
+
+
 class DbCredentials(models.Model):
     name = models.CharField(max_length=100)
     description = models.CharField(max_length=255)
     user_name = models.CharField(max_length=255)
-    password = models.CharField(max_length=255)
+    password = SecureField(max_length=255)
 
 
 class Ec2DbInfo(models.Model):
@@ -83,6 +104,19 @@ class AllEc2InstanceTypes(models.Model):
     hibernation_supported = models.BooleanField(default=True)
     burstable_performance_supported = models.BooleanField(default=True)
 
+    def save_instance_types(self, instance):
+        self.instance_type = instance.get("InstanceType")
+        self.supported_usage_classes = instance.get("SupportedUsageClasses", {})
+        self.virtual_cpu_info = instance.get("VCpuInfo", {})
+        self.memory_info = instance.get("MemoryInfo", {})
+        self.storage_info = instance.get("InstanceStorageInfo", {})
+        self.ebs_info = instance.get("EbsInfo", {})
+        self.network_info = instance.get("NetworkInfo", {})
+        self.current_generation = instance.get("CurrentGeneration", True)
+        self.hibernation_supported = instance.get("HibernationSupported", True)
+        self.burstable_performance_supported = instance.get("BurstablePerformanceSupported", True)
+        self.save()
+
 
 class AllRdsInstanceTypes(models.Model):
     """
@@ -104,6 +138,20 @@ class AllRdsInstanceTypes(models.Model):
     class Meta:
         unique_together = ['engine', 'engine_version', 'instance_type']
         index_together = ['engine', 'engine_version', 'instance_type']
+
+    def save_instance_types(self, instance):
+        self.instance_type = instance["DBInstanceClass"]
+        self.engine = instance["Engine"]
+        self.engine_version = instance["EngineVersion"]
+        self.support_storage_encryption = instance["SupportsStorageEncryption"]
+        self.multi_az_capable = instance["MultiAZCapable"]
+        self.read_replica_capable = instance.get("ReadReplicaCapable", False)
+        self.storage_type = instance.get("StorageType", "")
+        self.support_iops = instance.get("SupportsIops", False)
+        self.min_storage_size = instance["MinStorageSize"]
+        self.max_storage_size = instance["MaxStorageSize"]
+        self.support_storage_auto_scaling = instance["SupportsStorageAutoscaling"]
+        self.save()
 
 
 class AllEc2InstancesData(models.Model):
@@ -237,4 +285,7 @@ class ClusterManagement(models.Model):
     All cluster management settings
     """
     avg_load = models.CharField(max_length=255)
+    fallback_instances_scale_up = models.JSONField(null=True)
+    fallback_instances_scale_down = models.JSONField(null=True)
+    check_active_users = models.JSONField(null=True)
     cluster_id = models.OneToOneField(ClusterInfo, on_delete=models.CASCADE, related_name="load_management")

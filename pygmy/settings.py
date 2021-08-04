@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'corsheaders',
 
     # user installed apps
+    'pygmy',
     'engine',
     'users',
     'webapp',
@@ -183,9 +184,28 @@ STATIC_ROOT = os.path.join(BASE_DIR, "static")
 
 # Filter Tag values
 EC2_INSTANCE_POSTGRES_TAG_KEY_NAME = "Role"
-EC2_INSTANCE_POSTGRES_TAG_KEY_VALUE = "postgresql"
+EC2_INSTANCE_POSTGRES_TAG_KEY_VALUE = "PostgreSQL"
 
 # Read Tag Values
 EC2_INSTANCE_PROJECT_TAG_KEY_NAME = "Project"
 EC2_INSTANCE_ENV_TAG_KEY_NAME = "Environment"
 EC2_INSTANCE_CLUSTER_TAG_KEY_NAME = "Cluster"
+
+level = 'DEBUG'
+handler = ['log_db_handler', ]
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'db_log': {
+            'level': 'DEBUG',
+            'class': 'pygmy.db_logger.DBHandler'
+        },
+    },
+    'loggers': {
+        'db': {
+            'handlers': ['db_log'],
+            'level': 'DEBUG'
+        }
+    }
+}
