@@ -8,10 +8,10 @@ from engine.singleton import Singleton
 
 
 class CryptoUtil(metaclass=Singleton):
-    log = logging.getLogger("db")
 
     def __init__(self, *args, **kwargs):
         self.block_size = AES.block_size
+        self.log = logging.getLogger("db")
         self.key = hashlib.sha256(settings.SECRET_KEY.encode()).digest()
         super(CryptoUtil, self).__init__(*args, **kwargs)
 
