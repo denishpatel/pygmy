@@ -4,9 +4,9 @@ requests==2.26.0
 django-cors-headers==3.7.0
 django-storages==1.11.1
 python-dotenv==0.19.0
-boto3==1.17.3
+boto3==1.18.14
 drf-yasg2==1.19.4
 psycopg2==2.8.6
 python-crontab
-moto==2.0.4
+moto==2.2.1
 PyCryptodome
