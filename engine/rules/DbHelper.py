@@ -17,7 +17,7 @@ class DbHelper:
 
     def db_conn(self):
         if not self.conn:
-            self.conn = self.aws.create_connection(self.instance)
+            self.conn = self.aws.create_connection(self.db_info)
         return self.conn
 
     @classmethod

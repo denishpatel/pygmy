@@ -96,10 +96,13 @@ class ClusterEditView(LoginRequiredMixin, View):
         try:
             cluster = ClusterInfo.objects.get(id=id)
             name = request.POST.get("name", None)
+            databaseName = request.POST.get("databaseName", None)
             if name:
                 cluster.name = name
-                cluster.save()
-                return redirect(reverse("clusters", args=[cluster.id]))
+            if databaseName:
+                cluster.databaseName = databaseName
+            cluster.save()
+            return redirect(reverse("clusters", args=[cluster.id]))
         except ClusterInfo.DoesNotExist:
             return render(request, self.template, {"error": "not found"})
 

@@ -46,6 +46,14 @@
                                 <input id="name" class="uk-input" type="text" name="name" placeholder="" value="{{cluster.name}}">
                             </div>
                         </div>
+                        {% if cluster.type == "EC2" %}
+                        <div class="uk-margin">
+                            <label class="uk-form-label uk-width-1-4" for="name">Database Name</label>
+                            <div class="uk-form-controls">
+                                <input id="databaseName" class="uk-input" type="text" name="databaseName" placeholder="" value="{{cluster.databaseName}}">
+                            </div>
+                        </div>
+                        {% endif %}
                         <br />
                         <a class="uk-button uk-button-default uk-modal-close" href="{% url 'clusters' cluster.id %}">Back</a>
                         <button class="uk-button uk-button-primary" type="submit" id="create__btn">Save</button>

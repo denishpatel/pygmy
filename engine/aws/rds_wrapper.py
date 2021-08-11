@@ -71,7 +71,7 @@ class RDSService(AWSServices, metaclass=Singleton):
                     db_info.instance_object = rds
                     if slave_identifier is None:
                         db_info.isPrimary = True
-                        db_info.cluster = self.get_or_create_cluster(instance, rds.dbInstanceIdentifier)
+                        db_info.cluster = self.get_or_create_cluster(instance, rds.dbInstanceIdentifier, databaseName=rds.dbName)
                     else:
                         cluster, created = ClusterInfo.objects.get_or_create(primaryNodeIp=slave_identifier, type=RDS)
                         db_info.cluster = cluster

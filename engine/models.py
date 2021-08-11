@@ -41,6 +41,7 @@ RunType = (
 class ClusterInfo(models.Model):
     name = models.CharField(max_length=100, default=getClusterName)
     primaryNodeIp = models.CharField(max_length=100)
+    databaseName = models.CharField(max_length=255, default="postgres")
     type = models.CharField(choices=CLUSTER_TYPES, max_length=30)
 
     @property

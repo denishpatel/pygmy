@@ -18,11 +18,11 @@ class EC2Service(AWSServices, metaclass=Singleton):
         super(EC2Service, self).__init__()
 
     def create_connection(self, db):
-        credentials = DbCredentials.objects.get(name="postgres")
-        host = db.privateIpAddress
+        credentials = DbCredentials.objects.get(name="ec2")
+        host = db.instance_object.privateIpAddress
         username = credentials.user_name
         password = credentials.password
-        db_name = "postgres"
+        db_name = db.cluster.databaseName if db.cluster else "postgres"
         return PostgresData(host, username, password, db_name)
 
     def get_all_regions(self):
@@ -172,7 +172,7 @@ class EC2Service(AWSServices, metaclass=Singleton):
         db.instance_object = instance
         db.last_instance_type = instance.instanceType
         try:
-            conn = self.create_connection(instance)
+            conn = self.create_connection(db)
             db.isPrimary = conn.is_ec2_postgres_instance_primary()
             db.isConnected = True
 
