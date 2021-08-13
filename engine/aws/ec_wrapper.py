@@ -192,7 +192,7 @@ class EC2Service(AWSServices, metaclass=Singleton):
     def update_replica_cluster_info(self, private_dns_name, replicas):
         for node in replicas:
             instance = AllEc2InstancesData.objects.get(privateIpAddress=node)
-            db_info, created = Ec2DbInfo.objects.get_or_create(instance_id=instance.instanceId)
+            db_info, created = Ec2DbInfo.objects.get_or_create(instance_id=instance.instanceId, type=EC2)
             db_info.cluster = ClusterInfo.objects.get(primaryNodeIp=private_dns_name, type=EC2)
             db_info.content_object = instance
             db_info.save()
@@ -238,3 +238,14 @@ class EC2Service(AWSServices, metaclass=Singleton):
         except Exception as e:
             print(str(e))
             print(instance)
+
+    def clear_db(self):
+        try:
+            all = Ec2DbInfo.objects.filter(types="EC2")
+            all.delete()
+            all.save()
+            all_instances = AllEc2InstancesData.objects.all()
+            all_instances.delete()
+            all_instances.save()
+        except Exception as e:
+            pass

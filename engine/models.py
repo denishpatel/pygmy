@@ -44,6 +44,10 @@ class ClusterInfo(models.Model):
     databaseName = models.CharField(max_length=255, default="postgres")
     type = models.CharField(choices=CLUSTER_TYPES, max_length=30)
 
+    class Meta:
+        unique_together = ['primaryNodeIp', 'type']
+        index_together = ['primaryNodeIp', 'type']
+
     @property
     def clusterName(self):
         return "{}-({})".format(self.name, self.id)

@@ -225,3 +225,14 @@ class RDSService(AWSServices, metaclass=Singleton):
         except Exception as e:
             print(str(e))
             return
+
+    def clear_db(self):
+        try:
+            all_db_info = Ec2DbInfo.objects.filter(types="RDS")
+            all_db_info.delete()
+            all_db_info.save()
+            rds_instances = RdsInstances.objects.all()
+            rds_instances.delete()
+            rds_instances.save()
+        except Exception as e:
+            pass

@@ -16,7 +16,9 @@ class Command(BaseCommand):
             ec2_sync = Settings.objects.get(name="ec2")
             if ec2_sync.value:
                 logger.info("Getting EC2 instance from AWS started")
-                EC2Service().get_instances()
+                ec2_service = EC2Service()
+                ec2_service.clear_db()
+                ec2_service.get_instances()
                 logger.info("EC2 instances successfully")
             else:
                 logger.info("Skipping EC2 sync as it is disabled!")
@@ -24,7 +26,9 @@ class Command(BaseCommand):
             rds_sync = Settings.objects.get(name="rds")
             if rds_sync.value:
                 logger.info("Started: Getting RDS info")
-                RDSService().get_instances()
+                rds_service = RDSService()
+                rds_service.clear_db()
+                rds_service.get_instances()
                 logger.info("Completed: RDS info")
             else:
                 logger.info("Skipping RDS sync as it is disabled!")
