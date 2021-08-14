@@ -10,7 +10,8 @@ class CronUtil:
     def create_cron(rule):
         cron = CronTab(user=getpass.getuser())
         cron.remove_all(comment="rule_{}".format(rule.id))
-        job = cron.new(command="python manage.py apply_rule", comment="rule_{}".format(rule.id))
+        job = cron.new(command="{0}/venv/bin/python {0}/manage.py apply_rule {1}".format(settings.BASE_DIR, rule.id),
+                       comment="rule_{}".format(rule.id))
 
         # Run at
         time = rule.run_at.split(":")

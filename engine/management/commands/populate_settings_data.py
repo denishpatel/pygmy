@@ -70,8 +70,8 @@ class Command(BaseCommand):
             if created:
                 secret.description = value[0]
                 if key in ["ec2", "rds"]:
-                    user_name = input("Enter USERNAME for {} Postgres Instance for pygmy to connect:: ".format(value[0]))
-                    password = input("Enter PASSWORD for {} Postgres Instance for pygmy to connect:: ".format(value[1]))
+                    user_name = input("Enter USERNAME for {} Postgres Instances for pygmy to connect:: ".format(str.upper(key)))
+                    password = input("Enter PASSWORD for {} for pygmy to connect:: ".format(user_name))
                     secret.user_name = user_name
                     secret.password = password
                 else:

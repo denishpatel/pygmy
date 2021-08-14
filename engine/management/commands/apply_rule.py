@@ -1,6 +1,5 @@
 from django.utils import timezone
 from django.core.management import BaseCommand
-
 from engine.rules.LoggerUtils import ActionLogger
 from engine.rules.RulesHelper import RuleHelper
 from engine.models import Rules, ActionLogs

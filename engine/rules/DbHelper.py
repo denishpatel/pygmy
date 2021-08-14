@@ -1,5 +1,4 @@
 import json
-
 from django.db.models import F
 from engine.models import EC2, SCALE_DOWN, SCALE_UP, Ec2DbInfo, AllRdsInstanceTypes, AllEc2InstanceTypes
 from engine.aws.aws_utils import AWSUtil
@@ -44,6 +43,10 @@ class DbHelper:
             active_connections = self.db_conn().get_no_of_active_connections()
             return self._check_value(rule, active_connections, msg="Check Connection")
 
+    # def check_active_user_connections(self):
+    #     if self.db_conn().get_user_open_connections_postgres() > 0:
+    #         raise Exception("{} check failed".format("Active user"))
+
     def _check_value(self, rule, value, msg=None):
         result = False
         if rule.get("op") == "equal":
@@ -65,7 +68,7 @@ class DbHelper:
         return self.table.get_instances_types()
 
     def get_no_of_connections(self, users):
-        return self.db_conn().kill_all_postgres_connections(users)
+        return self.db_conn().get_user_open_connections_postgres(users)
 
     def update_instance_type(self, instance_type, fallback_instances=[]):
         self.aws.scale_instance(self.instance, instance_type, fallback_instances)

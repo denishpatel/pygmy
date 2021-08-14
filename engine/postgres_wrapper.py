@@ -109,14 +109,15 @@ class PostgresData:
         else:
             return 0
 
-    def kill_all_postgres_connections(self, usernames):
+    def get_user_open_connections_postgres(self, usernames):
         """
         Kills the connections except sent it usernames
         """
-        user_lst = list(map(lambda x: "username like %{}%".format(x), usernames))
+        user_lst = list(map(lambda x: "usename like '%{}%'".format(x), usernames))
         user_query = " or ".join(user_lst)
 
-        query = "SELECT count(*) FROM pg_stat_activity WHERE state='active' AND ({})".format(user_query)
+        query = "SELECT count(*) FROM pg_stat_activity WHERE state in ('active', 'idle in transaction') AND ({})".format(user_query)
+        print(query)
         result = self.execute_and_return_data(query)
         if len(result) > 0:
             return result[0][0]
