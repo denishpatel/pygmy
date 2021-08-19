@@ -65,14 +65,13 @@ class SettingsRefreshView(LoginRequiredMixin, View):
 
 
 def start_background_sync(sync_setting):
-    aws = AWSUtil.get_aws_service(sync_setting.name.upper())
     sync_setting.in_progress = True
     sync_setting.last_sync = timezone.now()
     sync_setting.save()
-    aws.get_instances()
-
-    if sync_setting.name == "logs":
-        pass
+    if sync_setting.name != "logs":
+        aws = AWSUtil.get_aws_service(sync_setting.name.upper())
+        aws.clear_db()
+        aws.get_instances()
     sync_setting.in_progress = False
     sync_setting.last_sync = timezone.now()
     sync_setting.save()

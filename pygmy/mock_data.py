@@ -175,7 +175,7 @@ class MockEc2Data:
                     },
                     {
                         'Key': 'Role',
-                        'Value': 'pg-instance'
+                        'Value': 'postgresql'
                     },
                     {
                         'Key': 'Project',
@@ -211,7 +211,7 @@ class MockPostgresData:
         self.host = DB_HOST
 
     def is_ec2_postgres_instance_primary(self):
-        db = AllEc2InstancesData.objects.get(publicDnsName=self.host)
+        db = AllEc2InstancesData.objects.get(privateIpAddress=self.host)
         if db.name == "primary":
             return True
         else:

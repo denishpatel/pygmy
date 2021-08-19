@@ -209,11 +209,12 @@ class RuleHelper:
 
     def __check_open_connections(self, db_helper):
         if self.action == SCALE_DOWN:
-            users = self.cluster_mgmt.check_active_users
-            active_connections = db_helper.get_no_of_connections(users)
-            if active_connections > 0:
-                logdb.error("{} active connections are open for users {}".format(active_connections, users))
-                raise Exception("connections are opened")
+            if self.cluster_mgmt and self.cluster_mgmt.check_active_users:
+                users = self.cluster_mgmt.check_active_users
+                active_connections = db_helper.get_no_of_connections(users)
+                if active_connections > 0:
+                    logdb.error("{} active connections are open for users {}".format(active_connections, users))
+                    raise Exception("connections are opened")
         return True
 
     def update_dns_entries(self, helper):

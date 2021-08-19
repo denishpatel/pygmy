@@ -114,8 +114,7 @@ class RDSService(AWSServices, metaclass=Singleton):
 
         return all_instance_types
 
-    @classmethod
-    def get_tag_map(cls, instance):
+    def get_tag_map(self, instance):
         return dict((tag['Key'], tag['Value'].lower()) for tag in instance.get("TagList"))
 
     def save_data(self, instance, region=settings.DEFAULT_REGION):
