@@ -29,7 +29,6 @@ class Command(BaseCommand):
                 rule_db.err_msg = e
                 msg = e
                 print(str(e))
-                print("No rule found")
                 # msg = "Rule not matched"
             finally:
                 rule_db.last_run = timezone.now()

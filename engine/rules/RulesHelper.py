@@ -214,7 +214,7 @@ class RuleHelper:
                 active_connections = db_helper.get_no_of_connections(users)
                 if active_connections > 0:
                     logdb.error("{} active connections are open for users {}".format(active_connections, users))
-                    raise Exception("connections are opened")
+                    raise Exception("There are active connections from {} users.".format(str(users)))
         return True
 
     def update_dns_entries(self, helper):
