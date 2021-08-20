@@ -14,7 +14,7 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         try:
             ec2_sync = Settings.objects.get(name="ec2")
-            if ec2_sync.value:
+            if ec2_sync.value == 'True':
                 logger.info("Getting EC2 instance from AWS started")
                 ec2_service = EC2Service()
                 ec2_service.clear_db()
@@ -24,7 +24,7 @@ class Command(BaseCommand):
                 logger.info("Skipping EC2 sync as it is disabled!")
 
             rds_sync = Settings.objects.get(name="rds")
-            if rds_sync.value:
+            if rds_sync.value == 'True':
                 logger.info("Started: Getting RDS info")
                 rds_service = RDSService()
                 rds_service.clear_db()
