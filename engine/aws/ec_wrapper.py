@@ -18,11 +18,11 @@ class EC2Service(AWSServices, metaclass=Singleton):
         super(EC2Service, self).__init__()
 
     def create_connection(self, db):
-        credentials = DbCredentials.objects.get(name="postgres")
-        host = db.publicDnsName
+        credentials = DbCredentials.objects.get(name="ec2")
+        host = db.instance_object.privateIpAddress
         username = credentials.user_name
         password = credentials.password
-        db_name = "postgres"
+        db_name = db.cluster.databaseName if db.cluster else "postgres"
         return PostgresData(host, username, password, db_name)
 
     def get_all_regions(self):
@@ -172,7 +172,7 @@ class EC2Service(AWSServices, metaclass=Singleton):
         db.instance_object = instance
         db.last_instance_type = instance.instanceType
         try:
-            conn = self.create_connection(instance)
+            conn = self.create_connection(db)
             db.isPrimary = conn.is_ec2_postgres_instance_primary()
             db.isConnected = True
 
@@ -192,7 +192,7 @@ class EC2Service(AWSServices, metaclass=Singleton):
     def update_replica_cluster_info(self, private_dns_name, replicas):
         for node in replicas:
             instance = AllEc2InstancesData.objects.get(privateIpAddress=node)
-            db_info, created = Ec2DbInfo.objects.get_or_create(instance_id=instance.instanceId)
+            db_info, created = Ec2DbInfo.objects.get_or_create(instance_id=instance.instanceId, type=EC2)
             db_info.cluster = ClusterInfo.objects.get(primaryNodeIp=private_dns_name, type=EC2)
             db_info.content_object = instance
             db_info.save()
@@ -238,3 +238,14 @@ class EC2Service(AWSServices, metaclass=Singleton):
         except Exception as e:
             print(str(e))
             print(instance)
+
+    def clear_db(self):
+        try:
+            all = Ec2DbInfo.objects.filter(types="EC2")
+            all.delete()
+            all.save()
+            all_instances = AllEc2InstancesData.objects.all()
+            all_instances.delete()
+            all_instances.save()
+        except Exception as e:
+            pass

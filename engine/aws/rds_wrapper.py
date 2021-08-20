@@ -71,7 +71,7 @@ class RDSService(AWSServices, metaclass=Singleton):
                     db_info.instance_object = rds
                     if slave_identifier is None:
                         db_info.isPrimary = True
-                        db_info.cluster = self.get_or_create_cluster(instance, rds.dbInstanceIdentifier)
+                        db_info.cluster = self.get_or_create_cluster(instance, rds.dbInstanceIdentifier, databaseName=rds.dbName)
                     else:
                         cluster, created = ClusterInfo.objects.get_or_create(primaryNodeIp=slave_identifier, type=RDS)
                         db_info.cluster = cluster
@@ -114,8 +114,7 @@ class RDSService(AWSServices, metaclass=Singleton):
 
         return all_instance_types
 
-    @classmethod
-    def get_tag_map(cls, instance):
+    def get_tag_map(self, instance):
         return dict((tag['Key'], tag['Value'].lower()) for tag in instance.get("TagList"))
 
     def save_data(self, instance, region=settings.DEFAULT_REGION):
@@ -225,3 +224,14 @@ class RDSService(AWSServices, metaclass=Singleton):
         except Exception as e:
             print(str(e))
             return
+
+    def clear_db(self):
+        try:
+            all_db_info = Ec2DbInfo.objects.filter(types="RDS")
+            all_db_info.delete()
+            all_db_info.save()
+            rds_instances = RdsInstances.objects.all()
+            rds_instances.delete()
+            rds_instances.save()
+        except Exception as e:
+            pass

@@ -96,10 +96,13 @@ class ClusterEditView(LoginRequiredMixin, View):
         try:
             cluster = ClusterInfo.objects.get(id=id)
             name = request.POST.get("name", None)
+            databaseName = request.POST.get("databaseName", None)
             if name:
                 cluster.name = name
-                cluster.save()
-                return redirect(reverse("clusters", args=[cluster.id]))
+            if databaseName:
+                cluster.databaseName = databaseName
+            cluster.save()
+            return redirect(reverse("clusters", args=[cluster.id]))
         except ClusterInfo.DoesNotExist:
             return render(request, self.template, {"error": "not found"})
 
@@ -140,15 +143,6 @@ class InstanceView(LoginRequiredMixin, View):
                 "instance": instance,
                 "error": "failed to process",
             })
-    #
-    # def get_instance(self, cluster_type, id):
-    #     if cluster_type.upper() == EC2:
-    #         instance = AllEc2InstancesData.objects.get(instanceId=id)
-    #         db_info = Ec2DbInfo.objects.get(instance_id=instance.instanceId)
-    #     else:
-    #         instance = RdsInstances.objects.get(dbInstanceIdentifier=id)
-    #         db_info = Ec2DbInfo.objects.get(instance_id=instance.dbInstanceIdentifier)
-    #     return instance, db_info
 
     def dispatch(self, *args, **kwargs):
         return super(InstanceView, self).dispatch(*args, **kwargs)

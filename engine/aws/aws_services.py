@@ -77,8 +77,8 @@ class AWSServices:
         else:
             return None
 
-    def get_or_create_cluster(self, instance, primary_node_ip):
-        cluster, created = ClusterInfo.objects.get_or_create(primaryNodeIp=primary_node_ip, type=self.SERVICE_TYPE)
+    def get_or_create_cluster(self, instance, primary_node_ip, databaseName="postgres"):
+        cluster, created = ClusterInfo.objects.get_or_create(primaryNodeIp=primary_node_ip, type=self.SERVICE_TYPE, databaseName=databaseName)
         if created:
             cluster_name = self.get_cluster_name(self.get_tag_map(instance))
             print("Cluster name ", cluster_name)

@@ -1,6 +1,5 @@
 from django.utils import timezone
 from django.core.management import BaseCommand
-
 from engine.rules.LoggerUtils import ActionLogger
 from engine.rules.RulesHelper import RuleHelper
 from engine.models import Rules, ActionLogs
@@ -30,7 +29,6 @@ class Command(BaseCommand):
                 rule_db.err_msg = e
                 msg = e
                 print(str(e))
-                print("No rule found")
                 # msg = "Rule not matched"
             finally:
                 rule_db.last_run = timezone.now()

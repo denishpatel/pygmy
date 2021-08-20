@@ -17,7 +17,7 @@ class Command(BaseCommand):
         self.populate_settings()
 
     @staticmethod
-    def populate_settings():
+    def populate_settings(headless=False):
         syncSettings = {
             "ec2": "Sync EC2 Data",
             "rds": "Sync RDS Data",
@@ -28,7 +28,7 @@ class Command(BaseCommand):
                 setting = Settings.objects.get(name=key)
             except Settings.DoesNotExist:
                 setting = Settings()
-                enable_flag = input("Enable {} sync? (y/n): ".format(key))
+                enable_flag = input("Enable {} sync? (y/n): ".format(key)) if not headless else "y"
                 if enable_flag.lower() in ["y", "yes", "true"]:
                     setting.value = True
                 else:
@@ -42,7 +42,7 @@ class Command(BaseCommand):
 
         config = dict({
             "EC2_INSTANCE_POSTGRES_TAG_KEY_NAME": ("Tag Name to identify postgres EC2 instance", "Role"),
-            "EC2_INSTANCE_POSTGRES_TAG_KEY_VALUE": ("Tag Value to identify postgres EC2 instance", "PostgreSQL"),
+            "EC2_INSTANCE_POSTGRES_TAG_KEY_VALUE": ("Tag Value to identify postgres EC2 instance", "postgresql"),
             "EC2_INSTANCE_PROJECT_TAG_KEY_NAME": ("Project Tag NAME for Cluster Name", "Project"),
             "EC2_INSTANCE_ENV_TAG_KEY_NAME": ("Environment Tag NAME for Cluster Name", "Environment"),
             "EC2_INSTANCE_CLUSTER_TAG_KEY_NAME": ("Cluster Tag NAME for Cluster Name", "Cluster"),
@@ -70,13 +70,13 @@ class Command(BaseCommand):
             if created:
                 secret.description = value[0]
                 if key in ["ec2", "rds"]:
-                    user_name = input("Enter USERNAME for {} Postgres Instance for pygmy to connect:: ".format(value[0]))
-                    password = input("Enter PASSWORD for {} Postgres Instance for pygmy to connect:: ".format(value[1]))
+                    user_name = input("Enter USERNAME for {} Postgres Instances for pygmy to connect:: ".format(str.upper(key))) if not headless else "dump"
+                    password = input("Enter PASSWORD for {} for pygmy to connect:: ".format(user_name)) if not headless else "dump"
                     secret.user_name = user_name
                     secret.password = password
                 else:
-                    aws_key = input("Enter AWS key: ".format(value[0]))
-                    aws_secret = input("Enter AWS secret: ".format(value[1]))
+                    aws_key = input("Enter AWS key: ".format(value[0])) if not headless else "dump"
+                    aws_secret = input("Enter AWS secret: ".format(value[1])) if not headless else "dump"
                     secret.user_name = aws_key
                     secret.password = aws_secret
                 secret.save()
@@ -85,7 +85,7 @@ class Command(BaseCommand):
 
         # Create user
         Command.create_default_user()
-        Command.populate_aws_regions()
+        Command.populate_aws_regions(headless)
 
     @staticmethod
     def create_default_user():
@@ -98,11 +98,11 @@ class Command(BaseCommand):
             user.save()
 
     @staticmethod
-    def populate_aws_regions():
+    def populate_aws_regions(headless=False):
         valid_regions = []
-        if AWSUtil.check_aws_validity_from_db():
+        if AWSUtil.check_aws_validity_from_db() or headless:
             aws = EC2Service()
-            ENABLE = input("Do you want to enable sync across regions? (y/n): ")
+            ENABLE = input("Do you want to enable sync across regions? (y/n): ") if not headless else "n"
             if ENABLE.lower() in ["y", "yes", "true"]:
                 for region in aws.get_all_regions():
                     region_name = region.get("RegionName")
@@ -119,7 +119,7 @@ class Command(BaseCommand):
                 for region in aws.get_all_regions():
                     region_name = region.get("RegionName")
                     print("region name ", region_name)
-                    enable_flag = input("Enable sync for {} (y/n): ".format(region_name))
+                    enable_flag = input("Enable sync for {} (y/n): ".format(region_name)) if not headless else "y" if region_name == "us-east-1" else "n"
                     if enable_flag.lower() in ["y", "yes", "true"]:
                         REGION_ENABLE = True
                     else:

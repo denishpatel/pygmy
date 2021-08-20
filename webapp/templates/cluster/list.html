@@ -34,7 +34,7 @@
             {% else %}
                 <img class="uk-preserve-width" src="{% static '/img/aws-ec2.svg' %}" width="20px">
             {% endif %}&nbsp;
-                {{ cluster.name }}
+                {{ cluster.name }} ({{ cluster.databaseName }})
             </span>
             <a href="{% url 'clusters_edit' cluster.id %}">Edit</a>
             {% endif %}
