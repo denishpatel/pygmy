@@ -42,7 +42,7 @@ class Command(BaseCommand):
 
         config = dict({
             "EC2_INSTANCE_POSTGRES_TAG_KEY_NAME": ("Tag Name to identify postgres EC2 instance", "Role"),
-            "EC2_INSTANCE_POSTGRES_TAG_KEY_VALUE": ("Tag Value to identify postgres EC2 instance", "postgresql"),
+            "EC2_INSTANCE_POSTGRES_TAG_KEY_VALUE": ("Tag Value to identify postgres EC2 instance", "PostgreSQL"),
             "EC2_INSTANCE_PROJECT_TAG_KEY_NAME": ("Project Tag NAME for Cluster Name", "Project"),
             "EC2_INSTANCE_ENV_TAG_KEY_NAME": ("Environment Tag NAME for Cluster Name", "Environment"),
             "EC2_INSTANCE_CLUSTER_TAG_KEY_NAME": ("Cluster Tag NAME for Cluster Name", "Cluster"),
@@ -66,22 +66,24 @@ class Command(BaseCommand):
         })
 
         for key, value in secrets.items():
-            secret, created = DbCredentials.objects.get_or_create(name=key)
-            if created:
-                secret.description = value[0]
-                if key in ["ec2", "rds"]:
-                    user_name = input("Enter USERNAME for {} Postgres Instances for pygmy to connect:: ".format(str.upper(key))) if not headless else "dump"
-                    password = input("Enter PASSWORD for {} for pygmy to connect:: ".format(user_name)) if not headless else "dump"
-                    secret.user_name = user_name
-                    secret.password = password
+            enable_flag = input("Set up {} credentials? (y/n): ".format(key))
+            if enable_flag.lower() in ["y", "yes", "true"]:
+                secret, created = DbCredentials.objects.get_or_create(name=key)
+                if created:
+                    secret.description = value[0]
+                    if key in ["ec2", "rds"]:
+                        user_name = input("Enter USERNAME for {} Postgres Instances for pygmy to connect:: ".format(str.upper(key))) if not headless else "dump"
+                        password = input("Enter PASSWORD for {} for pygmy to connect:: ".format(user_name)) if not headless else "dump"
+                        secret.user_name = user_name
+                        secret.password = password
+                    else:
+                        aws_key = input("Enter AWS key: ".format(value[0])) if not headless else "dump"
+                        aws_secret = input("Enter AWS secret: ".format(value[1])) if not headless else "dump"
+                        secret.user_name = aws_key
+                        secret.password = aws_secret
+                    secret.save()
                 else:
-                    aws_key = input("Enter AWS key: ".format(value[0])) if not headless else "dump"
-                    aws_secret = input("Enter AWS secret: ".format(value[1])) if not headless else "dump"
-                    secret.user_name = aws_key
-                    secret.password = aws_secret
-                secret.save()
-            else:
-                print("Use set_secrets command to reset the aws/postgres secrets")
+                    print("Use set_secrets command to reset the aws/postgres secrets")
 
         # Create user
         Command.create_default_user()
