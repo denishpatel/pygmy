@@ -21,8 +21,11 @@ class AWSServices:
     """
 
     def __init__(self):
-        cred = DbCredentials.objects.get(name="aws")
-        self.aws_session = boto3.Session(aws_access_key_id=cred.user_name, aws_secret_access_key=cred.password)
+        try:
+            creds = DbCredentials.objects.get(name="aws")
+            self.aws_session = boto3.Session(aws_access_key_id=cred.user_name, aws_secret_access_key=cred.password)
+        except:
+            self.aws_session = boto3.Session()
         self.ec2_client = self.aws_session.client('ec2', region_name=settings.DEFAULT_REGION)
         self.rds_client = self.aws_session.client('rds', region_name=settings.DEFAULT_REGION)
         for region in self.ec2_client.describe_regions()["Regions"]:

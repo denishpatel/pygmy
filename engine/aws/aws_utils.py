@@ -16,8 +16,11 @@ class AWSUtil:
             return RDSService()
 
     @staticmethod
-    def check_aws_validity(key_id, secret_key):
-        session = boto3.Session(aws_access_key_id=key_id, aws_secret_access_key=secret_key)
+    def check_aws_validity(key_id=None, secret_key=None):
+        if key_id is None:
+            session = boto3.Session()
+        else:
+            session = boto3.Session(aws_access_key_id=key_id, aws_secret_access_key=secret_key)
         sts = session.client('sts')
         try:
             sts.get_caller_identity()
@@ -28,11 +31,18 @@ class AWSUtil:
     @staticmethod
     def check_aws_validity_from_db():
         cred = AWSUtil.get_aws_credentials()
-        return AWSUtil.check_aws_validity(cred.user_name, cred.password)
+        if cred is None:
+            return AWSUtil.check_aws_validity()
+        else:
+            return AWSUtil.check_aws_validity(cred.user_name, cred.password)
 
     @staticmethod
     def get_aws_credentials():
-        return DbCredentials.objects.get(name="aws")
+        try:
+            creds = DbCredentials.objects.get(name="aws")
+        except:
+            creds = None
+        return creds
 
     @staticmethod
     def update_aws_region_list():
