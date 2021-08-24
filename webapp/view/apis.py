@@ -95,10 +95,10 @@ class CreateRuleAPIView(APIView):
                 RuleHelper.add_rule_db(request.data)
                 result.update({"success": True})
             else:
-                raise Exception
+                raise Exception("Bad Data!")
         except Exception as e:
             print(str(e))
-            result.update({"error": "missing parameter", "data": request.POST})
+            result.update({"error": "missing parameter", "data": str(e)})
         return Response(result)
 
 

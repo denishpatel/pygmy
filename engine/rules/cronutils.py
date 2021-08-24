@@ -1,7 +1,9 @@
 import sys
-from crontab import CronTab
+from crontab import CronTab, CronSlices
 import getpass
 from django.conf import settings
+
+from engine.models import DAILY
 
 
 class CronUtil:
@@ -9,20 +11,24 @@ class CronUtil:
     @staticmethod
     def create_cron(rule):
         cron = CronTab(user=getpass.getuser())
-        cron.remove_all(comment="rule_{}".format(rule.id))
+        cron.remove_all(comment="rule_{}".format(str(rule.id)))
         job = cron.new(command="{0}/venv/bin/python {0}/manage.py apply_rule {1}".format(settings.BASE_DIR, rule.id),
                        comment="rule_{}".format(rule.id))
 
         # Run at
-        time = rule.run_at.split(":")
-        hour = time[0]
-        minute = time[1]
+        if rule.run_type == DAILY:
+            time = rule.run_at.split(":")
+            hour = time[0]
+            minute = time[1]
+            # Setup a cron
+            if hour:
+                job.hour.on(hour)
+            if minute:
+                job.minute.on(minute)
+        else:
+            # run_type is cron
+            job.setall(rule.run_at)
 
-        # Setup a cron
-        if hour:
-            job.hour.on(hour)
-        if minute:
-            job.minute.on(minute)
         cron.write()
 
     @staticmethod
