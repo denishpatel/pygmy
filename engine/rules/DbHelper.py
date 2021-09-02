@@ -1,7 +1,9 @@
 import json
+import logging
 from django.db.models import F
 from engine.models import EC2, SCALE_DOWN, SCALE_UP, Ec2DbInfo, AllRdsInstanceTypes, AllEc2InstanceTypes
 from engine.aws.aws_utils import AWSUtil
+logger = logging.getLogger(__name__)
 
 
 class DbHelper:
@@ -28,24 +30,23 @@ class DbHelper:
         replication_lag_rule = rule_json.get("replicationLag", None)
         if replication_lag_rule:
             replication_lag = self.db_conn().get_replication_lag()
-            print(replication_lag)
+            logger.info("Replication lag to check {} actual {}".format(replication_lag_rule.get("value"),
+                                                                       replication_lag))
             return self._check_value(replication_lag_rule, replication_lag, msg="Replication Lag")
 
     def check_average_load(self, rule_json):
         rule = rule_json.get("averageLoad", None)
         if rule:
             avg_load = self.db_conn().get_system_load_avg()
+            logger.info("Avg load to check {} actual {}".format(rule.get("value"), avg_load))
             return self._check_value(rule, avg_load, msg="Average load")
 
     def check_connections(self, rule_json):
         rule = rule_json.get("checkConnection", None)
         if rule:
             active_connections = self.db_conn().get_no_of_active_connections()
+            logger.info("No of active connections to check {} actual {}".format(rule.get("value"), active_connections))
             return self._check_value(rule, active_connections, msg="Check Connection")
-
-    # def check_active_user_connections(self):
-    #     if self.db_conn().get_user_open_connections_postgres() > 0:
-    #         raise Exception("{} check failed".format("Active user"))
 
     def _check_value(self, rule, value, msg=None):
         result = False
@@ -98,8 +99,8 @@ class EC2DBHelper:
 class RDSDBHelper:
     @staticmethod
     def get_instances_types():
-        return json.dumps(list(AllRdsInstanceTypes.objects.all().values('instance_type').annotate(value=F('instance_type'),
-                                                                                        data=F('instance_type'))))
+        return json.dumps(list(AllRdsInstanceTypes.objects.all().values('instance_type').annotate(
+            value=F('instance_type'), data=F('instance_type'))))
 
     @staticmethod
     def get_endpoint_address(instance):

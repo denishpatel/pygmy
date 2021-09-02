@@ -1,8 +1,10 @@
+import logging
 from django.utils import timezone
 from django.core.management import BaseCommand
 from engine.rules.LoggerUtils import ActionLogger
 from engine.rules.RulesHelper import RuleHelper
 from engine.models import Rules, ActionLogs
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
@@ -16,7 +18,7 @@ class Command(BaseCommand):
         for rid in kwargs['rule_id']:
             try:
                 rule_db = Rules.objects.get(id=rid)
-                ActionLogger.add_log(rule_db, "rule execution is started")
+                ActionLogger.add_log(rule_db, "Rule execution is started")
                 helper = RuleHelper.from_id(rid)
                 helper.check_exception_date()
                 helper.apply_rule()
@@ -28,7 +30,7 @@ class Command(BaseCommand):
                 rule_db.status = False
                 rule_db.err_msg = e
                 msg = e
-                print(str(e))
+                logger.error(e)
                 # msg = "Rule not matched"
             finally:
                 rule_db.last_run = timezone.now()

@@ -144,8 +144,9 @@ class RuleHelper:
                 if self.cluster.id == cluster["id"]:
                     msg = "{} is listed as exception date for this cluster. Hence not applying rule".format(
                         str(timezone.now().date()))
-                    raise Exception("Rule execution on Cluster: {} is excluded for date: {}".format(self.cluster.name,
-                                                                                         timezone.now().date()))
+                    logdb.error(msg)
+                    raise Exception("Rule execution on Cluster: {} is excluded for date: {}".format(
+                        self.cluster.name, timezone.now().date()))
             return True
         except ExceptionData.DoesNotExist:
             pass

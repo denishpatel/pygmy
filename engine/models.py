@@ -239,6 +239,9 @@ class Rules(models.Model):
     last_run = models.DateTimeField(auto_created=True, null=True)
     parent_rule = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True, related_name="child_rule")
 
+    class Meta:
+        unique_together = ["cluster", "rule"]
+
 
 class ActionLogs(models.Model):
     """

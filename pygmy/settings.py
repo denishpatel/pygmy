@@ -191,21 +191,54 @@ EC2_INSTANCE_PROJECT_TAG_KEY_NAME = "Project"
 EC2_INSTANCE_ENV_TAG_KEY_NAME = "Environment"
 EC2_INSTANCE_CLUSTER_TAG_KEY_NAME = "Cluster"
 
-level = 'DEBUG'
-handler = ['log_db_handler', ]
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
-    'handlers': {
-        'db_log': {
-            'level': 'DEBUG',
-            'class': 'pygmy.db_logger.DBHandler'
+    'formatters': {
+        'verbose': {
+            'format': '%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s',
+            'datefmt': '%Y-%m-%d %H:%M:%S'
+        },
+        'simple': {
+            'format': '%(asctime)s - %(levelname)s - %(name)s : %(message)s',
+            'datefmt': '%Y-%m-%d %H:%M:%S'
         },
     },
-    'loggers': {
-        'db': {
-            'handlers': ['db_log'],
-            'level': 'DEBUG'
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+            'level': 'INFO',
+        },
+        'pygmyLogs': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'maxBytes': 1024*1024*50,  # 50 MB
+            'backupCount': 5,
+            'formatter': 'simple',
+            'filename': os.path.join(BASE_DIR, 'logs', 'error.log'),
+            'level': 'INFO',
         }
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'pygmyLogs'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'engine': {
+            'handlers': ['console', 'pygmyLogs'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'webapp': {
+            'handlers': ['console', 'pygmyLogs'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'users': {
+            'handlers': ['console', 'pygmyLogs'],
+            'level': 'INFO',
+            'propagate': True,
+        },
     }
 }

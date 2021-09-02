@@ -1,3 +1,4 @@
+import logging
 from rest_framework import generics
 from rest_framework.parsers import JSONParser
 from rest_framework.views import APIView
@@ -9,6 +10,7 @@ from drf_yasg2.utils import swagger_auto_schema
 from webapp.serializers import RuleSerializer, ExceptionDataSerializer, ClusterSerializer, RuleCreateSerializer, \
     ExceptionCreateSerializer, Ec2DbInfoSerializer, DNSDataSerializer, ClusterManagementSerializer
 from rest_framework.generics import ListAPIView, CreateAPIView, RetrieveUpdateDestroyAPIView
+logger = logging.getLogger(__name__)
 
 
 class CreateRuleAPIView(APIView):
@@ -88,16 +90,21 @@ class CreateRuleAPIView(APIView):
         try:
             name = request.data.get("name", None)
             typeTime = request.data.get("typeTime", "daily")
-            cluster = request.data.get("cluster_id", None)
+            cluster_id = request.data.get("cluster_id", None)
+            cluster_obj = ClusterInfo.objects.get(id=cluster_id)
             action = request.data.get("action", None)
-            if name and cluster and action and typeTime:
+            if name and cluster_id and action and typeTime:
                 # Scale down Rule
                 RuleHelper.add_rule_db(request.data)
                 result.update({"success": True})
             else:
                 raise Exception("Bad Data!")
+        except ClusterInfo.DoesNotExist:
+            logger.error("ClusterInfo with id {} not found!".format(cluster_id))
+            result.update({"error": "Invalid cluster ID"})
         except Exception as e:
             print(str(e))
+            logger.exception(e)
             result.update({"error": "missing parameter", "data": str(e)})
         return Response(result)
 
@@ -178,6 +185,7 @@ class ExceptionApiView(APIView):
                 return Response(dict({"success": True}))
         except Exception as e:
             print(e)
+            logger.error(e)
         return Response(dict({"success": True}))
 
     @swagger_auto_schema(tags=["Exceptions"], responses={200: ExceptionDataSerializer(many=True)})
@@ -216,6 +224,7 @@ class ExceptionEditApiView(APIView):
                     exc.save()
                 return Response({"status": "Success"})
         except Exception as e:
+            logger.error(e)
             return Response({"status": "Failed"}, status=500)
 
     @swagger_auto_schema(tags=["Exceptions"])
@@ -256,7 +265,7 @@ class CreateClusterManagement(CreateAPIView, ListAPIView):
 
 class EditClusterManagement(RetrieveUpdateDestroyAPIView):
     """
-        Update Cluster Management
+    Update Cluster Management
     """
     queryset = ClusterManagement.objects.all()
     authentication_classes = []
