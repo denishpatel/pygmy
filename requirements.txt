@@ -10,3 +10,4 @@ psycopg2==2.8.6
 python-crontab
 moto==2.2.1
 PyCryptodome
+uwsgi

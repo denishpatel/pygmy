@@ -6,7 +6,7 @@ Pygmy - Saving on Cloud bills by Scaling Down Postgres Replica DB Servers
 ### Environment setup
 Install system dependencies : E.g for ubuntu
 ```shell
-$ sudo apt install build-essential python3-dev libpq-dev python3-virtualenv
+$ sudo apt install build-essential python3-dev libpq-dev python3-virtualenv libxml2-dev libxslt1-dev
 ```
 
 Create virtualenv
