@@ -87,7 +87,9 @@ class PostgresData:
         ONLY to be hit on REPLICA
         """
         query = "select * from pg_stat_wal_receiver"
-        return self.execute_and_return_data(query)[0][1] == "streaming"
+        result = self.execute_and_return_data(query)[0][1] == "streaming"
+        logger.info("Result of get streaming status: " + str(result))
+        return result
 
     def get_system_load_avg(self):
         """
@@ -95,7 +97,9 @@ class PostgresData:
         else return last 10 mins load
         """
         query = "SELECT * FROM pg_sys_load_avg_info()"
-        return self.execute_and_return_data(query)[0][2]
+        result = self.execute_and_return_data(query)[0][2]
+        logger.info("Result of get system avg load: " + str(result))
+        return result
 
     def get_no_of_active_connections(self):
         """
@@ -104,6 +108,7 @@ class PostgresData:
         query = "select datname,usename,application_name,state,count(*) as connection_count from pg_stat_activity "\
                 "where datname !='postgres' group by 1,2,3,4;"
         result = self.execute_and_return_data(query)
+        logger.info("Result of get active connections: " + str(result))
         if len(result) > 0:
             return result[0][3]
         else:
@@ -117,8 +122,10 @@ class PostgresData:
         user_query = " or ".join(user_lst)
 
         query = "SELECT count(*) FROM pg_stat_activity WHERE state in ('active', 'idle in transaction') AND ({})".format(user_query)
-        print(query)
+        logger.info("Query for user open connections: " + str(query))
+
         result = self.execute_and_return_data(query)
+        logger.info("Result of get user open connections: " + str(result))
         if len(result) > 0:
             return result[0][0]
         else:
