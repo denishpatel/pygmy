@@ -9,6 +9,8 @@ class PostgresData:
     """
     def __init__(self, DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT=5432):
         try:
+            logger.info("Connecting to Host: " + DB_HOST)
+            logger.info("Connecting to NAME: " + DB_NAME)
             self.conn = psycopg2.connect(host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS, port=DB_PORT)
             self.cursor = self.conn.cursor()
         except Exception as e:
@@ -110,7 +112,7 @@ class PostgresData:
         result = self.execute_and_return_data(query)
         logger.info("Result of get active connections: " + str(result))
         if len(result) > 0:
-            return result[0][3]
+            return result[0][4]
         else:
             return 0
 

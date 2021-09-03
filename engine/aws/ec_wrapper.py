@@ -121,6 +121,10 @@ class EC2Service(AWSServices, metaclass=Singleton):
         filters = [{
             'Name': 'tag:{}'.format(TAG_KEY_NAME.value),
             'Values': [TAG_KEY_VALUE.value, ]
+        },
+        {
+            'Name': 'instance-state-name',
+            'Values': ['running']
         }]
 
         # First describe instance
@@ -133,6 +137,7 @@ class EC2Service(AWSServices, metaclass=Singleton):
                 # For handling pagination
                 for reservation in all_pg_ec2_instances.get("Reservations", []):
                     for instance in reservation.get("Instances", []):
+                        print(instance)
                         all_instances[instance["InstanceId"]] = dict({
                             "instance_id": instance["InstanceId"],
                             "region": region,
