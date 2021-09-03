@@ -170,6 +170,7 @@ class RuleHelper:
                 db_instances[db.id] = helper
                 db_avg_load[db.id] = helper.get_system_load_avg()
 
+            logdb.info(self.primary_dbs)
             # Check cluster load
             if self._is_cluster_managed and self.cluster_mgmt.avg_load:
                 primary_helper = DbHelper(self.primary_dbs[0])
