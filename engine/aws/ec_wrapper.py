@@ -244,11 +244,7 @@ class EC2Service(AWSServices, metaclass=Singleton):
 
     def clear_db(self):
         try:
-            all = Ec2DbInfo.objects.filter(types="EC2")
-            all.delete()
-            all.save()
-            all_instances = AllEc2InstancesData.objects.all()
-            all_instances.delete()
-            all_instances.save()
+            Ec2DbInfo.objects.filter(types="EC2").delete()
+            AllEc2InstancesData.objects.all().delete()
         except Exception as e:
             pass

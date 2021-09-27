@@ -141,6 +141,10 @@ class EditRuleAPIView(APIView):
         rule = Rules.objects.get(id=id)
         CronUtil.delete_cron(rule)
         rule.delete()
+        all_child_rules = rule.child_rule.all()
+        for rule in all_child_rules:
+            CronUtil.delete_cron(rule)
+            rule.delete()
         return Response({"success": True})
 
 
