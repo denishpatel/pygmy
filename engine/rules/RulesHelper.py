@@ -260,7 +260,7 @@ class RuleHelper:
         zone_name = instance.dns_entry.hosted_zone_name
         dns_name = instance.dns_entry.dns_name
 
-        script_path = os.path.join(settings.BASE_DIR, "scripts", "route-53-dns-change.sh")
+        script_path = os.path.join(settings.BASE_DIR, "scripts", "dns-change.sh")
         DB_CRED = DbCredentials.objects.get(description="AWS Secrets")
         env_var = dict({
             "AWS_ACCESS_KEY_ID": DB_CRED.user_name,
