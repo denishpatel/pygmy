@@ -261,11 +261,14 @@ class RuleHelper:
         dns_name = instance.dns_entry.dns_name
 
         script_path = os.path.join(settings.BASE_DIR, "scripts", "dns-change.sh")
-        DB_CRED = DbCredentials.objects.get(description="AWS Secrets")
-        env_var = dict({
-            "AWS_ACCESS_KEY_ID": DB_CRED.user_name,
-            "AWS_SECRET_ACCESS_KEY": DB_CRED.password
-        })
+        try:
+            DB_CRED = DbCredentials.objects.get(description="AWS Secrets")
+            env_var = dict({
+                "AWS_ACCESS_KEY_ID": DB_CRED.user_name,
+                "AWS_SECRET_ACCESS_KEY": DB_CRED.password
+            })
+        except:
+            env_var = dict()
         logger.info("Changing DNS instance {} to point at {}", dns_name, dns_address)
         test = subprocess.check_output(["sh", script_path, zone_name, dns_name, dns_address, RECORD_TYPE], env=env_var)
         logger.info(f"script {script_path} returned {test}")
