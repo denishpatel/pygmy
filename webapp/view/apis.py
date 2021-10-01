@@ -3,78 +3,19 @@ from rest_framework import generics
 from rest_framework.parsers import JSONParser
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from engine.models import Rules, ClusterInfo, ExceptionData, Ec2DbInfo, ClusterManagement
+from engine.models import Rules, ClusterInfo, ExceptionData, Ec2DbInfo, ClusterManagement, DNSData
 from engine.rules.RulesHelper import RuleHelper
 from engine.rules.cronutils import CronUtil
 from drf_yasg2.utils import swagger_auto_schema
 from webapp.serializers import RuleSerializer, ExceptionDataSerializer, ClusterSerializer, RuleCreateSerializer, \
     ExceptionCreateSerializer, Ec2DbInfoSerializer, DNSDataSerializer, ClusterManagementSerializer
-from rest_framework.generics import ListAPIView, CreateAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.generics import ListAPIView, CreateAPIView, RetrieveUpdateDestroyAPIView, ListCreateAPIView
 logger = logging.getLogger(__name__)
 
 
 class CreateRuleAPIView(APIView):
     """
-    Rule for EC2 DAILY:
-    {
-        "name": "EC 2 Cluster Rule DAILY",
-        "typeTime": "DAILY",
-        "dailyTime": "21:00",
-        "cluster_id": 1,
-        "action": "SCALE_DOWN",
-        "ec2_type": "t2.nano",
-
-        "enableReplicationLag": "on",
-        "selectReplicationLagOp": "equal",
-        "replicationLag": "12",
-
-        "enableCheckConnection": "on",
-        "selectCheckConnectionOp":"greater",
-        "checkConnection": "12",
-
-        "enableAverageLoad": "on",
-        "selectAverageLoadOp": "less",
-        "averageLoad": "32",
-
-        "enableRetry": "on",
-        "retryAfter": "15",
-        "retryMax": "3",
-
-        "enableReverse": "on",
-        "reverse_action": "SCALE_UP",
-        "reverseDailyTime": "06:00"
-    },
-
-    Rule for RDS with CRON settings:
-    {
-        "name": "RDS Cluster Rule CRON",
-        "typeTime": "CRON",
-        "cronTime": "* */21 * * *",
-
-        "cluster_id": 2,
-        "action": "SCALE_DOWN",
-        "rds_type": "db.t2.small",
-
-        "enableReplicationLag": "on",
-        "selectReplicationLagOp": "equal",
-        "replicationLag": "12",
-
-        "enableCheckConnection": "on",
-        "selectCheckConnectionOp":"greater",
-        "checkConnection": "12",
-
-        "enableAverageLoad": "on",
-        "selectAverageLoadOp": "less",
-        "averageLoad": "32",
-
-        "enableRetry": "on",
-        "retryAfter": "15",
-        "retryMax": "3",
-
-        "enableReverse": "on",
-        "reverse_action": "SCALE_UP",
-        "reverseCronTime": "* */21 * * *"
-    }
+    Get or create rules
     """
     authentication_classes = []
     permission_classes = []
@@ -140,11 +81,11 @@ class EditRuleAPIView(APIView):
     def delete(self, request, id):
         rule = Rules.objects.get(id=id)
         CronUtil.delete_cron(rule)
-        rule.delete()
         all_child_rules = rule.child_rule.all()
-        for rule in all_child_rules:
-            CronUtil.delete_cron(rule)
-            rule.delete()
+        for child_rule in all_child_rules:
+            CronUtil.delete_cron(child_rule)
+            child_rule.delete()
+        rule.delete()
         return Response({"success": True})
 
 
@@ -248,13 +189,16 @@ class ListInstances(ListAPIView):
     serializer_class = Ec2DbInfoSerializer
 
 
-class CreateDNSEntry(CreateAPIView):
+class CreateDNSEntry(ListCreateAPIView):
     """
     Create DNS entry
     """
     authentication_classes = []
     permission_classes = []
     serializer_class = DNSDataSerializer
+
+    def get_queryset(self):
+        return DNSData.objects.all()
 
 
 class CreateClusterManagement(CreateAPIView, ListAPIView):

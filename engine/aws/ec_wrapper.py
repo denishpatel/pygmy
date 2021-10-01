@@ -88,12 +88,11 @@ class EC2Service(AWSServices, metaclass=Singleton):
                 except botocore.exceptions.WaiterError:
                     log.error("Failed to set fallback instance type {}.", fallback_instance)
         except Exception as e:
+            # Change the instance type to previous
+            self.__scale_instance(ec2_instance_id, previous_instance_type)
             print(str(e))
             print("failed in scaling ec2 instance")
             return False
-
-        # Change the instance type to previous
-        self.__scale_instance(ec2_instance_id, previous_instance_type)
 
     def __scale_instance(self, ec2_instance_id, new_instance_type):
         """
@@ -119,13 +118,13 @@ class EC2Service(AWSServices, metaclass=Singleton):
         TAG_KEY_NAME = SettingsModal.objects.get(name="EC2_INSTANCE_POSTGRES_TAG_KEY_NAME")
         TAG_KEY_VALUE = SettingsModal.objects.get(name="EC2_INSTANCE_POSTGRES_TAG_KEY_VALUE")
         filters = [{
-            'Name': 'tag:{}'.format(TAG_KEY_NAME.value),
-            'Values': [TAG_KEY_VALUE.value, ]
-        },
-        {
-            'Name': 'instance-state-name',
-            'Values': ['running']
-        }]
+                'Name': 'tag:{}'.format(TAG_KEY_NAME.value),
+                'Values': [TAG_KEY_VALUE.value, ]
+            },
+            {
+                'Name': 'instance-state-name',
+                'Values': ['running']
+            }]
 
         # First describe instance
         for region in AWSServices.get_enabled_regions():

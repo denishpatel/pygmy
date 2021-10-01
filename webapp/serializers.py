@@ -9,8 +9,8 @@ class RuleSerializer(serializers.ModelSerializer):
 
 
 class RuleCreateSerializer(serializers.Serializer):
-    name = serializers.CharField(max_length=32)
-    cluster_id = serializers.CharField(max_length=64)
+    name = serializers.CharField(max_length=32, help_text="Name of the rule to be given.")
+    cluster_id = serializers.IntegerField(help_text="Valid ClusterInfo id")
     action = serializers.CharField(max_length=64)
     typeTime = serializers.ChoiceField(choices=["daily", "cron"])
 
