@@ -7,8 +7,7 @@ from django.utils import timezone
 from engine.rules.DbHelper import DbHelper
 from engine.models import Rules, RDS, Ec2DbInfo, ExceptionData, SCALE_DOWN, EC2, DbCredentials, DAILY, CRON, SCALE_UP
 from engine.rules.cronutils import CronUtil
-
-logdb = logging.getLogger("db")
+logger = logging.getLogger(__name__)
 
 
 class RuleHelper:
@@ -144,7 +143,7 @@ class RuleHelper:
                 if self.cluster.id == cluster["id"]:
                     msg = "{} is listed as exception date for this cluster. Hence not applying rule".format(
                         str(timezone.now().date()))
-                    logdb.error(msg)
+                    logger.error(msg)
                     raise Exception("Rule execution on Cluster: {} is excluded for date: {}".format(
                         self.cluster.name, timezone.now().date()))
             return True
@@ -163,6 +162,7 @@ class RuleHelper:
         db_avg_load = dict()
         try:
             for db in self.secondary_dbs:
+                logger.debug(f"Adding instance {db.instance_id} to secondaries")
                 helper = DbHelper(db)
                 helper.check_replication_lag(self.rule_json)
                 helper.check_connections(self.rule_json)
@@ -170,31 +170,38 @@ class RuleHelper:
                 db_instances[db.id] = helper
                 db_avg_load[db.id] = helper.get_system_load_avg()
 
-            logdb.info(self.primary_dbs)
+
+            logger.debug(f"Primary DB is {self.primary_dbs}")
             # Check cluster load
             if self._is_cluster_managed and self.cluster_mgmt.avg_load:
+                logger.debug(f"Dealing with managed cluster")
                 primary_helper = DbHelper(self.primary_dbs[0])
                 primary_avg_load = primary_helper.get_system_load_avg()
+                logger.info(f"Discovered primary to have load average of {primary_avg_load}")
 
                 # Sorted avg load dict
                 sorted_avg_load = dict(sorted(db_avg_load.items(), key=lambda item: item[1]))
 
                 for id, s_avg_load in sorted_avg_load.items():
+                    logger.info(f"Working on {db_instances[id].instance} with load {s_avg_load}")
                     if (primary_avg_load + s_avg_load) < int(self.cluster_mgmt.avg_load):
+                        logger.info(f"combined load of {str(primary_avg_load + s_avg_load)} is < {str(self.cluster_mgmt.avg_load)}")
                         self.__check_open_connections(db_instances[id])
                         db_instances[id].update_instance_type(self.new_instance_type, self.fallback_instances)
                         self.update_dns_entries(db_instances[id])
                         primary_avg_load += s_avg_load
                     else:
+                        logger.info(f"Not going to resize becuase combined load of {str(primary_avg_load + s_avg_load)} is >= {str(self.cluster_mgmt.avg_load)}")
                         break
             else:
+                logger.info(f"Managed cluster is {self._is_cluster_managed} and avg_load is {self.cluster_mgmt.avg_load}")
                 for id, helper in db_instances.items():
                     helper.check_average_load(self.rule_json)
                     self.__check_open_connections(helper)
                     helper.update_instance_type(self.new_instance_type, self.fallback_instances)
                     self.update_dns_entries(helper)
         except Exception as e:
-            logdb.error("#Rule {}: Failed to apply", self.rule.id)
+            logger.error("#Rule {}: Failed to apply", self.rule.id)
             CronUtil.set_retry_cron(self.rule)
             raise e
 
@@ -206,7 +213,7 @@ class RuleHelper:
                 db_helper.update_instance_type(db.last_instance_type, self.fallback_instances)
                 self.update_dns_entries(db_helper)
         except Exception as e:
-            logdb.error("Reverse #Rule {}: Failed to apply", self.rule.id)
+            logger.error("Reverse #Rule {}: Failed to apply", self.rule.id)
             CronUtil.set_retry_cron(self.rule)
 
     def __check_open_connections(self, db_helper):
@@ -215,17 +222,20 @@ class RuleHelper:
                 users = self.cluster_mgmt.check_active_users
                 active_connections = db_helper.get_no_of_connections(users)
                 if active_connections > 0:
-                    logdb.error("{} active connections are open for users {}".format(active_connections, users))
+                    logger.error("{} active connections are open for users {}".format(active_connections, users))
                     raise Exception("There are active connections from {} users.".format(str(users)))
         return True
 
     def update_dns_entries(self, helper):
+        logger.info(f"updating dns entries for {self.action} of {helper.db_info.id}")
         if hasattr(helper.db_info, "dns_entry"):
             if self.action == SCALE_DOWN:
                 dns_address = self.get_primary_address()
             else:
                 dns_address = helper.get_endpoint_address()
             self.run_dns_script(helper.db_info, dns_address)
+        else:
+            logger.info(f"not updating dns becuase {helper.db_info.id} has no dns_entry attribute")
         return None
 
     def get_primary_address(self):
@@ -233,7 +243,7 @@ class RuleHelper:
             helper = DbHelper(self.primary_dbs[0])
             return helper.get_endpoint_address()
         else:
-            logdb.error("NO primary db present for cluster {}".format(self.cluster.name))
+            logger.error("NO primary db present for cluster {}".format(self.cluster.name))
 
     def run_dns_script(self, instance, dns_address):
         """
@@ -256,5 +266,6 @@ class RuleHelper:
             "AWS_ACCESS_KEY_ID": DB_CRED.user_name,
             "AWS_SECRET_ACCESS_KEY": DB_CRED.password
         })
+        logger.info("Changing DNS instance {} to point at {}", dns_name, dns_address)
         test = subprocess.check_output(["sh", script_path, zone_name, dns_name, dns_address, RECORD_TYPE], env=env_var)
-        logdb.info("DNS entry for instance {} pointing to {}", dns_address, dns_name)
+        logger.info(f"script {script_path} returned {test}")
