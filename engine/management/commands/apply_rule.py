@@ -6,6 +6,7 @@ from engine.rules.RulesHelper import RuleHelper
 from engine.models import Rules, ActionLogs
 logger = logging.getLogger(__name__)
 
+import os
 
 class Command(BaseCommand):
     def add_arguments(self, parser):
@@ -13,12 +14,12 @@ class Command(BaseCommand):
                             "rule ids to run multiple rule")
 
     def handle(self, *args, **kwargs):
-
+        logger.debug(os.environ)
         msg = ""
         for rid in kwargs['rule_id']:
             try:
                 rule_db = Rules.objects.get(id=rid)
-                ActionLogger.add_log(rule_db, "Rule execution is started")
+                ActionLogger.add_log(rule_db, f"Rule {rid} execution is started")
                 helper = RuleHelper.from_id(rid)
                 helper.check_exception_date()
                 helper.apply_rule()

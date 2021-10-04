@@ -16,6 +16,9 @@ class DbHelper:
         self.table = EC2DBHelper if db.type == EC2 else RDSDBHelper
         self.instance = db.instance_object
 
+    def __repr__(self):
+        return "<DbHelper db_info:%s type:%s aws:%s table:%s instance:%s>" % (self.db_info, self.type, self.aws, self.table, self.instance)
+
     def db_conn(self):
         if not self.conn:
             self.conn = self.aws.create_connection(self.db_info)
@@ -60,9 +63,11 @@ class DbHelper:
             raise Exception("{} check failed".format(msg))
 
     def scale_down_instance(self, instance_type):
+        logger.info(f"scaling down instance {self.id} to {instance_type}")
         self.update_instance_type(instance_type, SCALE_DOWN)
 
     def scale_up_instance(self, instance_type):
+        logger.info(f"scaling up instance {self.id} to {instance_type}")
         self.update_instance_type(instance_type, SCALE_UP)
 
     def get_supported_types(self):
@@ -72,8 +77,14 @@ class DbHelper:
         return self.db_conn().get_user_open_connections_postgres(users)
 
     def update_instance_type(self, instance_type, fallback_instances=[]):
+        if instance_type == self.db_info.id:
+            logger.info(f"Not going to change instance type because {self.db_info.id} == {instance_type}")
+            return
+
+        logger.info(f"changing instance {self.db_info.id} to {instance_type}")
         self.aws.scale_instance(self.instance, instance_type, fallback_instances)
         # wait till instance status get up
+        logger.info(f"scaling complete. Waiting till instance {self.instance} is up")
         status = self.aws.wait_till_status_up(self.instance)
         if not status:
             status = self.aws.start_instance(self.instance)
@@ -86,6 +97,9 @@ class DbHelper:
 
 
 class EC2DBHelper:
+    def __repr__(self):
+        return "<EC2DBHelper>"
+
     @staticmethod
     def get_instances_types():
         return json.dumps(list(AllEc2InstanceTypes.objects.all().values('instance_type').annotate(value=F('instance_type'),
@@ -97,6 +111,9 @@ class EC2DBHelper:
 
 
 class RDSDBHelper:
+    def __repr__(self):
+        return "<RDSDBHelper>"
+
     @staticmethod
     def get_instances_types():
         return json.dumps(list(AllRdsInstanceTypes.objects.all().values('instance_type').annotate(

@@ -92,6 +92,8 @@ class Ec2DbInfo(models.Model):
     type = models.CharField(choices=CLUSTER_TYPES, max_length=30)
     last_instance_type = models.CharField(max_length=255, null=True)
 
+    def __repr__(self):
+        return "<Ec2DbInfo instance_type:%s instance_id:%s instance_object:%s isPrimary:%s cluster:%s dbName:%s isConnected:%s lastUpdated:%s type:%s last_instance_type:%s>" % (self.instance_type, self.instance_id, self.instance_object, self.isPrimary, self.cluster, self.dbName, self.isConnected, self.lastUpdated, self.type, self.last_instance_type)
 
 class AllEc2InstanceTypes(models.Model):
     """
@@ -108,6 +110,9 @@ class AllEc2InstanceTypes(models.Model):
     current_generation = models.BooleanField(default=True)
     hibernation_supported = models.BooleanField(default=True)
     burstable_performance_supported = models.BooleanField(default=True)
+
+    def __repr__(self):
+        return "<AllEc2InstanceTypes instance_type:%s supported_usage_classes:%s virtual_cpu_info:%s memory_info:%s storage_info:%s ebs_info:%s network_info:%s current_generation:%s hibernation_supported:%s burstable_performance_supported:%s>" % (self.instance_type, self.supported_usage_classes, self.virtual_cpu_info, self.memory_info, self.storage_info, self.ebs_info, self.network_info, self.current_generation, self.hibernation_supported, self.burstable_performance_supported)
 
     def save_instance_types(self, instance):
         self.instance_type = instance.get("InstanceType")
@@ -189,6 +194,9 @@ class AllEc2InstancesData(models.Model):
     class Meta:
         unique_together = (('instanceId', 'region'),)
 
+    def __repr__(self):
+        return "<AllEc2InstancesData instanceId:%s>" % (self.instanceId)
+
 
 class RdsInstances(models.Model):
     dbInstanceIdentifier = models.CharField(max_length=255, primary_key=True)
@@ -214,6 +222,8 @@ class RdsInstances(models.Model):
     class Meta:
         unique_together = (('dbInstanceIdentifier', 'region'),)
 
+    def __repr__(self):
+        return "<RdsInstances dbInstanceIdentifier:%s>" % (self.dbInstanceIdentifier)
 
 class InstanceStateInfo(models.Model):
     instance_type = models.CharField(max_length=100)
