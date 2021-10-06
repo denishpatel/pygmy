@@ -6,6 +6,9 @@ from django.utils import timezone
 from webapp.models import Settings, AWS_REGION
 from webapp.models import Settings as SettingsModal
 from engine.models import ClusterInfo, DbCredentials
+import logging
+
+log = logging.getLogger(__name__)
 
 
 class AWSServices:
@@ -22,10 +25,15 @@ class AWSServices:
 
     def __init__(self):
         try:
-            creds = DbCredentials.objects.get(name="aws")
+            cred = DbCredentials.objects.get(name="aws")
             self.aws_session = boto3.Session(aws_access_key_id=cred.user_name, aws_secret_access_key=cred.password)
+            sts = self.aws_session.client('sts')
+            sts.get_caller_identity()
+            log.info("Successfully create AWS Session using DB Credentials")
         except:
+            log.error("Failed to create AWS Session using DB Credentials")
             self.aws_session = boto3.Session()
+            log.info("Creating AWS Session using default/env credentials")
         self.ec2_client = self.aws_session.client('ec2', region_name=settings.DEFAULT_REGION)
         self.rds_client = self.aws_session.client('rds', region_name=settings.DEFAULT_REGION)
         for region in self.ec2_client.describe_regions()["Regions"]:

@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'drf_yasg2',
     'corsheaders',
+    'django_filters',
 
     # user installed apps
     'pygmy',
@@ -148,9 +149,18 @@ AUTH_USER_MODEL = 'users.User'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'users.authentication.BearerAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
+    ),
+    'DEFAULT_FILTER_BACKENDS': (
+        'rest_framework_datatables.filters.DatatablesFilterBackend',
+    ),
+    'DEFAULT_RENDERER_CLASSES': (
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+        'rest_framework_datatables.renderers.DatatablesRenderer',
     )
 }
 
@@ -217,7 +227,11 @@ LOGGING = {
             'formatter': 'simple',
             'filename': os.path.join(BASE_DIR, 'logs', 'error.log'),
             'level': 'INFO',
-        }
+        },
+        'db_log': {
+            'level': 'DEBUG',
+            'class': 'pygmy.db_logger.DBHandler'
+        },
     },
     'loggers': {
         'django': {
@@ -226,17 +240,17 @@ LOGGING = {
             'propagate': True,
         },
         'engine': {
-            'handlers': ['console', 'pygmyLogs'],
+            'handlers': ['console', 'pygmyLogs', 'db_log'],
             'level': 'INFO',
             'propagate': True,
         },
         'webapp': {
-            'handlers': ['console', 'pygmyLogs'],
+            'handlers': ['console', 'pygmyLogs', 'db_log'],
             'level': 'INFO',
             'propagate': True,
         },
         'users': {
-            'handlers': ['console', 'pygmyLogs'],
+            'handlers': ['console', 'pygmyLogs', 'db_log'],
             'level': 'INFO',
             'propagate': True,
         },
