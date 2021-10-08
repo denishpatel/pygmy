@@ -5,12 +5,12 @@
 # - DNS gets changed with a custom script called domain_manager, which gets invoked via another script called vault-client-exec
 # - EC2 instances have a Name tag that includes their short hostname
 # - The Pygmy server has a file /etc/server-meta-info that includes the region it is in
-# - All primary dbs will have a cname of the format cluster\d+-primary.project(-environment)?.example.come
-# - All primary db cnames will point to a hostname of the format c\d+-pg\d+.project(-environment)?.region.example.come
-# - All secondary dbs will have a cname of the format cluster\d+-secondary.project(-environment)?.example.come
+# - All primary dbs will have a cname of the format cluster\d+-primary.project(-environment)?.example.com
+# - All primary db cnames will point to a hostname of the format c\d+-pg\d+.project(-environment)?.region.example.com
+# - All secondary dbs will have a cname of the format cluster\d+-secondary.project(-environment)?.example.com
 # - Secondary db cnames will point EITHER to 
-#   - a hostname of the format c\d+-pg\d+.project(-environment)?.region.example.come
-#   - a multi-IP A record of the format cluster\d+-secondary-rrdns.project(-loadtest)?.example.come
+#   - a hostname of the format c\d+-pg\d+.project(-environment)?.region.example.com
+#   - a multi-IP A record of the format cluster\d+-secondary-rrdns.project(-loadtest)?.example.com
 
 # Set to 0 to not be too noisy
 # 1 to be verbose
@@ -31,7 +31,7 @@ build_target_hostname()
 {
   hostname="$1.${PROJECT}"
   [[ "${PROJECT}" == "snowflake" ]] && [[ "${PROJECT_ENV}" == "prod" ]] || hostname="${hostname}-${PROJECT_ENV}"
-  hostname="${hostname}.${REGION}.example.come"
+  hostname="${hostname}.${REGION}.example.com"
 
   echo "$hostname"
 }
@@ -41,7 +41,7 @@ build_primary_hostname()
 {
   cname="cluster${CLUSTER}-master.${PROJECT}"
   [[ "${PROJECT}" == "snowflake" ]] && [[ "${PROJECT_ENV}" == "prod" ]] || cname="${cname}-${PROJECT_ENV}"
-  cname="${cname}.example.come"
+  cname="${cname}.example.com"
 
   hostname="$(host "${cname}" | awk '/is an alias for/ {print $NF}' | sed 's/.$//')"
 
@@ -69,7 +69,7 @@ fi
 DNS_NAME=$3
 (( debug > 0 )) && echo "DNS Entry to change: $DNS_NAME"
 
-# Split c\d+-pg\d+.project-env.region.example.come into project, environment, cluster, and region
+# Split c\d+-pg\d+.project-env.region.example.com into project, environment, cluster, and region
 if [[ "${DNS_NAME}" = *rrdns* ]]
 then
   CLUSTER=$(echo "$DNS_NAME" | awk -F - '{print $1}' | sed 's/^cluster//')
