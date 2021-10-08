@@ -10,7 +10,7 @@
 # - All secondary dbs will have a cname of the format cluster\d+-secondary.project(-environment)?.example.com
 # - Secondary db cnames will point EITHER to 
 #   - a hostname of the format c\d+-pg\d+.project(-environment)?.region.example.com
-#   - a multi-IP A record of the format cluster\d+-secondary-rrdns.project(-loadtest)?.example.com
+#   - a multi-IP A record of the format cluster\d+-secondary-rrdns.project(-environment)?.example.com
 
 # Set to 0 to not be too noisy
 # 1 to be verbose
