@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from engine.models import Rules, ClusterInfo, ExceptionData, Ec2DbInfo, DNSData, ClusterManagement
+from pygmy.models import Log
 
 
 class RuleSerializer(serializers.ModelSerializer):
@@ -47,4 +48,10 @@ class DNSDataSerializer(serializers.ModelSerializer):
 class ClusterManagementSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClusterManagement
+        fields = "__all__"
+
+
+class LogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Log
         fields = "__all__"

@@ -1,0 +1,65 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+{% block head_js %}
+ <script src="{% static '/js/moment.min.js' %}"></script>
+{% endblock %}
+{% block content %}
+<style>
+    .time_td {
+        width: 200px;
+    }
+    .scale_icon {
+        max-width: 20px;
+    }
+</style>
+<div class="content-padder content-background">
+    <div class="uk-section-xsmall uk-section-default header">
+        <div class="uk-container uk-container-large">
+            <ul class="uk-breadcrumb">
+                <li><a href="#">Home</a></li>
+                <li><span href="">App Logs</span></li>
+            </ul>
+        </div>
+    </div>
+    <div class="uk-section-xsmall uk-container uk-container-large uk-overflow-auto">
+        <table id="logs" class="uk-table uk-table-small uk-table-middle uk-table-hover uk-table-divider .uk-table-striped" style="width:100%">
+            <thead style="background: #232f3e;">
+                <tr>
+                    <th>Time</th>
+                    <th>Log Level</th>
+                    <th>Module</th>
+                    <th>Last Line</th>
+                </tr>
+            </thead>
+            <tbody style="background-color: #ffffff; color: black;">
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+{% block js_bottom %}{{ block.super }}
+<script>
+    $(document).ready(function() {
+        $("#logs").DataTable({
+            "processing": true,
+            "serverSide": true,
+            "ajax": {
+                "url": "{% url 'log_api_list' %}?format=datatables",
+                "dataSrc": function(json) {
+                    return json.data.map(e => {
+                        return {...e,
+                            "time": moment(e.time).format("hh:mm:ss DD-MM-YYYY")
+                        }
+                    })
+                }
+            },
+            "columns": [
+                { "data": "time" },
+                { "data": "level_name" },
+                { "data": "module" },
+                { "data": "message" }
+            ]
+        });
+    });
+</script>
+{% endblock %}

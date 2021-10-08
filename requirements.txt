@@ -11,3 +11,5 @@ python-crontab
 moto==2.2.1
 PyCryptodome
 uwsgi
+djangorestframework-datatables==0.6.0
+django-filter==21.1
