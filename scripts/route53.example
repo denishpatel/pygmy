@@ -1,13 +1,17 @@
 #!/bin/sh
 
-if [ $# -ne 4 ]
+# When changing things via route53, we don't care about REPLICA_IP,
+# but pygmy will still be sending it for other use cases, so be sure to accept it
+if [ $# -ne 6 ]
 then
-  echo "Usage: $0 HOSTED_NAME DNS_NAME DNS_IP/DNS_NAME RECORD_TYPE"
+  echo "Usage: $0 <SCALE_DOWN|SCALE_UP> <HOSTED_NAME> <DNS_NAME> <TARGET_IP|DNS_NAME> <RECORD_TYPE> <REPLICA_IP>"
   exit 1
 fi
 
+ACTION=$1
+
 # Get the hosted-zone-id from the hosted-zone-name $1
-HOSTED_ZONE_NAME=$1
+HOSTED_ZONE_NAME=$2
 
 HOSTED_ZONE=`aws route53 list-hosted-zones-by-name --dns-name $1 | python3 -c "import sys, json; print(json.load(sys.stdin).get('HostedZones', {})[0].get('Id'))"`
 
@@ -19,19 +23,21 @@ fi
 echo "Hosted zone id : $HOSTED_ZONE"
 
 # Get the DNS entry that we want to change
-DNS_NAME=$2
+DNS_NAME=$3
 
 echo "DNS Entry to change: $DNS_NAME"
 
 # Get the value of the ip to set
-DNS_IP=$3
+DNS_IP=$4
 
 echo "IP/DNS_NAME to be set: $DNS_IP"
 
 # Set the record type 'A' for EC2 and 'CNAME' for RDS
-RECORD_TYPE=$4
+RECORD_TYPE=$5
 
 echo "TYPE of Record to be set: $RECORD_TYPE"
+
+# Skip $6
 
 cat <<EOF >req.json
 {

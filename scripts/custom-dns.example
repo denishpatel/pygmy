@@ -1,0 +1,197 @@
+#!/bin/bash
+
+# A DNS manipulation script to be used with Pygmy for a custom environment.
+# Assumptions baked in:
+# - DNS gets changed with a custom script called domain_manager, which gets invoked via another script called vault-client-exec
+# - EC2 instances have a Name tag that includes their short hostname
+# - The Pygmy server has a file /etc/server-meta-info that includes the region it is in
+# - All primary dbs will have a cname of the format cluster\d+-primary.project(-environment)?.example.come
+# - All primary db cnames will point to a hostname of the format c\d+-pg\d+.project(-environment)?.region.example.come
+# - All secondary dbs will have a cname of the format cluster\d+-secondary.project(-environment)?.example.come
+# - Secondary db cnames will point EITHER to 
+#   - a hostname of the format c\d+-pg\d+.project(-environment)?.region.example.come
+#   - a multi-IP A record of the format cluster\d+-secondary-rrdns.project(-loadtest)?.example.come
+
+# Set to 0 to not be too noisy
+# 1 to be verbose
+# 2 to figure out what broke
+debug=0
+
+# By default, assume the TTL of our maniuplated DNS record will be the standard 300 seconds
+new_ttl=300
+
+die()
+{
+  echo "Woops, that didn't work out: $1"
+  exit 3
+}
+
+# Given a short hostname and the project/env/region we know about this db cluster, build up the hostname
+build_target_hostname()
+{
+  hostname="$1.${PROJECT}"
+  [[ "${PROJECT}" == "snowflake" ]] && [[ "${PROJECT_ENV}" == "prod" ]] || hostname="${hostname}-${PROJECT_ENV}"
+  hostname="${hostname}.${REGION}.example.come"
+
+  echo "$hostname"
+}
+
+# We know the project and environment, so that's enough to determine the hostname of the primary
+build_primary_hostname()
+{
+  cname="cluster${CLUSTER}-master.${PROJECT}"
+  [[ "${PROJECT}" == "snowflake" ]] && [[ "${PROJECT_ENV}" == "prod" ]] || cname="${cname}-${PROJECT_ENV}"
+  cname="${cname}.example.come"
+
+  hostname="$(host "${cname}" | awk '/is an alias for/ {print $NF}' | sed 's/.$//')"
+
+  echo "$hostname"
+}
+
+# In this iteration of the script, we don't care about HOSTED_NAME or RECORD_TYPE,
+# but we still need to accept them for compatibility when pygmy is doing route53 manipulation.
+if [ $# -ne 6 ]
+then
+  echo "Usage: $0 <SCALE_DOWN|SCALE_UP> <HOSTED_NAME> <DNS_NAME> <TARGET_IP|DNS_NAME> <RECORD_TYPE> <REPLICA_IP>"
+  exit 1
+fi
+
+ACTION=$1
+if [[ "$ACTION" != "SCALE_DOWN" ]] && [[ "$ACTION" != "SCALE_UP" ]]
+then
+  echo "Action must be one of SCALE_UP or SCALE_DOWN."
+  exit 2
+fi
+
+# Skip over $2, as we don't care
+
+# Get the DNS entry that we want to change
+DNS_NAME=$3
+(( debug > 0 )) && echo "DNS Entry to change: $DNS_NAME"
+
+# Split c\d+-pg\d+.project-env.region.example.come into project, environment, cluster, and region
+if [[ "${DNS_NAME}" = *rrdns* ]]
+then
+  CLUSTER=$(echo "$DNS_NAME" | awk -F - '{print $1}' | sed 's/^cluster//')
+else
+  CLUSTER=$(echo "$DNS_NAME" | awk -F - '{print $1}' | sed 's/^c//')
+fi
+(( debug > 0 )) && echo "Cluster: ${CLUSTER}"
+
+PROJECT=$(echo "$DNS_NAME" | awk -F "." '{print $2}' | sed 's/-.*//')
+(( debug > 0 )) && echo "Project: ${PROJECT}"
+
+PROJECT_ENV=$(echo "$DNS_NAME" | awk -F "." '{print $2}' | awk -F - '{print $2}')
+(( debug > 0 )) && echo "Environment: ${PROJECT_ENV}"
+
+# Usually the region will be in DNS_NAME, but not if this is an RRDNS replica set.
+# However, we know we will always be manipulating replicas in our local region, 
+# (because we will be installing one pgymy per region) so just pull that from 
+# /etc/server-meta-info on our pygmy server
+
+# keep shellcheck happy
+smi_aws_region=""
+# shellcheck disable=SC1091
+. /etc/server-meta-info
+REGION="${smi_aws_region}"
+(( debug > 0 )) && echo "Region: ${REGION}"
+
+# Figure out where our DNS_NAME currently points, and how much longer we have till the DNS TTL expires
+dig_output="$(dig +nocmd +noall +answer +ttlid "${DNS_NAME}")"
+(( debug > 1 )) && echo "Dig says: ${dig_output}"
+ttl="$(echo "${dig_output}" | awk '{print $2}' | head -1)"
+
+ips="$(echo "${dig_output}" | awk '{print $NF}')"
+(( debug > 0 )) && echo "IPs: ${ips} for ${ttl} more seconds"
+
+# Get the value of the ip to set
+TARGET_IP=$4
+TARGET_SHORTNAME="$(aws ec2 --region "${REGION}" describe-instances --filters "Name=private-ip-address,Values=${TARGET_IP}" | jq -r 'def getTag(t): .Tags[]|select(.Key==t)|.Value;.Reservations[].Instances[] | getTag("Name")')"
+
+TARGET_HOSTNAME=$(build_target_hostname "${TARGET_SHORTNAME}")
+
+(( debug > 0 )) && echo "IP/DNS_NAME to be set: $TARGET_IP (${TARGET_HOSTNAME})"
+
+# Skip over $5, as we don't care
+
+# Get the replica IP for the instance that pygmy is resizing.
+# This will be useful when removing an A record from a multi-IP RRDNS record,
+# because we will ned to know which address to remove.
+REPLICA_IP=$6
+
+# OK, we have all our variables set. Let's do some work.
+
+if [[ "${DNS_NAME}" = *rrdns* ]]
+then
+  # When we are dealing with a set of replicas, 
+  # then because those replicas are going to be upsized sequentially,
+  # we can't just change the secondary cname to point at either the primary (when downsizing) 
+  # or the unaltered set of A records (when upsizing).
+  # In the first case, it might be true that one replica has too much load.
+  # In the second case, it we'd be sending traffic to a replica that will, in a few minutes, be upsized.
+  # So instead we're going to want to change the A records as we go.
+
+  # To add extra complexity, because we are permuting the current A record into our new A record,
+  # we need to wait after chaning the record for this replica, so that the _next_ time this script
+  # runs for the next replica, we will see the fruits of our labor. But that can take some time, so, when
+  # we're scaling down, as long as we have more than 1 IP left, assume we'll run again and use a much 
+  # smaller TTL so that the next iteration doesn't have to sleep as long.
+  # When we're scaling up, it's unclear in the scope of this script if we're done scaling all the nodes,
+  # so only drop the TTL when we have a single IP in our set of IPs.
+  if [[ ${ACTION} == "SCALE_DOWN" ]]
+  then
+    # Remove REPLICA_IP from the list of addresses if it's there, 
+    # and replace it with our target ip (which is probably - always(?) - the primary)
+    
+    # We disable shellcheck's preference here so that we can use error checking, as we want to make sure this succeeds
+    # shellcheck disable=SC2207
+    IFS=$'\n' new_ips=( $(echo "${ips}" | sed "s/${REPLICA_IP}/${TARGET_IP}/" | sort | uniq ) ) || die "swapping ${REPLICA_IP} with ${TARGET_IP} in ${ips}"
+    # shellcheck disable=SC2001
+    replicas="$(echo "${new_ips[@]}" | sed "s/ /,/g")"
+    (( debug > 1 )) && echo "Setting new replicas to ${replicas}"
+
+    # If we haven't yet downsized to a single IP, assume we have more downsizing to go. 
+    # Shrink our new TTL to make future executions of this script sleep less.
+    [[ "${#new_ips[@]}" == "1" ]] || new_ttl=30
+
+    # Make sure we have at least 1 IP
+    [[ "${#new_ips[@]}" == "0" ]] && die "Refusing to set A record to have no addresses"
+
+    vault-client-exec pygmy domain_manager upsert -t A -T "${new_ttl}" -f "${DNS_NAME}" -v "${replicas}" || die "domain_manager upsert -t A -T ${new_ttl} -f ${DNS_NAME} -v ${replicas} said $?"
+  else
+    # remove the primary from the list of addresses if it's there, and replace it with our target ip
+    primary_hostname="$(build_primary_hostname)"
+    primary_ip=$(host "${primary_hostname}" | awk '/has address/ {print $NF}' ) || die "finding primary ip for host ${primary_hostname}"
+
+    (( debug > 1 )) && echo "Primary hostname is ${primary_hostname}"
+    (( debug > 1 )) && echo "primary_ip is ${primary_ip}"
+
+    # We disable shellcheck's preference here so that we can use error checking, as we want to make sure this succeeds
+    #shellcheck disable=SC2207
+    IFS=$'\n' new_ips=( $(printf "%s\n%s\n" "${ips}" "${TARGET_IP}" | sed "s/${primary_ip}/${TARGET_IP}/" | sort | uniq ) ) || die "swapping ${REPLICA_IP} with ${TARGET_IP} in ${ips}"
+    # shellcheck disable=SC2001
+    replicas="$(echo "${new_ips[@]}" | sed "s/ /,/g")"
+    (( debug > 1 )) && echo "Setting new replicas to ${replicas}"
+
+    # If we only have a single IP, assume we have more upsizing to go. 
+    # Shrink our new TTL to make future executions of this script sleep less.
+    [[ "${#new_ips[@]}" == "1" ]] && new_ttl=30
+
+    # Make sure we have at least 1 IP
+    [[ "${#new_ips[@]}" == "0" ]] && die "Refusing to set A record to have no addresses"
+
+    # shellcheck disable=SC2001
+    vault-client-exec pygmy domain_manager upsert -t A -T "${new_ttl}" -f "${DNS_NAME}" -v "${replicas}" || die "domain_manager upsert -t A -T ${new_ttl} -f ${DNS_NAME} -v ${replicas} said $?"
+  fi
+
+  # Before we return, sleep for $ttl seconds to give our next iteration of this script fresh DNS to play with
+  echo "Sleeping ${ttl} seconds for DNS TTL to expire"
+  sleep "${ttl}"
+else
+  # If this is a simple CNAME secondary, not an RRDNS set of replicas, then
+  # regardless of scaling up or scaling down, 
+  # the only thing we want to do is set DNS_NAME to point at TARGET_HOSTNAME.
+  vault-client-exec pygmy domain_manager upsert -t CNAME -T "${new_ttl}" -f "${DNS_NAME}" -v "${TARGET_HOSTNAME}" || die "domain_manager upsert -t CNAME -T ${new_ttl} -f ${DNS_NAME} -v ${TARGET_HOSTNAME} said $?"
+fi
+
+exit 0

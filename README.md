@@ -100,6 +100,10 @@ Load instance data
 $ python manage.py get_all_db_data
 ```
 
+Make a DNS script at scripts/dns-change.sh
+- Copy one of the existing scripts in scripts
+- Roll your own
+
 Start local server ( Testing only )
 ```shell
 $ python manage.py runserver

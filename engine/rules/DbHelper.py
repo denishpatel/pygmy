@@ -77,11 +77,11 @@ class DbHelper:
         return self.db_conn().get_user_open_connections_postgres(users)
 
     def update_instance_type(self, instance_type, fallback_instances=[]):
-        if instance_type == self.db_info.id:
-            logger.info(f"Not going to change instance type because {self.db_info.id} == {instance_type}")
+        if instance_type == self.instance.instanceType:
+            logger.info(f"Not going to change instance type because {self.instance.instanceType} == {instance_type}")
             return
 
-        logger.info(f"changing instance {self.db_info.id} to {instance_type}")
+        logger.info(f"changing instance {self.db_info.id} from {self.instance.instanceType} to {instance_type}")
         self.aws.scale_instance(self.instance, instance_type, fallback_instances)
         # wait till instance status get up
         logger.info(f"scaling complete. Waiting till instance {self.instance} is up")
@@ -107,7 +107,12 @@ class EC2DBHelper:
 
     @staticmethod
     def get_endpoint_address(instance):
-        return instance.publicIpAddress
+        if len(instance.publicIpAddress) == 0:
+            logger.debug(f"returning private address {instance.privateIpAddress}")
+            return instance.privateIpAddress
+        else:
+            logger.debug(f"returning public address {instance.publicIpAddress}")
+            return instance.publicIpAddress
 
 
 class RDSDBHelper:
