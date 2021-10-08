@@ -4,6 +4,7 @@ from webapp.view.actions import ActionsView
 from webapp.view.apis import ClusterAPIView, ExceptionApiView, ExceptionEditApiView, ListInstances, CreateDNSEntry, \
     CreateClusterManagement, EditClusterManagement
 from webapp.view.exceptions import ExceptionsView, ExceptionsCreateView, ExceptionsEditView
+from webapp.view.logs import LogsView, LogsApiView
 from webapp.view.rules import CreateRulesView, RulesView, EditRuleView
 from webapp.view.apis import CreateRuleAPIView, EditRuleAPIView
 from webapp.view.settings import SettingsView, SettingsRefreshView
@@ -31,6 +32,8 @@ urlpatterns = [
     path("settings", SettingsView.as_view(), name="settings"),
     path("settings/reload", SettingsRefreshView.as_view(), name="settings_reload"),
     path("actions", ActionsView.as_view(), name="action_list"),
+    path("logs", LogsView.as_view(), name="log_list"),
+    path("v1/api/logs", LogsApiView.as_view(), name="log_api_list"),
 
     path("v1/api/rules", CreateRuleAPIView.as_view(), name="create_rule_api"),
     path("v1/api/rules/<int:id>", EditRuleAPIView.as_view(), name="edit_rule_api"),
