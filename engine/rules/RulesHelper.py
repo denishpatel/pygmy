@@ -187,8 +187,18 @@ class RuleHelper:
                     if (primary_avg_load + s_avg_load) < int(self.cluster_mgmt.avg_load):
                         logger.info(f"combined load of {str(primary_avg_load + s_avg_load)} is < {str(self.cluster_mgmt.avg_load)}")
                         self.__check_open_connections(db_instances[id])
-                        db_instances[id].update_instance_type(self.new_instance_type, self.fallback_instances)
-                        self.update_dns_entries(db_instances[id])
+                        # We are good to proceed.
+                        if self.action == SCALE_DOWN:
+                            # If we are going to downsize, update our DNS entries before we downsize,
+                            # so that we can get load off of our replica(s) before resizing.
+                            self.update_dns_entries(db_instances[id])
+                            db_instances[id].update_instance_type(self.new_instance_type, self.fallback_instances)
+                        else:
+                            # If we are going to upsize, update our DNS entry after we upsize,
+                            # so that we can make sure the upsized instance is ready to rock before it
+                            # sees any new clients.
+                            db_instances[id].update_instance_type(self.new_instance_type, self.fallback_instances)
+                            self.update_dns_entries(db_instances[id])
                         primary_avg_load += s_avg_load
                     else:
                         logger.info(f"Not going to resize becuase combined load of {str(primary_avg_load + s_avg_load)} is >= {str(self.cluster_mgmt.avg_load)}")
@@ -233,7 +243,7 @@ class RuleHelper:
                 dns_address = self.get_primary_address()
             else:
                 dns_address = helper.get_endpoint_address()
-            self.run_dns_script(helper.db_info, dns_address)
+            self.run_dns_script(helper.db_info, dns_address, helper.get_endpoint_address())
         else:
             logger.info(f"not updating dns becuase {helper.db_info.id} has no dns_entry attribute")
         return None
@@ -245,7 +255,7 @@ class RuleHelper:
         else:
             logger.error("NO primary db present for cluster {}".format(self.cluster.name))
 
-    def run_dns_script(self, instance, dns_address):
+    def run_dns_script(self, instance, target_address, replica_address):
         """
         Run dns script only when dns entry present
         """
@@ -261,6 +271,7 @@ class RuleHelper:
         dns_name = instance.dns_entry.dns_name
 
         script_path = os.path.join(settings.BASE_DIR, "scripts", "dns-change.sh")
+
         try:
             DB_CRED = DbCredentials.objects.get(description="AWS Secrets")
             env_var = dict({
@@ -269,6 +280,16 @@ class RuleHelper:
             })
         except:
             env_var = dict()
-        logger.info("Changing DNS instance {} to point at {}", dns_name, dns_address)
-        test = subprocess.check_output(["sh", script_path, zone_name, dns_name, dns_address, RECORD_TYPE], env=env_var)
-        logger.info(f"script {script_path} returned {test}")
+
+        try:
+            logger.info(f"Changing DNS instance {dns_name} ({replica_address}) to point at {target_address}")
+            test = subprocess.check_output([script_path, self.action, zone_name, dns_name, target_address, RECORD_TYPE, replica_address], env=env_var)
+            logger.info(f"running {script_path} returned {test}")
+        except subprocess.CalledProcessError as e:
+            logger.info(f"running {script_path} {self.action} {zone_name} {dns_name} {target_address} {RECORD_TYPE} {replica_address} returned: {e.output}")
+        except Exception as e:
+            if hasattr(e, 'message'):
+                message = e.message
+            else:
+                message = e
+            logger.info(f"running {script_path} {self.action} {zone_name} {dns_name} {target_address} {RECORD_TYPE} {replica_address} returned generic error: {message}")
