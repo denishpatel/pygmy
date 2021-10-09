@@ -5,7 +5,7 @@ from django.urls import reverse
 from django.views import View
 from rest_framework.response import Response
 from engine.models import DbCredentials, ClusterInfo, Ec2DbInfo
-from engine.rules.DbHelper import DbHelper
+from engine.rules.db_helper import DbHelper
 from engine.aws.aws_utils import AWSUtil
 
 

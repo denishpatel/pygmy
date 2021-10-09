@@ -4,7 +4,7 @@ import subprocess
 import sys
 from django.conf import settings
 from django.utils import timezone
-from engine.rules.DbHelper import DbHelper
+from engine.rules.db_helper import DbHelper
 from engine.models import Rules, RDS, Ec2DbInfo, ExceptionData, SCALE_DOWN, EC2, DbCredentials, DAILY, CRON, SCALE_UP
 from engine.rules.cronutils import CronUtil
 logger = logging.getLogger(__name__)

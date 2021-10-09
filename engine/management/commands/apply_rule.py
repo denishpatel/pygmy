@@ -1,8 +1,8 @@
 import logging
 from django.utils import timezone
 from django.core.management import BaseCommand
-from engine.rules.LoggerUtils import ActionLogger
-from engine.rules.RulesHelper import RuleHelper
+from engine.rules.logger_utils import ActionLogger
+from engine.rules.rules_helper import RuleHelper
 from engine.models import Rules, ActionLogs
 logger = logging.getLogger(__name__)
 

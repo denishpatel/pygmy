@@ -4,7 +4,7 @@ from rest_framework.parsers import JSONParser
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from engine.models import Rules, ClusterInfo, ExceptionData, Ec2DbInfo, ClusterManagement, DNSData
-from engine.rules.RulesHelper import RuleHelper
+from engine.rules.rules_helper import RuleHelper
 from engine.rules.cronutils import CronUtil
 from drf_yasg2.utils import swagger_auto_schema
 from webapp.serializers import RuleSerializer, ExceptionDataSerializer, ClusterSerializer, RuleCreateSerializer, \

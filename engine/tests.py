@@ -7,7 +7,7 @@ from engine.aws.rds_wrapper import RDSService
 from engine.models import AllEc2InstanceTypes, AllEc2InstancesData, RdsInstances, AllRdsInstanceTypes, ExceptionData, \
     ClusterInfo
 from engine.postgres_wrapper import PostgresData
-from engine.rules.RulesHelper import RuleHelper
+from engine.rules.rules_helper import RuleHelper
 from pygmy.mock_data import MockData, MockRdsData, MockEc2Data, MockPostgresData, MockRuleData
 from engine.management.commands.populate_settings_data import Command
 from webapp.view.exceptions import ExceptionUtils

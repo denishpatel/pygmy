@@ -102,12 +102,12 @@ class EC2DBHelper:
 
     @staticmethod
     def get_instances_types():
-        return json.dumps(list(AllEc2InstanceTypes.objects.all().values('instance_type').annotate(value=F('instance_type'),
-                                                                                        data=F('instance_type'))))
+        return json.dumps(list(AllEc2InstanceTypes.objects.all().values('instance_type').annotate(
+            value=F('instance_type'), data=F('instance_type'))))
 
     @staticmethod
     def get_endpoint_address(instance):
-        if len(instance.publicIpAddress) == 0:
+        if instance.publicIpAddress is None or instance.publicIpAddress == '':
             logger.debug(f"returning private address {instance.privateIpAddress}")
             return instance.privateIpAddress
         else:
