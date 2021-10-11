@@ -245,7 +245,7 @@ class RuleHelper:
                 dns_address = helper.get_endpoint_address()
             self.run_dns_script(helper.db_info, dns_address, helper.get_endpoint_address())
         else:
-            logger.info(f"not updating dns becuase {helper.db_info.id} has no dns_entry attribute")
+            logger.warn(f"not updating dns becuase {helper.db_info.id} has no dns_entry attribute")
         return None
 
     def get_primary_address(self):
@@ -284,9 +284,12 @@ class RuleHelper:
         try:
             logger.info(f"Changing DNS instance {dns_name} ({replica_address}) to point at {target_address}")
             test = subprocess.check_output([script_path, self.action, zone_name, dns_name, target_address, RECORD_TYPE, replica_address], env=env_var)
-            logger.info(f"running {script_path} returned {test}")
+            if len(test) > 0:
+                logger.info(f"running {script_path} {self.action} {zone_name} {dns_name} {target_address} {RECORD_TYPE} {replica_address} succeeded with non-empty result of {test}")
+            else:
+                logger.debug(f"running {script_path} {self.action} {zone_name} {dns_name} {target_address} {RECORD_TYPE} {replica_address} succeeded")
         except subprocess.CalledProcessError as e:
-            logger.info(f"running {script_path} {self.action} {zone_name} {dns_name} {target_address} {RECORD_TYPE} {replica_address} returned: {e.output}")
+            logger.info(f"running {script_path} {self.action} {zone_name} {dns_name} {target_address} {RECORD_TYPE} {replica_address} returned: {e.returncode} ({e.output})")
         except Exception as e:
             if hasattr(e, 'message'):
                 message = e.message
