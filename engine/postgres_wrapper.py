@@ -14,7 +14,7 @@ class PostgresData:
             self.conn = psycopg2.connect(host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS, port=DB_PORT)
             self.cursor = self.conn.cursor()
         except Exception as e:
-            logger.error("ERROR: Cannot connect to the postgres!!")
+            logger.error("ERROR: Cannot connect to the postgres db!!")
             logger.exception(e)
             raise e
 
@@ -120,11 +120,11 @@ class PostgresData:
         """
         Kills the connections except sent it usernames
         """
-        user_lst = list(map(lambda x: "usename like '%{}%'".format(x), usernames))
+        user_lst = list(map(lambda x: "usename like '{}'".format(x), usernames))
         user_query = " or ".join(user_lst)
 
         query = "SELECT count(*) FROM pg_stat_activity WHERE state in ('active', 'idle in transaction') AND ({})".format(user_query)
-        logger.info("Query for user open connections: " + str(query))
+        logger.debug("Query for user open connections: " + str(query))
 
         result = self.execute_and_return_data(query)
         logger.info("Result of get user open connections: " + str(result))
