@@ -164,28 +164,36 @@ class RuleHelper:
             for db in self.secondary_dbs:
                 logger.debug(f"Adding instance {db.instance_id} to secondaries")
                 helper = DbHelper(db)
-                helper.check_replication_lag(self.rule_json)
-                helper.check_connections(self.rule_json)
+                try:
+                    helper.check_replication_lag(self.rule_json)
+                except:
+                    logger.warn(f"skipping {db.instance_id} because it failed a replication lag check")
+                    next
+                try:
+                    helper.check_connections(self.rule_json)
+                except:
+                    logger.warn(f"skipping {db.instance_id} because it failed an active connection count check")
+                    next
                 # helper.check_active_user_connections()
                 db_instances[db.id] = helper
                 db_avg_load[db.id] = helper.get_system_load_avg()
-
+            if len(db_instances) == 0:
+                raise Exception("No secondaries passed replication and active connection count checks.")
 
             logger.debug(f"Primary DB is {self.primary_dbs}")
             # Check cluster load
             if self._is_cluster_managed and self.cluster_mgmt.avg_load:
                 logger.debug(f"Dealing with managed cluster")
                 primary_helper = DbHelper(self.primary_dbs[0])
-                primary_avg_load = primary_helper.get_system_load_avg()
-                logger.info(f"Discovered primary to have load average of {primary_avg_load}")
+                aggregated_avg_load = primary_helper.get_system_load_avg()
+                logger.info(f"Discovered primary to have load average of {aggregated_avg_load}")
 
-                # Sorted avg load dict
-                sorted_avg_load = dict(sorted(db_avg_load.items(), key=lambda item: item[1]))
-
-                for id, s_avg_load in sorted_avg_load.items():
-                    logger.info(f"Working on {db_instances[id].instance} with load {s_avg_load}")
-                    if (primary_avg_load + s_avg_load) < int(self.cluster_mgmt.avg_load):
-                        logger.info(f"combined load of {str(primary_avg_load + s_avg_load)} is < {str(self.cluster_mgmt.avg_load)}")
+                changed_replicas = 0
+                for id, replica_avg_load in db_avg_load.items():
+                    logger.info(f"Working on {db_instances[id].instance} with a load of {replica_avg_load} using aggregated primary load of {aggregated_avg_load}")
+                    try:
+                        db_instances[id].check_average_load(self.rule_json, aggregated_avg_load)
+                        logger.info(f"combined load of {str(aggregated_avg_load + replica_avg_load)} compares with a managed target load of {str(self.cluster_mgmt.avg_load)}")
                         self.__check_open_connections(db_instances[id])
                         # We are good to proceed.
                         if self.action == SCALE_DOWN:
@@ -193,16 +201,21 @@ class RuleHelper:
                             # so that we can get load off of our replica(s) before resizing.
                             self.update_dns_entries(db_instances[id])
                             db_instances[id].update_instance_type(self.new_instance_type, self.fallback_instances)
+                            aggregated_avg_load += replica_avg_load
                         else:
                             # If we are going to upsize, update our DNS entry after we upsize,
                             # so that we can make sure the upsized instance is ready to rock before it
                             # sees any new clients.
                             db_instances[id].update_instance_type(self.new_instance_type, self.fallback_instances)
                             self.update_dns_entries(db_instances[id])
-                        primary_avg_load += s_avg_load
-                    else:
-                        logger.info(f"Not going to resize becuase combined load of {str(primary_avg_load + s_avg_load)} is >= {str(self.cluster_mgmt.avg_load)}")
-                        break
+                            aggregated_avg_load -= replica_avg_load
+
+                        changed_replicas += 1
+                    except:
+                        logger.info(f"Not going to resize because combined load of {str(aggregated_avg_load + replica_avg_load)} compares with a managed target load of {str(self.cluster_mgmt.avg_load)}")
+
+                if changed_replicas == 0:
+                    raise Exception("Failed to resize any replicas.")
             else:
                 logger.info(f"Managed cluster is {self._is_cluster_managed} and avg_load is {self.cluster_mgmt.avg_load}")
                 for id, helper in db_instances.items():
