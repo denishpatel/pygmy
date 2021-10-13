@@ -11,6 +11,7 @@
 # - Secondary db cnames will point EITHER to 
 #   - a hostname of the format c\d+-pg\d+.project(-environment)?.region.example.com
 #   - a multi-IP A record of the format cluster\d+-secondary-rrdns.project(-environment)?.example.com
+# - When a hostname includes the environment, it's only the first 4 characters of that environment.
 
 # Set to 0 to not be too noisy
 # 1 to be verbose
@@ -30,7 +31,7 @@ die()
 build_target_hostname()
 {
   hostname="$1.${PROJECT}"
-  [[ "${PROJECT}" == "snowflake" ]] && [[ "${PROJECT_ENV}" == "prod" ]] || hostname="${hostname}-${PROJECT_ENV}"
+  [[ "${PROJECT}" == "snowflake" ]] && [[ "${PROJECT_ENV}" == "prod" ]] || hostname="${hostname}-${PROJECT_ENV:0:4}"
   hostname="${hostname}.${REGION}.example.com"
 
   echo "$hostname"
@@ -69,19 +70,15 @@ fi
 DNS_NAME=$3
 (( debug > 0 )) && echo "DNS Entry to change: $DNS_NAME"
 
-# Split c\d+-pg\d+.project-env.region.example.com into project, environment, cluster, and region
-if [[ "${DNS_NAME}" = *rrdns* ]]
-then
-  CLUSTER=$(echo "$DNS_NAME" | awk -F - '{print $1}' | sed 's/^cluster//')
-else
-  CLUSTER=$(echo "$DNS_NAME" | awk -F - '{print $1}' | sed 's/^c//')
-fi
+# Split cluster\d+-secondary.project(-env)?.example.com into project, environment, cluster, and region
+CLUSTER=$(echo "$DNS_NAME" | awk -F - '{print $1}' | sed 's/^cluster//')
 (( debug > 0 )) && echo "Cluster: ${CLUSTER}"
 
 PROJECT=$(echo "$DNS_NAME" | awk -F "." '{print $2}' | sed 's/-.*//')
 (( debug > 0 )) && echo "Project: ${PROJECT}"
 
 PROJECT_ENV=$(echo "$DNS_NAME" | awk -F "." '{print $2}' | awk -F - '{print $2}')
+[[ -z "${PROJECT_ENV}" ]] && PROJECT_ENV="prod"
 (( debug > 0 )) && echo "Environment: ${PROJECT_ENV}"
 
 # Usually the region will be in DNS_NAME, but not if this is an RRDNS replica set.
@@ -183,15 +180,18 @@ then
     # shellcheck disable=SC2001
     vault-client-exec pygmy domain_manager upsert -t A -T "${new_ttl}" -f "${DNS_NAME}" -v "${replicas}" || die "domain_manager upsert -t A -T ${new_ttl} -f ${DNS_NAME} -v ${replicas} said $?"
   fi
-
-  # Before we return, sleep for $ttl seconds to give our next iteration of this script fresh DNS to play with
-  echo "Sleeping ${ttl} seconds for DNS TTL to expire"
-  sleep "${ttl}"
 else
   # If this is a simple CNAME secondary, not an RRDNS set of replicas, then
   # regardless of scaling up or scaling down, 
   # the only thing we want to do is set DNS_NAME to point at TARGET_HOSTNAME.
   vault-client-exec pygmy domain_manager upsert -t CNAME -T "${new_ttl}" -f "${DNS_NAME}" -v "${TARGET_HOSTNAME}" || die "domain_manager upsert -t CNAME -T ${new_ttl} -f ${DNS_NAME} -v ${TARGET_HOSTNAME} said $?"
 fi
+
+# Before we return, sleep for $ttl seconds.
+# If we have more A records to change, that will give our next iteration of this script fresh DNS to play with.
+# Regardless, we still need to sleep in order to make sure that clients have picked up the new IP
+# before we start stopping instances.
+echo "Sleeping ${ttl} seconds for DNS TTL to expire"
+sleep "${ttl}"
 
 exit 0
