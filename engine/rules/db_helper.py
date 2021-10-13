@@ -40,15 +40,15 @@ class DbHelper:
                                                                            replication_lag))
                 return self._check_value(replication_lag_rule, replication_lag, msg="Replication Lag")
 
-    def check_average_load(self, rule_json):
+    def check_average_load(self, rule_json, offset=0):
         rule = rule_json.get("averageLoad", None)
         if rule:
             avg_load = self.db_conn().get_system_load_avg()
             if avg_load is None:
                 raise Exception("Could not get system load avg")
             else:
-                logger.info("Avg load to check {} actual {}".format(rule.get("value"), avg_load))
-                return self._check_value(rule, avg_load, msg="Average load")
+                logger.info(f"Avg load threshold {rule.get('value')}, actual {avg_load}, offset {offset}")
+                return self._check_value(rule, avg_load+offset, msg="Average load")
 
     def check_connections(self, rule_json):
         rule = rule_json.get("checkConnection", None)
@@ -63,10 +63,13 @@ class DbHelper:
     def _check_value(self, rule, value, msg=None):
         result = False
         if rule.get("op") == "equal":
+            logger.debug(f"is {value} == {rule.get('value')}?")
             result = value == int(rule.get("value"))
         elif rule.get("op") == "greater":
+            logger.debug(f"is {value} > {rule.get('value')}?")
             result = value > int(rule.get("value"))
         elif rule.get("op") == "less":
+            logger.debug(f"is {value} < {rule.get('value')}?")
             result = value < int(rule.get("value"))
         if not result:
             raise Exception("{} check failed".format(msg))
