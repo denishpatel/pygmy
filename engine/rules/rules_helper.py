@@ -162,8 +162,8 @@ class RuleHelper:
         db_avg_load = dict()
         try:
             for db in self.secondary_dbs:
-                logger.debug(f"Adding instance {db.instance_id} to secondaries")
                 helper = DbHelper(db)
+                logger.debug(f"Adding instance {db.instance_id} ({helper.instance.instanceType}) to secondaries")
                 try:
                     helper.check_replication_lag(self.rule_json)
                 except:
@@ -180,7 +180,7 @@ class RuleHelper:
             if len(db_instances) == 0:
                 raise Exception("No secondaries passed replication and active connection count checks.")
 
-            logger.debug(f"Primary DB is {self.primary_dbs}")
+            logger.debug(f"Primary DB is {self.primary_dbs[0].instance_id}")
             # Check cluster load
             if self._is_cluster_managed and self.cluster_mgmt.avg_load:
                 logger.debug(f"Dealing with managed cluster")
@@ -190,29 +190,35 @@ class RuleHelper:
 
                 changed_replicas = 0
                 for id, replica_avg_load in db_avg_load.items():
-                    logger.info(f"Working on {db_instances[id].instance} with a load of {replica_avg_load} using aggregated primary load of {aggregated_avg_load}")
+                    logger.info(f"Working on {db_instances[id].instance.instanceId} with a load of {replica_avg_load} using aggregated primary load of {aggregated_avg_load}")
                     try:
-                        db_instances[id].check_average_load(self.rule_json, aggregated_avg_load)
-                        logger.info(f"combined load of {str(aggregated_avg_load + replica_avg_load)} compares with a managed target load of {str(self.cluster_mgmt.avg_load)}")
-                        self.__check_open_connections(db_instances[id])
-                        # We are good to proceed.
-                        if self.action == SCALE_DOWN:
-                            # If we are going to downsize, update our DNS entries before we downsize,
-                            # so that we can get load off of our replica(s) before resizing.
-                            self.update_dns_entries(db_instances[id])
-                            db_instances[id].update_instance_type(self.new_instance_type, self.fallback_instances)
-                            aggregated_avg_load += replica_avg_load
-                        else:
-                            # If we are going to upsize, update our DNS entry after we upsize,
-                            # so that we can make sure the upsized instance is ready to rock before it
-                            # sees any new clients.
-                            db_instances[id].update_instance_type(self.new_instance_type, self.fallback_instances)
-                            self.update_dns_entries(db_instances[id])
-                            aggregated_avg_load -= replica_avg_load
+                        if db_instances[id].check_average_load(self.rule_json, aggregated_avg_load):
+                            logger.info(f"combined load of {str(round(aggregated_avg_load + replica_avg_load,2))} compares with a managed target load of {str(self.cluster_mgmt.avg_load)}")
+                            self.__check_open_connections(db_instances[id])
+                            # We are good to proceed.
+                            if self.action == SCALE_DOWN:
+                                # If we are going to downsize, update our DNS entries before we downsize,
+                                # so that we can get load off of our replica(s) before resizing.
+                                self.update_dns_entries(db_instances[id])
+                                db_instances[id].update_instance_type(self.new_instance_type, self.fallback_instances)
+                                aggregated_avg_load += replica_avg_load
+                            else:
+                                # If we are going to upsize, update our DNS entry after we upsize,
+                                # so that we can make sure the upsized instance is ready to rock before it
+                                # sees any new clients.
+                                db_instances[id].update_instance_type(self.new_instance_type, self.fallback_instances)
 
-                        changed_replicas += 1
-                    except:
-                        logger.info(f"Not going to resize because combined load of {str(aggregated_avg_load + replica_avg_load)} compares with a managed target load of {str(self.cluster_mgmt.avg_load)}")
+                                # We need to make sure streaming has resumed before we say we are ready for clients
+                                db_instances[id].wait_till_replica_streaming()
+
+                                self.update_dns_entries(db_instances[id])
+                                aggregated_avg_load -= replica_avg_load
+
+                            changed_replicas += 1
+                        else:
+                            logger.info(f"Not going to resize because combined load of {str(round(aggregated_avg_load + replica_avg_load,2))} compares with a managed target load of {str(self.cluster_mgmt.avg_load)}")
+                    except Exception as e:
+                        logger.info(f"Not going to resize because {e}")
 
                 if changed_replicas == 0:
                     raise Exception("Failed to resize any replicas.")
@@ -250,7 +256,7 @@ class RuleHelper:
         return True
 
     def update_dns_entries(self, helper):
-        logger.info(f"updating dns entries for {self.action} of {helper.db_info.id}")
+        logger.info(f"updating dns entries for {self.action} of {helper.instance.instanceId}")
         if hasattr(helper.db_info, "dns_entry"):
             if self.action == SCALE_DOWN:
                 dns_address = self.get_primary_address()

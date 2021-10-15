@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from django.db.models import F
 from engine.models import EC2, SCALE_DOWN, SCALE_UP, Ec2DbInfo, AllRdsInstanceTypes, AllEc2InstanceTypes
 from engine.aws.aws_utils import AWSUtil
@@ -19,8 +20,11 @@ class DbHelper:
     def __repr__(self):
         return "<DbHelper db_info:%s type:%s aws:%s table:%s instance:%s>" % (self.db_info, self.type, self.aws, self.table, self.instance)
 
-    def db_conn(self):
-        if not self.conn:
+    def new_db_conn(self):
+        return self.db_conn(True)
+
+    def db_conn(self, force=False):
+        if force or not self.conn:
             self.conn = self.aws.create_connection(self.db_info)
         return self.conn
 
@@ -28,6 +32,24 @@ class DbHelper:
     def from_id(cls, instance_id):
         instance = Ec2DbInfo.objects.get(id=instance_id)
         return cls(instance)
+
+    def wait_till_replica_streaming(self):
+        logger.info(f"Waiting for db on instance {self.instance.instanceId} to come alive")
+        is_alive = False
+        while is_alive == False:
+            try:
+                logging.debug("Checking if db is alive")
+                is_alive = self.new_db_conn().is_alive()
+                time.sleep(5)
+            except:
+                logger.info("Replica not yet accepting connections")
+                time.sleep(5)
+
+
+        logger.info(f"Waiting till db on instance {self.instance.instanceId} has begun streaming")
+        while self.db_conn().get_streaming_status() == False:
+            logger.info("Replica not yet streaming; sleeping for 5 seconds")
+            time.sleep(5)
 
     def check_replication_lag(self, rule_json):
         replication_lag_rule = rule_json.get("replicationLag", None)
@@ -39,6 +61,7 @@ class DbHelper:
                 logger.info("Replication lag to check {} actual {}".format(replication_lag_rule.get("value"),
                                                                            replication_lag))
                 return self._check_value(replication_lag_rule, replication_lag, msg="Replication Lag")
+        return True
 
     def check_average_load(self, rule_json, offset=0):
         rule = rule_json.get("averageLoad", None)
@@ -49,6 +72,7 @@ class DbHelper:
             else:
                 logger.info(f"Avg load threshold {rule.get('value')}, actual {avg_load}, offset {offset}")
                 return self._check_value(rule, avg_load+offset, msg="Average load")
+        return True
 
     def check_connections(self, rule_json):
         rule = rule_json.get("checkConnection", None)
@@ -59,20 +83,22 @@ class DbHelper:
             else:
                 logger.info("No of active connections to check {} actual {}".format(rule.get("value"), active_connections))
                 return self._check_value(rule, active_connections, msg="Check Connection")
+        return True
 
     def _check_value(self, rule, value, msg=None):
         result = False
         if rule.get("op") == "equal":
-            logger.debug(f"is {value} == {rule.get('value')}?")
             result = value == int(rule.get("value"))
+            logger.debug(f"is {value} == {rule.get('value')}? {result}")
         elif rule.get("op") == "greater":
-            logger.debug(f"is {value} > {rule.get('value')}?")
             result = value > int(rule.get("value"))
+            logger.debug(f"is {value} > {rule.get('value')}? {result}")
         elif rule.get("op") == "less":
-            logger.debug(f"is {value} < {rule.get('value')}?")
             result = value < int(rule.get("value"))
+            logger.debug(f"is {value} < {rule.get('value')}? {result}")
         if not result:
             raise Exception("{} check failed".format(msg))
+        return result
 
     def scale_down_instance(self, instance_type):
         logger.info(f"scaling down instance {self.id} to {instance_type}")
@@ -93,13 +119,9 @@ class DbHelper:
             logger.info(f"Not going to change instance type because {self.instance.instanceType} == {instance_type}")
             return
 
-        logger.info(f"changing instance {self.db_info.id} from {self.instance.instanceType} to {instance_type}")
+        logger.info(f"changing instance {self.instance.instanceId} from {self.instance.instanceType} to {instance_type}")
         self.aws.scale_instance(self.instance, instance_type, fallback_instances)
-        # wait till instance status get up
-        logger.info(f"scaling complete. Waiting till instance {self.instance} is up")
-        status = self.aws.wait_till_status_up(self.instance)
-        if not status:
-            status = self.aws.start_instance(self.instance)
+        logger.info(f"Scaling {self.instance.instanceId} complete.")
 
     def get_endpoint_address(self):
         return self.table.get_endpoint_address(self.instance)
