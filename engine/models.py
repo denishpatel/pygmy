@@ -248,6 +248,8 @@ class Rules(models.Model):
     err_msg = models.CharField(max_length=255, null=True)
     last_run = models.DateTimeField(auto_created=True, null=True)
     parent_rule = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True, related_name="child_rule")
+    working_pid = models.IntegerField(null=True)
+    last_started = models.DateTimeField(null=True)
 
     class Meta:
         unique_together = ["cluster", "rule"]
