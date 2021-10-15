@@ -9,12 +9,11 @@ class PostgresData:
     """
     def __init__(self, DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT=5432):
         try:
-            logger.info("Connecting to Host: " + DB_HOST)
-            logger.info("Connecting to NAME: " + DB_NAME)
+            logger.debug(f"Connecting to Postgres {DB_HOST}/{DB_NAME}")
             self.conn = psycopg2.connect(host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS, port=DB_PORT)
             self.cursor = self.conn.cursor()
         except Exception as e:
-            logger.error("ERROR: Cannot connect to the postgres db!!")
+            logger.error("ERROR: Cannot connect to the postgres db!")
             logger.exception(e)
             raise e
 
@@ -29,7 +28,8 @@ class PostgresData:
             return result
         except Exception as e:
             logger.exception(e)
-            self.conn.close()
+            if self.conn.closed() == False:
+                self.conn.close()
             raise e
 
     def execute_command(self, query, params):
@@ -75,6 +75,21 @@ class PostgresData:
             self.conn.close()
             raise e
 
+    def is_alive(self):
+        """
+        A simple check for service
+        """
+        query = "SELECT 1"
+        try:
+            result = self.execute_and_return_data(query)[0][0]
+            return (str(result) == "1")
+        except psycopg2.InterfaceError:
+            logger.info(f"Replica not accepting connections: {e}")
+            return False
+        except:
+            logger.info(f"Replica doesn't seem to be ready yet: {e}")
+            return False
+
     def get_replication_lag(self):
         """
         Return replication lag in seconds
@@ -88,10 +103,14 @@ class PostgresData:
         Return streaming status
         ONLY to be hit on REPLICA
         """
-        query = "select * from pg_stat_wal_receiver"
-        result = self.execute_and_return_data(query)[0][1] == "streaming"
-        logger.info("Result of get streaming status: " + str(result))
-        return result
+        query = "select status from pg_stat_wal_receiver"
+        result = self.execute_and_return_data(query)
+        if len(result)==0:
+            logger.error("Found no streaming data on replica! Is this replica configured for streaming?")
+            return False
+        else:
+            logger.debug("Result of get streaming status: " + str(result[0][0]))
+            return (str(result[0][0]) == "streaming")
 
     def get_system_load_avg(self):
         """
@@ -100,7 +119,7 @@ class PostgresData:
         """
         query = "SELECT * FROM pg_sys_load_avg_info()"
         result = self.execute_and_return_data(query)[0][2]
-        logger.info("Result of get system avg load: " + str(result))
+        logger.debug("Result of get system avg load: " + str(result))
         return result
 
     def get_no_of_active_connections(self):
@@ -110,7 +129,7 @@ class PostgresData:
         query = "select datname,usename,application_name,state,count(*) as connection_count from pg_stat_activity "\
                 "where datname !='postgres' group by 1,2,3,4;"
         result = self.execute_and_return_data(query)
-        logger.info("Result of get active connections: " + str(result))
+        logger.debug("Result of get active connections: " + str(result))
         if len(result) > 0:
             return result[0][4]
         else:
@@ -127,7 +146,7 @@ class PostgresData:
         logger.debug("Query for user open connections: " + str(query))
 
         result = self.execute_and_return_data(query)
-        logger.info("Result of get user open connections: " + str(result))
+        logger.debug("Result of get user open connections: " + str(result))
         if len(result) > 0:
             return result[0][0]
         else:
