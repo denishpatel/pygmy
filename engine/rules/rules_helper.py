@@ -135,6 +135,18 @@ class RuleHelper:
                     CronUtil.delete_cron(rule)
                     rule.delete()
 
+    def more_retries_allowed(self,attempts):
+        retry = self.rule_json.get("retry", None)
+        if retry is not None:
+            # attempts includes the first attempt, which isn't technically a "retry",
+            # so use > instead of <= to take that into account (i.e. if we allow one retry, we only
+            # return false when attempts = 2)
+            if int(retry.get("retry_max")) > attempts:
+                return True
+            else:
+                logger.debug(f"Looks like {retry.get('retry_max')} was <= than {attempts}")
+        return False
+
     def check_exception_date(self):
         try:
             exception_date_data = ExceptionData.objects.get(exception_date=timezone.now().date())
@@ -150,16 +162,17 @@ class RuleHelper:
         except ExceptionData.DoesNotExist:
             pass
 
-    def apply_rule(self):
+    def apply_rule(self, attempt):
         # Check rule is Reverse Rule or not
         if self.is_reverse:
-            self.reverse_rule()
+            self.reverse_rule(attempt)
         else:
-            self.__apply_rule()
+            self.__apply_rule(attempt)
 
-    def __apply_rule(self):
+    def __apply_rule(self, attempt):
         db_instances = dict()
         db_avg_load = dict()
+        all_good = False
         try:
             for db in self.secondary_dbs:
                 helper = DbHelper(db)
@@ -229,10 +242,13 @@ class RuleHelper:
                     self.__check_open_connections(helper)
                     helper.update_instance_type(self.new_instance_type, self.fallback_instances)
                     self.update_dns_entries(helper)
+            all_good = True
         except Exception as e:
             logger.error("#Rule {}: Failed to apply", self.rule.id)
-            CronUtil.set_retry_cron(self.rule)
             raise e
+        finally:
+            if not all_good:
+                CronUtil.set_retry_cron(self.rule, attempt)
 
     def reverse_rule(self):
         try:
@@ -243,7 +259,7 @@ class RuleHelper:
                 self.update_dns_entries(db_helper)
         except Exception as e:
             logger.error("Reverse #Rule {}: Failed to apply", self.rule.id)
-            CronUtil.set_retry_cron(self.rule)
+            CronUtil.set_retry_cron(self.rule, attempt)
 
     def __check_open_connections(self, db_helper):
         if self.action == SCALE_DOWN:

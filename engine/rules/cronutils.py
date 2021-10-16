@@ -2,9 +2,10 @@ import sys
 from crontab import CronTab, CronSlices
 import getpass
 from django.conf import settings
-
+from django.contrib.humanize.templatetags.humanize import ordinal
 from engine.models import DAILY
-
+import logging
+logger = logging.getLogger(__name__)
 
 class CronUtil:
 
@@ -32,7 +33,7 @@ class CronUtil:
         cron.write()
 
     @staticmethod
-    def set_retry_cron(rule):
+    def set_retry_cron(rule, attempt):
         # Get Rule details
         rule_json = rule.rule
         retry_rule = rule_json.get("retry", None)
@@ -42,38 +43,32 @@ class CronUtil:
 
         retry_after = retry_rule.get("retry_after")
         max_retry = retry_rule.get("retry_max")
-        no_of_tries = retry_rule.get("no_of_tries", 0)
 
+        logger.debug(f"retry_after is {retry_after} and max_retry is {max_retry}")
         if retry_after and max_retry:
             retry_rule_comment = "retry_rule_{}".format(rule.id)
             try:
                 # Update Crontab jobs
                 cron = CronTab(user=getpass.getuser())
-                if no_of_tries == 0:
+                if int(attempt) == 1:
+                    logger.debug("making an entry for our first retry")
                     job = cron.new(
-                        command="{0}/venv/bin/python {0}/manage.py apply_rule {1}".format(settings.BASE_DIR, rule.id),
+                        command=f"{settings.BASE_DIR}/venv/bin/python {settings.BASE_DIR}/manage.py apply_rule {rule.id}",
                         comment=retry_rule_comment)
                     job.minute.every(retry_after)
+                else:
+                    logger.debug(f"This was our {ordinal(attempt)} attempt")
 
-                # Increase no of tries
-                no_of_tries += 1
-                if no_of_tries > int(max_retry):
-                    print("remove all cron job")
-                    no_of_tries = 0
+                # If this was one attempt too many, give up
+                if int(attempt) >= int(max_retry):
+                    logger.warn(f"{attempt} is one failure too far; removing all cronjobs with comment {retry_rule_comment}")
                     cron.remove_all(comment=retry_rule_comment)
                 cron.write()
             except Exception as e:
-                print(e)
+                logger.error(f"Got an exception: {e}")
+        else:
+            logger.debug("Not going to retry because retry rule is incomplete")
 
-            # Update Rule json
-            rule.rules = rule_json.update({
-                "retry": dict({
-                    "retry_after": retry_after,
-                    "retry_max": max_retry,
-                    "no_of_tries": no_of_tries
-                })
-            })
-            rule.save()
 
     @staticmethod
     def delete_cron(rule):

@@ -250,6 +250,7 @@ class Rules(models.Model):
     parent_rule = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True, related_name="child_rule")
     working_pid = models.IntegerField(null=True)
     last_started = models.DateTimeField(null=True)
+    attempts = models.IntegerField(default=0)
 
     class Meta:
         unique_together = ["cluster", "rule"]

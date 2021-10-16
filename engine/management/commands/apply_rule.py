@@ -2,6 +2,7 @@ import logging
 from django.utils import timezone
 from django.db import transaction
 from django.core.management import BaseCommand
+from django.contrib.humanize.templatetags.humanize import ordinal
 from engine.rules.logger_utils import ActionLogger
 from engine.rules.rules_helper import RuleHelper
 from engine.models import Rules, ActionLogs
@@ -29,7 +30,7 @@ class Command(BaseCommand):
                 rule_db = Rules.objects.select_for_update(skip_locked=True).get(id=rid)
             except:
                 # The rule might not exist, or might be merely locked.
-                # If this get fails it's because it doesn't exist for real, and we can be happen to let our normal exception handling below have its way.
+                # If this get fails it's because it doesn't exist for real, and we can let our normal exception handling below have its way.
                 unlocked_rule_db = Rules.objects.get(id=rid)
                 # If we get here, though, we know it's merely locked and currently being worked on.
                 # Sadly we don't know much other than that, because nothing has been committed yet
@@ -46,23 +47,32 @@ class Command(BaseCommand):
                 ActionLogger.add_log(rule_db, f"Rule {rid} execution is started by pid {os.getpid()}")
             helper = RuleHelper.from_id(rid)
             helper.check_exception_date()
+
+            rule_db.attempts += 1
             rule_db.working_pid = os.getpid()
             rule_db.last_started = timezone.now()
             rule_db.save()
-            helper.apply_rule()
+            helper.apply_rule(rule_db.attempts)
             rule_db.status = True
             rule_db.err_msg = ""
             msg = "Successfully Executed Rule"
-            print("Rule has completed successfully")
+            logger.info("Rule has completed successfully")
         except Exception as e:
             rule_db.status = False
             rule_db.err_msg = e
-            msg = e
-            logger.error(e)
-            # msg = "Rule not matched"
+            msg = f"Exception caused rule failure: {e}"
+            logger.error(f"Got an exception when running the rule: {e}")
         finally:
             if too_many_cooks == False:
                 logger.debug("cleaning up rule upon completion")
+                if not rule_db.status:
+                    if helper.more_retries_allowed(rule_db.attempts):
+                        logger.debug(f"Rule didn't complete successfully; will the {ordinal(rule_db.attempts + 1)} attempt be the charm?")
+                    else:
+                        logger.warn(f"Refusing to run retry again after {rule_db.attempts} attempts")
+                        rule_db.attempts = 0
+                else:
+                    rule_db.attempts = 0
                 rule_db.working_pid = None
                 rule_db.last_run = timezone.now()
                 rule_db.save()
