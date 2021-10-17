@@ -67,9 +67,9 @@ class Command(BaseCommand):
                 logger.debug("cleaning up rule upon completion")
                 if not rule_db.status:
                     if helper.more_retries_allowed(rule_db.attempts):
-                        logger.debug(f"Rule didn't complete successfully; will the {ordinal(rule_db.attempts + 1)} attempt be the charm?")
+                        logger.debug(f"Rule didn't complete successfully; will the {ordinal(rule_db.attempts)} retry be the charm?")
                     else:
-                        logger.warn(f"Refusing to run retry again after {rule_db.attempts} attempts")
+                        logger.warn(f"Refusing to retry again after {rule_db.attempts} attempts")
                         rule_db.attempts = 0
                 else:
                     rule_db.attempts = 0

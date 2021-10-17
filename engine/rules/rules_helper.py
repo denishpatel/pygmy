@@ -139,12 +139,12 @@ class RuleHelper:
         retry = self.rule_json.get("retry", None)
         if retry is not None:
             # attempts includes the first attempt, which isn't technically a "retry",
-            # so use > instead of <= to take that into account (i.e. if we allow one retry, we only
-            # return false when attempts = 2)
-            if int(retry.get("retry_max")) > attempts:
+            # so use >= to take that into account (i.e. if we allow one retry, we only
+            # return false when attempts > 2)
+            if int(retry.get("retry_max")) >= attempts:
                 return True
             else:
-                logger.debug(f"Looks like {retry.get('retry_max')} was <= than {attempts}")
+                logger.debug(f"Looks like our threshold of {retry.get('retry_max')} retries was hit on attempt {attempts}")
         return False
 
     def check_exception_date(self):

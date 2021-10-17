@@ -57,12 +57,15 @@ class CronUtil:
                         comment=retry_rule_comment)
                     job.minute.every(retry_after)
                 else:
-                    logger.debug(f"This was our {ordinal(attempt)} attempt")
+                    logger.debug(f"This was our {ordinal(attempt)} attempt ({ordinal(attempt-1)} retry)")
 
-                # If this was one attempt too many, give up
-                if int(attempt) >= int(max_retry):
+                # If this was one attempt too many, give up.
+                # Technically "retries" are attempts *after* the first attempt, so use > instead of the >= comparison you might have expected.
+                if int(attempt) > int(max_retry):
                     logger.warn(f"{attempt} is one failure too far; removing all cronjobs with comment {retry_rule_comment}")
                     cron.remove_all(comment=retry_rule_comment)
+                else:
+                    logger.debug(f"attempt {attempt} vs max_retry {max_retry}")
                 cron.write()
             except Exception as e:
                 logger.error(f"Got an exception: {e}")
