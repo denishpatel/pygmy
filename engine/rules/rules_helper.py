@@ -244,7 +244,7 @@ class RuleHelper:
                     self.update_dns_entries(helper)
             all_good = True
         except Exception as e:
-            logger.error("#Rule {}: Failed to apply", self.rule.id)
+            logger.error(f"#Rule {self.rule.id}: Failed to apply because {e}")
             raise e
         finally:
             if not all_good:
@@ -280,7 +280,7 @@ class RuleHelper:
                 dns_address = helper.get_endpoint_address()
             self.run_dns_script(helper.db_info, dns_address, helper.get_endpoint_address())
         else:
-            logger.warn(f"not updating dns becuase {helper.db_info.id} has no dns_entry attribute")
+            logger.warn(f"not updating dns because {helper.db_info.id} has no dns_entry attribute")
         return None
 
     def get_primary_address(self):

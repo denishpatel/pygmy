@@ -33,6 +33,10 @@ class CronUtil:
         cron.write()
 
     @staticmethod
+    def build_retry_rule_comment(rule_id):
+        return f"retry_rule_{rule_id}"
+
+    @staticmethod
     def set_retry_cron(rule, attempt):
         # Get Rule details
         rule_json = rule.rule
@@ -46,7 +50,7 @@ class CronUtil:
 
         logger.debug(f"retry_after is {retry_after} and max_retry is {max_retry}")
         if retry_after and max_retry:
-            retry_rule_comment = "retry_rule_{}".format(rule.id)
+            retry_rule_comment = CronUtil.build_retry_rule_comment(rule.id)
             try:
                 # Update Crontab jobs
                 cron = CronTab(user=getpass.getuser())
@@ -63,7 +67,7 @@ class CronUtil:
                 # Technically "retries" are attempts *after* the first attempt, so use > instead of the >= comparison you might have expected.
                 if int(attempt) > int(max_retry):
                     logger.warn(f"{attempt} is one failure too far; removing all cronjobs with comment {retry_rule_comment}")
-                    cron.remove_all(comment=retry_rule_comment)
+                    CronUtil.delete_retry_cron(rule.id)
                 else:
                     logger.debug(f"attempt {attempt} vs max_retry {max_retry}")
                 cron.write()
@@ -71,6 +75,13 @@ class CronUtil:
                 logger.error(f"Got an exception: {e}")
         else:
             logger.debug("Not going to retry because retry rule is incomplete")
+
+
+    @staticmethod
+    def delete_retry_cron(rule_id):
+        cron = CronTab(user=getpass.getuser())
+        retry_rule_comment = CronUtil.build_retry_rule_comment(rule_id)
+        cron.remove_all(comment=retry_rule_comment)
 
 
     @staticmethod
