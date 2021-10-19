@@ -52,6 +52,8 @@ class Command(BaseCommand):
             logger.debug(f"Successfully locked rule {rid} ({rule_db.name})")
 
             # Now that we have our rule row locked, also lock the cluster, and the nodes of the cluster
+            # By locking the cluster we make sure no other rule that affects the same cluster can run concurrently,
+            # and by locking the nodes we do the same thing for get_all_db_data.
             try:
                 cluster = ClusterInfo.objects.select_for_update(skip_locked=True).get(id=rule_db.cluster_id)
             except Exception as e:
