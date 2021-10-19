@@ -213,16 +213,28 @@ class RuleHelper:
                                 # If we are going to downsize, update our DNS entries before we downsize,
                                 # so that we can get load off of our replica(s) before resizing.
                                 self.update_dns_entries(db_instances[id])
+                                self.run_pre_resize_script(db_instances[id].instance.instanceId)
                                 db_instances[id].update_instance_type(self.new_instance_type, self.fallback_instances)
                                 aggregated_avg_load += replica_avg_load
+
+                                # Because we're scaling down and have moved load off of this node,
+                                # we don't need to wait for the client's sake that streaming has resumed before continuing.
+                                # But for the post-streaming script, which might get used to re-enable monitoring,
+                                # we should wait to make sure the replication is working again before we run it.
+                                db_instances[id].wait_till_replica_streaming()
+                                self.run_post_streaming_script(db_instances[id].instance.instanceId)
                             else:
                                 # If we are going to upsize, update our DNS entry after we upsize,
                                 # so that we can make sure the upsized instance is ready to rock before it
                                 # sees any new clients.
+                                self.run_pre_resize_script(db_instances[id].instance.instanceId)
                                 db_instances[id].update_instance_type(self.new_instance_type, self.fallback_instances)
 
                                 # We need to make sure streaming has resumed before we say we are ready for clients
                                 db_instances[id].wait_till_replica_streaming()
+
+                                # Now that replication is working, we should be go to run the post-streaming script.
+                                self.run_post_streaming_script(db_instances[id].instance.instanceId)
 
                                 self.update_dns_entries(db_instances[id])
                                 aggregated_avg_load -= replica_avg_load
@@ -331,3 +343,63 @@ class RuleHelper:
             else:
                 message = e
             logger.info(f"running {script_path} {self.action} {zone_name} {dns_name} {target_address} {RECORD_TYPE} {replica_address} returned generic error: {message}")
+
+    def run_pre_resize_script(self, instance_id):
+        script_path = os.path.join(settings.BASE_DIR, "scripts", "pre-resize.sh")
+
+        try:
+            DB_CRED = DbCredentials.objects.get(description="AWS Secrets")
+            env_var = dict({
+                "AWS_ACCESS_KEY_ID": DB_CRED.user_name,
+                "AWS_SECRET_ACCESS_KEY": DB_CRED.password
+            })
+        except:
+            env_var = dict()
+
+        try:
+            logger.info(f"Running pre-resize hook for {instance_id}")
+            test = subprocess.check_output([script_path, instance_id], env=env_var)
+            if len(test) > 0:
+                logger.info(f"running {script_path} {instance_id} succeeded with non-empty result of {test}")
+            else:
+                logger.debug(f"running {script_path} {instance_id} succeeded")
+        except subprocess.CalledProcessError as e:
+            logger.info(f"running {script_path} {instance_id} returned: {e.returncode} ({e.output})")
+            raise e
+        except Exception as e:
+            if hasattr(e, 'message'):
+                message = e.message
+            else:
+                message = e
+            logger.info(f"running {script_path} {instance_id} returned generic error: {message}")
+            raise e
+
+    def run_post_streaming_script(self, instance_id):
+        script_path = os.path.join(settings.BASE_DIR, "scripts", "post-streaming.sh")
+
+        try:
+            DB_CRED = DbCredentials.objects.get(description="AWS Secrets")
+            env_var = dict({
+                "AWS_ACCESS_KEY_ID": DB_CRED.user_name,
+                "AWS_SECRET_ACCESS_KEY": DB_CRED.password
+            })
+        except:
+            env_var = dict()
+
+        try:
+            logger.info(f"Running post-streaming hook for {instance_id}")
+            test = subprocess.check_output([script_path, instance_id], env=env_var)
+            if len(test) > 0:
+                logger.info(f"running {script_path} {instance_id} succeeded with non-empty result of {test}")
+            else:
+                logger.debug(f"running {script_path} {instance_id} succeeded")
+        except subprocess.CalledProcessError as e:
+            logger.info(f"running {script_path} {instance_id} returned: {e.returncode} ({e.output})")
+            raise e
+        except Exception as e:
+            if hasattr(e, 'message'):
+                message = e.message
+            else:
+                message = e
+            logger.info(f"running {script_path} {instance_id} returned generic error: {message}")
+            raise e

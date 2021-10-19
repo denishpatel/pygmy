@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# A post-replication hook for Pygmy to call, after streaming on a replica 
+# has resumed from a resize.
+
+# This script might re-enable monitoring, or re-enable automatic failover, 
+# or do anything else your environment requires.
+
+# Or it might simply say everything is great and nothing to see here, 
+# which is what it is currently doing.
+
+exit 0
