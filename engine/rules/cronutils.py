@@ -53,24 +53,24 @@ class CronUtil:
             retry_rule_comment = CronUtil.build_retry_rule_comment(rule.id)
             try:
                 # Update Crontab jobs
-                cron = CronTab(user=getpass.getuser())
                 if int(attempt) == 1:
+                    cron = CronTab(user=getpass.getuser())
                     logger.debug("making an entry for our first retry")
                     job = cron.new(
                         command=f"{settings.BASE_DIR}/venv/bin/python {settings.BASE_DIR}/manage.py apply_rule {rule.id}",
                         comment=retry_rule_comment)
                     job.minute.every(retry_after)
+                    cron.write()
                 else:
                     logger.debug(f"This was our {ordinal(attempt)} attempt ({ordinal(attempt-1)} retry)")
 
                 # If this was one attempt too many, give up.
                 # Technically "retries" are attempts *after* the first attempt, so use > instead of the >= comparison you might have expected.
                 if int(attempt) > int(max_retry):
-                    logger.warn(f"{attempt} is one failure too far; removing all cronjobs with comment {retry_rule_comment}")
+                    logger.warn(f"{attempt} is one failure too far!")
                     CronUtil.delete_retry_cron(rule.id)
                 else:
                     logger.debug(f"attempt {attempt} vs max_retry {max_retry}")
-                cron.write()
             except Exception as e:
                 logger.error(f"Got an exception: {e}")
         else:
@@ -81,7 +81,9 @@ class CronUtil:
     def delete_retry_cron(rule_id):
         cron = CronTab(user=getpass.getuser())
         retry_rule_comment = CronUtil.build_retry_rule_comment(rule_id)
+        logger.warn(f"removing all cronjobs with comment {retry_rule_comment}")
         cron.remove_all(comment=retry_rule_comment)
+        cron.write()
 
 
     @staticmethod
