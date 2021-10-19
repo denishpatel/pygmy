@@ -15,6 +15,7 @@ class RuleHelper:
     def __init__(self, rule):
         self.rule = rule
         self.rule_json = rule.rule
+        self.any_conditions = True if rule.rule_logic == "ANY" else False
         self.action = rule.action  # SCALE_DOWN or SCALE_UP
         self.cluster = rule.cluster
         self.cluster_type = rule.cluster.type
@@ -40,7 +41,7 @@ class RuleHelper:
             rule_db = Rules()
 
         # name, rule_type, cluster_id, time, ec2_type, rds_type
-        rules = {
+        new_rule = {
             "ec2_type": data.get("ec2_type", None),
             "rds_type": data.get("rds_type", None)
         }
@@ -48,7 +49,7 @@ class RuleHelper:
         # Set replication check
         enableReplicationLag = data.get("enableReplicationLag", None)
         if enableReplicationLag and enableReplicationLag == "on":
-            rules.update({
+            new_rule.update({
                 "replicationLag": dict({
                     "op": data.get("selectReplicationLagOp", None),
                     "value": data.get("replicationLag", None)
@@ -58,7 +59,7 @@ class RuleHelper:
         # Set Connection check
         enableCheckConnection = data.get("enableCheckConnection", None)
         if enableCheckConnection and enableCheckConnection == "on":
-            rules.update({
+            new_rule.update({
                 "checkConnection": dict({
                     "op": data.get("selectCheckConnectionOp", None),
                     "value": data.get("checkConnection", None)
@@ -68,7 +69,7 @@ class RuleHelper:
         # Set Average Load check
         enableAverageLoad = data.get("enableAverageLoad", None)
         if enableAverageLoad and enableAverageLoad == "on":
-            rules.update({
+            new_rule.update({
                 "averageLoad": dict({
                     "op": data.get("selectAverageLoadOp", None),
                     "value": data.get("averageLoad", None)
@@ -78,13 +79,14 @@ class RuleHelper:
         # Set Retry settings
         enableRetry = data.get("enableRetry", None)
         if enableRetry and enableRetry == "on":
-            rules.update({
+            new_rule.update({
                 "retry": dict({
                     "retry_after": data.get("retryAfter", 15),
                     "retry_max": data.get("retryMax", 3)
                 })
             })
 
+        rule_db.rule_logic = data.get("conditionLogic", "ALL")
         rule_db.name = data.get("name", None)
         rule_db.action = data.get("action", None)
         rule_db.cluster_id = data.get("cluster_id", None)
@@ -98,7 +100,7 @@ class RuleHelper:
             rule_db.run_type = CRON
             rule_db.run_at = data.get("cronTime", None)
 
-        rule_db.rule = rules
+        rule_db.rule = new_rule
         rule_db.save()
         CronUtil.create_cron(rule_db)
         cls.create_reverse_rule(data, rule_db)
@@ -172,24 +174,37 @@ class RuleHelper:
     def __apply_rule(self, attempt):
         db_instances = dict()
         db_avg_load = dict()
+        db_successes = dict()
         all_good = False
         try:
             for db in self.secondary_dbs:
+                db_successes[db.id] = 0
                 helper = DbHelper(db)
                 logger.debug(f"Adding instance {db.instance_id} ({helper.instance.instanceType}) to secondaries")
                 try:
-                    helper.check_replication_lag(self.rule_json)
+                    helper.check_replication_lag(self.rule_json, self.any_conditions)
+                    db_successes[db.id] += 1
                 except:
-                    logger.warn(f"skipping {db.instance_id} because it failed a replication lag check")
-                    next
+                    if self.any_conditions:
+                        logger.info(f"{db.instance_id} failed a replication lag check but we are using OR logic ({db_successes[db.id]} other successes)")
+                    else:
+                        logger.warn(f"skipping {db.instance_id} because it failed a replication lag check")
+                        next
                 try:
-                    helper.check_connections(self.rule_json)
+                    if self._is_cluster_managed:
+                        self.check_specific_connections(helper)
+                    else:
+                        helper.check_connections(self.rule_json, self.any_conditions)
+                    db_successes[db.id] += 1
                 except:
-                    logger.warn(f"skipping {db.instance_id} because it failed an active connection count check")
-                    next
-                # helper.check_active_user_connections()
-                db_instances[db.id] = helper
-                db_avg_load[db.id] = helper.get_system_load_avg()
+                    if self.any_conditions:
+                        logger.info(f"{db.instance_id} failed a connection count check but we are using OR logic ({db_successes[db.id]} other successes)")
+                    else:
+                        logger.warn(f"skipping {db.instance_id} because it failed an active connection count check")
+                        next
+                if (self.any_conditions and db_successes[db.id] > 0) or db_successes[db.id] == 2:
+                    db_instances[db.id] = helper
+                    db_avg_load[db.id] = helper.get_system_load_avg()
             if len(db_instances) == 0:
                 raise Exception("No secondaries passed replication and active connection count checks.")
 
@@ -205,43 +220,49 @@ class RuleHelper:
                 for id, replica_avg_load in db_avg_load.items():
                     logger.info(f"Working on {db_instances[id].instance.instanceId} with a load of {replica_avg_load} using aggregated primary load of {aggregated_avg_load}")
                     try:
-                        if db_instances[id].check_average_load(self.rule_json, aggregated_avg_load):
-                            logger.info(f"combined load of {str(round(aggregated_avg_load + replica_avg_load,2))} compares with a managed target load of {str(self.cluster_mgmt.avg_load)}")
-                            self.__check_open_connections(db_instances[id])
-                            # We are good to proceed.
-                            if self.action == SCALE_DOWN:
-                                # If we are going to downsize, update our DNS entries before we downsize,
-                                # so that we can get load off of our replica(s) before resizing.
-                                self.update_dns_entries(db_instances[id])
-                                self.run_pre_resize_script(db_instances[id].instance.instanceId)
-                                db_instances[id].update_instance_type(self.new_instance_type, self.fallback_instances)
-                                aggregated_avg_load += replica_avg_load
-
-                                # Because we're scaling down and have moved load off of this node,
-                                # we don't need to wait for the client's sake that streaming has resumed before continuing.
-                                # But for the post-streaming script, which might get used to re-enable monitoring,
-                                # we should wait to make sure the replication is working again before we run it.
-                                db_instances[id].wait_till_replica_streaming()
-                                self.run_post_streaming_script(db_instances[id].instance.instanceId)
+                        try:
+                            db_instances[id].check_average_load(self.rule_json, self.any_conditions, aggregated_avg_load)
+                            logger.info(f"combined load of {str(round(aggregated_avg_load + replica_avg_load,2))} compares auspiciously with a managed target load of {str(self.cluster_mgmt.avg_load)}")
+                        except Exception as e:
+                            # if we didn't pass the load check, we might still be able to apply the rule...
+                            if self.any_conditions and db_successes[id] > 0:
+                                logger.debug(f"Load check failed, but we are running in logical OR mode and have {db_successes[id]} other check successes. Continuing!")
                             else:
-                                # If we are going to upsize, update our DNS entry after we upsize,
-                                # so that we can make sure the upsized instance is ready to rock before it
-                                # sees any new clients.
-                                self.run_pre_resize_script(db_instances[id].instance.instanceId)
-                                db_instances[id].update_instance_type(self.new_instance_type, self.fallback_instances)
+                                logger.info(f"Not going to resize because combined load of {str(round(aggregated_avg_load + replica_avg_load,2))} compares poorly with a managed target load of {str(self.cluster_mgmt.avg_load)}")
+                                raise e
 
-                                # We need to make sure streaming has resumed before we say we are ready for clients
-                                db_instances[id].wait_till_replica_streaming()
+                        # We are good to proceed.
+                        if self.action == SCALE_DOWN:
+                            # If we are going to downsize, update our DNS entries before we downsize,
+                            # so that we can get load off of our replica(s) before resizing.
+                            self.update_dns_entries(db_instances[id])
+                            self.run_pre_resize_script(db_instances[id].instance.instanceId)
+                            db_instances[id].update_instance_type(self.new_instance_type, self.fallback_instances)
+                            aggregated_avg_load += replica_avg_load
 
-                                # Now that replication is working, we should be go to run the post-streaming script.
-                                self.run_post_streaming_script(db_instances[id].instance.instanceId)
-
-                                self.update_dns_entries(db_instances[id])
-                                aggregated_avg_load -= replica_avg_load
-
-                            changed_replicas += 1
+                            # Because we're scaling down and have moved load off of this node,
+                            # we don't need to wait for the client's sake that streaming has resumed before continuing.
+                            # But for the post-streaming script, which might get used to re-enable monitoring,
+                            # we should wait to make sure the replication is working again before we run it.
+                            db_instances[id].wait_till_replica_streaming()
+                            self.run_post_streaming_script(db_instances[id].instance.instanceId)
                         else:
-                            logger.info(f"Not going to resize because combined load of {str(round(aggregated_avg_load + replica_avg_load,2))} compares with a managed target load of {str(self.cluster_mgmt.avg_load)}")
+                            # If we are going to upsize, update our DNS entry after we upsize,
+                            # so that we can make sure the upsized instance is ready to rock before it
+                            # sees any new clients.
+                            self.run_pre_resize_script(db_instances[id].instance.instanceId)
+                            db_instances[id].update_instance_type(self.new_instance_type, self.fallback_instances)
+
+                            # We need to make sure streaming has resumed before we say we are ready for clients
+                            db_instances[id].wait_till_replica_streaming()
+
+                            # Now that replication is working, we should be go to run the post-streaming script.
+                            self.run_post_streaming_script(db_instances[id].instance.instanceId)
+
+                            self.update_dns_entries(db_instances[id])
+                            aggregated_avg_load -= replica_avg_load
+
+                        changed_replicas += 1
                     except Exception as e:
                         logger.info(f"Not going to resize because {e}")
 
@@ -250,8 +271,8 @@ class RuleHelper:
             else:
                 logger.info(f"Managed cluster is {self._is_cluster_managed} and avg_load is {self.cluster_mgmt.avg_load}")
                 for id, helper in db_instances.items():
-                    helper.check_average_load(self.rule_json)
-                    self.__check_open_connections(helper)
+                    helper.check_average_load(self.rule_json, self.any_conditions, self.any_conditions)
+                    helper.check_connections(self.rule_json, self.any_conditions)
                     helper.update_instance_type(self.new_instance_type, self.fallback_instances)
                     self.update_dns_entries(helper)
             all_good = True
@@ -266,21 +287,21 @@ class RuleHelper:
         try:
             for db in self.secondary_dbs:
                 db_helper = DbHelper(db)
-                self.__check_open_connections(db_helper)
+                db_helper.check_connections(self.rule_json, self.any_conditions)
                 db_helper.update_instance_type(db.last_instance_type, self.fallback_instances)
                 self.update_dns_entries(db_helper)
         except Exception as e:
             logger.error("Reverse #Rule {}: Failed to apply", self.rule.id)
             CronUtil.set_retry_cron(self.rule, attempt)
 
-    def __check_open_connections(self, db_helper):
-        if self.action == SCALE_DOWN:
-            if self.cluster_mgmt and self.cluster_mgmt.check_active_users:
-                users = self.cluster_mgmt.check_active_users
-                active_connections = db_helper.get_no_of_connections(users)
-                if active_connections > 0:
-                    logger.error("{} active connections are open for users {}".format(active_connections, users))
-                    raise Exception("There are active connections from {} users.".format(str(users)))
+    def check_specific_connections(self, db_helper):
+        if self.cluster_mgmt and self.cluster_mgmt.check_active_users:
+            users = self.cluster_mgmt.check_active_users
+            active_connections = db_helper.count_user_connections(users)
+            db_helper.check_connections(self.rule_json, self.any_conditions, connections=active_connections)
+        else:
+            # If we don't have this rule, then if we are running our checks logically or'd, we should return False.
+            return not self.any_conditions            
         return True
 
     def update_dns_entries(self, helper):

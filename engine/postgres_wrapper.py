@@ -122,25 +122,25 @@ class PostgresData:
         logger.debug("Result of get system avg load: " + str(result))
         return result
 
-    def get_no_of_active_connections(self):
+    def count_all_active_connections(self):
         """
         Return number of active connections
         """
         query = "select datname,usename,application_name,state,count(*) as connection_count from pg_stat_activity "\
                 "where datname !='postgres' group by 1,2,3,4;"
         result = self.execute_and_return_data(query)
-        logger.debug("Result of get active connections: " + str(result))
+        logger.debug("Result of count all active connections: " + str(result))
         if len(result) > 0:
             return result[0][4]
         else:
             return 0
 
-    def get_user_open_connections_postgres(self, usernames):
+    def count_specific_active_connections(self, usernames):
         """
-        Kills the connections except sent it usernames
+        Count user connections for specific users
         """
-        user_lst = list(map(lambda x: "usename like '{}'".format(x), usernames))
-        user_query = " or ".join(user_lst)
+        user_list = list(map(lambda x: "usename like '{}'".format(x), usernames))
+        user_query = " or ".join(user_list)
 
         query = "SELECT count(*) FROM pg_stat_activity WHERE state in ('active', 'idle in transaction') AND ({})".format(user_query)
         logger.debug("Query for user open connections: " + str(query))

@@ -21,6 +21,8 @@ SCALE_DOWN = "SCALE_DOWN"
 SCALE_UP = "SCALE_UP"
 DAILY = "DAILY"
 CRON = "CRON"
+ALL = "ALL"
+ANY = "ANY"
 
 CLUSTER_TYPES = (
     (EC2, "EC2"),
@@ -30,6 +32,11 @@ CLUSTER_TYPES = (
 RuleType = (
     (SCALE_DOWN, "SCALE_DOWN"),
     (SCALE_UP, "SCALE_UP")
+)
+
+RuleLogic = (
+    (ALL, "ALL"),
+    (ANY, "ANY")
 )
 
 RunType = (
@@ -251,6 +258,7 @@ class Rules(models.Model):
     working_pid = models.IntegerField(null=True)
     last_started = models.DateTimeField(null=True)
     attempts = models.IntegerField(default=0)
+    rule_logic = models.CharField(choices=RuleLogic, max_length=4, default="ALL")
 
     class Meta:
         unique_together = ["cluster", "rule"]

@@ -51,7 +51,7 @@ class DbHelper:
             logger.info("Replica not yet streaming; sleeping for 5 seconds")
             time.sleep(5)
 
-    def check_replication_lag(self, rule_json):
+    def check_replication_lag(self, rule_json, any_conditions):
         replication_lag_rule = rule_json.get("replicationLag", None)
         if replication_lag_rule:
             replication_lag = self.db_conn().get_replication_lag()
@@ -61,9 +61,17 @@ class DbHelper:
                 logger.info("Replication lag to check {} actual {}".format(replication_lag_rule.get("value"),
                                                                            replication_lag))
                 return self._check_value(replication_lag_rule, replication_lag, msg="Replication Lag")
+        else:
+            # If we haven't bothered to define a check condition for this metric, 
+            # then if we are running our checks logically or'd, we should return False, 
+            # because in that case we care very much if any of the things we *did* define succeeds.
+            # If we are running logically and'd, we are instead likely looking for things that fail, 
+            # so when running that way, return True in the absence of a definition.
+            if any_conditions:
+                raise Exception("No replication lag clause defined and running checks in ANY mode")
         return True
 
-    def check_average_load(self, rule_json, offset=0):
+    def check_average_load(self, rule_json, any_conditions, offset=0):
         rule = rule_json.get("averageLoad", None)
         if rule:
             avg_load = self.db_conn().get_system_load_avg()
@@ -72,17 +80,37 @@ class DbHelper:
             else:
                 logger.info(f"Avg load threshold {rule.get('value')}, actual {avg_load}, offset {offset}")
                 return self._check_value(rule, avg_load+offset, msg="Average load")
+        else:
+            # If we haven't bothered to define a check condition for this metric, 
+            # then if we are running our checks logically or'd, we should return False, 
+            # because in that case we care very much if any of the things we *did* define succeeds.
+            # If we are running logically and'd, we are instead likely looking for things that fail, 
+            # so when running that way, return True in the absence of a definition.
+            if any_conditions:
+                raise Exception("No average load clause defined and running checks in ANY mode")
         return True
 
-    def check_connections(self, rule_json):
+    def check_connections(self, rule_json, any_conditions, connections=None):
         rule = rule_json.get("checkConnection", None)
         if rule:
-            active_connections = self.db_conn().get_no_of_active_connections()
+            if connections is None:
+                active_connections = self.db_conn().count_all_active_connections()
+            else:
+                active_connections = connections
+
             if active_connections is None:
                 raise Exception("Could not get active connection count")
             else:
                 logger.info("No of active connections to check {} actual {}".format(rule.get("value"), active_connections))
                 return self._check_value(rule, active_connections, msg="Check Connection")
+        else:
+            # If we haven't bothered to define a check condition for this metric, 
+            # then if we are running our checks logically or'd, we should return False, 
+            # because in that case we care very much if any of the things we *did* define succeeds.
+            # If we are running logically and'd, we are instead likely looking for things that fail, 
+            # so when running that way, return True in the absence of a definition.
+            if any_conditions:
+                raise Exception("No connection check clause defined and running checks in ANY mode")
         return True
 
     def _check_value(self, rule, value, msg=None):
@@ -111,8 +139,8 @@ class DbHelper:
     def get_supported_types(self):
         return self.table.get_instances_types()
 
-    def get_no_of_connections(self, users):
-        return self.db_conn().get_user_open_connections_postgres(users)
+    def count_user_connections(self, users):
+        return self.db_conn().count_specific_active_connections(users)
 
     def update_instance_type(self, instance_type, fallback_instances=[]):
         if instance_type == self.instance.instanceType:
