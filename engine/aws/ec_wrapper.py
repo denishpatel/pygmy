@@ -6,7 +6,7 @@ from django.conf import settings
 from engine.singleton import Singleton
 from webapp.models import Settings as SettingsModal
 import logging
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 class EC2Service(AWSServices, metaclass=Singleton):
@@ -117,6 +117,18 @@ class EC2Service(AWSServices, metaclass=Singleton):
 
         logger.info(f"modified {ec2_instance_id} to be {new_instance_type}")
 
+        # Record the new instance size.
+        # Not _technically_ necessary, as it will refresh on the next run anyway,
+        # but if anybody looks at the db in the meantime, it know it no longer represents reality.
+        try:
+            logger.debug(f"Recording new instance size of {new_instance_type}.")
+            resizedNode = Ec2DbInfo.objects.get(instance_id=ec2_instance_id)
+            resizedNode.last_instance_type = new_instance_type
+            resizedNode.save()
+        except Exception as e:
+            logger.warning(f"Failed to record new instance size, so we'll just keep going and pick it up when the next run starts.")
+
+
         # Start the instance
         self.ec2_client.start_instances(InstanceIds=[ec2_instance_id])
         waiter = self.ec2_client.get_waiter('instance_running')
@@ -124,7 +136,7 @@ class EC2Service(AWSServices, metaclass=Singleton):
         logger.info(f"started {ec2_instance_id}")
         return True
 
-    def get_instances(self):
+    def get_instances(self,extra_filters=None):
         all_instances = dict()
         TAG_KEY_NAME = SettingsModal.objects.get(name="EC2_INSTANCE_POSTGRES_TAG_KEY_NAME")
         TAG_KEY_VALUE = SettingsModal.objects.get(name="EC2_INSTANCE_POSTGRES_TAG_KEY_VALUE")
@@ -136,8 +148,12 @@ class EC2Service(AWSServices, metaclass=Singleton):
                 'Name': 'instance-state-name',
                 'Values': ['running']
             }]
+        if extra_filters is not None:
+            filters.extend(extra_filters)
 
-        # First describe instance
+        logger.debug(f"Looking to get instances to match the filters {filters}")
+
+        # First describe instances
         for region in AWSServices.get_enabled_regions():
             all_pg_ec2_instances = self.ec2_client_region_dict[region].describe_instances(
                 Filters=filters
@@ -147,7 +163,7 @@ class EC2Service(AWSServices, metaclass=Singleton):
                 # For handling pagination
                 for reservation in all_pg_ec2_instances.get("Reservations", []):
                     for instance in reservation.get("Instances", []):
-                        print(instance)
+                        logger.debug(f"found instance {instance['InstanceId']} ({instance['InstanceType']})")
                         all_instances[instance["InstanceId"]] = dict({
                             "instance_id": instance["InstanceId"],
                             "region": region,
@@ -175,25 +191,33 @@ class EC2Service(AWSServices, metaclass=Singleton):
 
         self.update_last_sync_time()
 
-        # Update Cluster Info
-        for instance in AllEc2InstancesData.objects.all():
+        # Update Cluster Info for the instances we've selected
+        for instance in AllEc2InstancesData.objects.filter(instanceId__in=all_instances.keys()):
             self.check_cluster_info(instance)
         return all_instances
 
     def check_cluster_info(self, instance):
-        db, created = Ec2DbInfo.objects.get_or_create(instance_id=instance.instanceId, type=EC2)
+        logger.debug(f"Checking cluster info for instance {instance.instanceId} ({instance.instanceType})")
+        try:
+            db = Ec2DbInfo.objects.get(instance_id=instance.instanceId)
+        except Exception as e:
+            logger.info(f"Instance {instance.instanceId} appears new to us: {e}")
+            # Because we don't have this yet, go ahead and create it. In the unlikely event that it fails,
+            # we'll just fail to run for now.
+            db, created = Ec2DbInfo.objects.get_or_create(instance_id=instance.instanceId, type=EC2, last_instance_type=instance.instanceType)
         db.instance_object = instance
-        db.last_instance_type = instance.instanceType
         try:
             conn = self.create_connection(db)
             db.isPrimary = conn.is_ec2_postgres_instance_primary()
             db.isConnected = True
 
             if db.isPrimary:
+                logger.debug(f"This cluster's primary node is currently {instance.instanceId}")
                 db.cluster = self.get_or_create_cluster(instance, instance.privateIpAddress)
                 replicas = conn.get_all_slave_servers()
                 self.update_replica_cluster_info(instance.privateIpAddress, replicas)
         except Exception as e:
+            logger.error(f"Ruh oh, looks like we found an exception checking out {instance.instanceId}: {e}")
             db.isPrimary = False
             db.isConnected = False
         finally:
@@ -204,8 +228,15 @@ class EC2Service(AWSServices, metaclass=Singleton):
 
     def update_replica_cluster_info(self, private_dns_name, replicas):
         for node in replicas:
+            logger.debug(f"node {node}")
             instance = AllEc2InstancesData.objects.get(privateIpAddress=node)
-            db_info, created = Ec2DbInfo.objects.get_or_create(instance_id=instance.instanceId, type=EC2)
+            try:
+                db_info = Ec2DbInfo.objects.get(instance_id=instance.instanceId)
+            except Exception as e:
+                logger.info(f"Instance {instance.instanceId} appears new to us: {e}")
+                # Because we don't have this yet, go ahead and create it. In the unlikely event that it fails,
+                # we'll just fail to run for now.
+                db_info, created = Ec2DbInfo.objects.get_or_create(instance_id=instance.instanceId, type=EC2, last_instance_type=instance.instanceType)
             db_info.cluster = ClusterInfo.objects.get(primaryNodeIp=private_dns_name, type=EC2)
             db_info.content_object = instance
             db_info.save()

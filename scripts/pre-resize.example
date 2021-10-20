@@ -1,0 +1,75 @@
+#!/bin/bash
+
+# A pre-resize hook for Pygmy to gag monitoring alerts before an instance is shut down for resize.
+# Assumptions baked in:
+# - monitoring alerts are controlled with a tool called dd-cli.py
+# - dd-cli.py should not run in pygmy's virtualenv, so call it in a hacky way
+# - EC2 instances have are tagged in a way that lets us derive their hostname
+
+# Set to 0 to not be too noisy
+# 1 to be verbose
+# 2 to figure out what broke
+debug=0
+
+# Given a short hostname and the project/env/region we know about this db cluster, build up the hostname
+build_target_hostname()
+{
+  hostname="${SHORTNAME}.${PROJECT}"
+  [[ "${PROJECT}" == "snowflake" ]] && [[ "${PROJECT_ENV}" == "prod" ]] || hostname="${hostname}-${PROJECT_ENV:0:4}"
+  hostname="${hostname}.${REGION}.example.com"
+
+  echo "$hostname"
+}
+
+
+if [ $# -ne 1 ]
+then
+  echo "Usage: $0 <INSTANCE_ID>"
+  exit 1
+fi
+
+# We know that we will have one pygmy server per region, so just pull the region we will need from
+# /etc/server-meta-info that we will happen to have on our pygmy server
+# keep shellcheck happy
+smi_aws_region=""
+# shellcheck disable=SC1091
+. /etc/server-meta-info
+REGION="${smi_aws_region}"
+(( debug > 0 )) && echo "Region: ${REGION}"
+
+INSTANCE_ID=$1
+output="$(aws ec2 --region "${REGION}" describe-instances --instance-ids "${INSTANCE_ID}" 2>&1)"
+status=$?
+
+if (( status != 0 ))
+then
+  echo "Invalid instance-id caused aws ec2 to return ${status}: ${output}"
+  exit 2
+fi
+
+CLUSTER="$(echo "${output}" | jq -r 'def getTag(t): .Tags[]|select(.Key==t)|.Value;.Reservations[].Instances[] | getTag("Cluster")')"
+(( debug > 0 )) && echo "Cluster: ${CLUSTER}"
+
+PROJECT="$(echo "${output}" | jq -r 'def getTag(t): .Tags[]|select(.Key==t)|.Value;.Reservations[].Instances[] | getTag("Project")')"
+(( debug > 0 )) && echo "Project: ${PROJECT}"
+
+PROJECT_ENV="$(echo "${output}" | jq -r 'def getTag(t): .Tags[]|select(.Key==t)|.Value;.Reservations[].Instances[] | getTag("Environment")')"
+(( debug > 0 )) && echo "Environment: ${PROJECT_ENV}"
+
+SHORTNAME="$(echo "${output}" | jq -r 'def getTag(t): .Tags[]|select(.Key==t)|.Value;.Reservations[].Instances[] | getTag("Name")')"
+(( debug > 0 )) && echo "Environment: ${SHORTNAME}"
+
+TARGET_HOSTNAME=$(build_target_hostname)
+(( debug > 1 )) && echo "Full hostname: ${TARGET_HOSTNAME}"
+
+# OK, we have all our variables set. Let's do some work.
+output=$(/usr/bin/python3 /usr/local/bin/dd-cli.py mute "${TARGET_HOSTNAME}" --why="Pygmy taking it down" --minutes=10 2>&1)
+status=$?
+
+if (( status != 0 ))
+then
+  echo "Failed to mute ${TARGET_HOSTNAME} because dd-cli returned ${status}: ${output}"
+  exit 3
+fi
+
+exit 0

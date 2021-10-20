@@ -89,20 +89,28 @@ $ python manage.py createsuperuser
 ```
 
 Pygmy will scan instances which have following Tag-Value set
+```shell
 "EC2_INSTANCE_POSTGRES_TAG_KEY_NAME": "Role"
 "EC2_INSTANCE_POSTGRES_TAG_KEY_VALUE": "PostgreSQL"
 "EC2_INSTANCE_PROJECT_TAG_KEY_NAME": "Project"
 "EC2_INSTANCE_ENV_TAG_KEY_NAME": "Environment"
 "EC2_INSTANCE_CLUSTER_TAG_KEY_NAME": "Cluster"
+```
 
 Load instance data
 ```shell
 $ python manage.py get_all_db_data
 ```
 
-Make a DNS script at scripts/dns-change.sh
-- Copy one of the existing scripts in scripts
+Make DNS, pre-resize, and post-streaming scripts at `scripts/{dns-change,pre-resize,post-streaming}.sh`
+- `dns-change.sh` will be used to modify DNS before and after resize.
+- `pre-resize.sh` will be called before a replica is resized. You might use this to gag your monitoring or give your auto-failover logic a xanax.
+- `post-streaming.sh` will be called after a replica has been resized *and* has resumed streaming replication. You might use this to undo the effects of `pre-resize.sh`.
+
+- Copy one of the existing example scripts in scripts
 - Roll your own
+- Remember to make them executable
+
 
 Start local server ( Testing only )
 ```shell

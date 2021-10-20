@@ -218,7 +218,6 @@ LOGGING = {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
-            'level': 'INFO',
         },
         'pygmyLogs': {
             'class': 'logging.handlers.RotatingFileHandler',
@@ -226,10 +225,8 @@ LOGGING = {
             'backupCount': 5,
             'formatter': 'simple',
             'filename': os.path.join(BASE_DIR, 'logs', 'error.log'),
-            'level': 'INFO',
         },
         'db_log': {
-            'level': 'DEBUG',
             'class': 'pygmy.db_logger.DBHandler'
         },
     },

@@ -21,6 +21,8 @@ SCALE_DOWN = "SCALE_DOWN"
 SCALE_UP = "SCALE_UP"
 DAILY = "DAILY"
 CRON = "CRON"
+ALL = "ALL"
+ANY = "ANY"
 
 CLUSTER_TYPES = (
     (EC2, "EC2"),
@@ -30,6 +32,11 @@ CLUSTER_TYPES = (
 RuleType = (
     (SCALE_DOWN, "SCALE_DOWN"),
     (SCALE_UP, "SCALE_UP")
+)
+
+RuleLogic = (
+    (ALL, "ALL"),
+    (ANY, "ANY")
 )
 
 RunType = (
@@ -82,7 +89,7 @@ class DbCredentials(models.Model):
 
 class Ec2DbInfo(models.Model):
     instance_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True)
-    instance_id = models.CharField(max_length=255)
+    instance_id = models.CharField(max_length=255, unique=True)
     instance_object = GenericForeignKey('instance_type', 'instance_id')
     isPrimary = models.BooleanField(default=False)
     cluster = models.ForeignKey(ClusterInfo, on_delete=models.DO_NOTHING, null=True, related_name="instance")
@@ -90,7 +97,7 @@ class Ec2DbInfo(models.Model):
     isConnected = models.BooleanField(default=False)
     lastUpdated = models.DateTimeField(auto_now=True)
     type = models.CharField(choices=CLUSTER_TYPES, max_length=30)
-    last_instance_type = models.CharField(max_length=255, null=True)
+    last_instance_type = models.CharField(max_length=64, null=False)
 
     def __repr__(self):
         return "<Ec2DbInfo instance_type:%s instance_id:%s instance_object:%s isPrimary:%s cluster:%s dbName:%s isConnected:%s lastUpdated:%s type:%s last_instance_type:%s>" % (self.instance_type, self.instance_id, self.instance_object, self.isPrimary, self.cluster, self.dbName, self.isConnected, self.lastUpdated, self.type, self.last_instance_type)
@@ -248,6 +255,10 @@ class Rules(models.Model):
     err_msg = models.CharField(max_length=255, null=True)
     last_run = models.DateTimeField(auto_created=True, null=True)
     parent_rule = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True, related_name="child_rule")
+    working_pid = models.IntegerField(null=True)
+    last_started = models.DateTimeField(null=True)
+    attempts = models.IntegerField(default=0)
+    rule_logic = models.CharField(choices=RuleLogic, max_length=4, default="ALL")
 
     class Meta:
         unique_together = ["cluster", "rule"]
