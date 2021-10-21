@@ -283,7 +283,7 @@ class RuleHelper:
             if not all_good:
                 CronUtil.set_retry_cron(self.rule, attempt)
 
-    def reverse_rule(self):
+    def reverse_rule(self, attempt):
         try:
             for db in self.secondary_dbs:
                 db_helper = DbHelper(db)
