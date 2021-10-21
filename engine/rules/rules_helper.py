@@ -206,7 +206,10 @@ class RuleHelper:
                     db_instances[db.id] = helper
                     db_avg_load[db.id] = helper.get_system_load_avg()
             if len(db_instances) == 0:
-                raise Exception("No secondaries passed replication and active connection count checks.")
+                if self.any_conditions:
+                    raise Exception("No secondaries passed replication or active connection count checks.")
+                else:
+                    raise Exception("No secondaries passed replication and active connection count checks.")
 
             logger.debug(f"Primary DB is {self.primary_dbs[0].instance_id}")
             # Check cluster load
