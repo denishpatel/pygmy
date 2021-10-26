@@ -240,7 +240,7 @@ class RuleHelper:
                             # so that we can get load off of our replica(s) before resizing.
                             self.update_dns_entries(db_instances[id])
                             self.run_pre_resize_script(db_instances[id].instance.instanceId)
-                            db_instances[id].update_instance_type(self.new_instance_type, self.fallback_instances)
+                            db_instances[id].update_instance_type(self.new_instance_type, self.fallback_instances, self.rule.id)
                             aggregated_avg_load += replica_avg_load
 
                             # Because we're scaling down and have moved load off of this node,
@@ -254,7 +254,7 @@ class RuleHelper:
                             # so that we can make sure the upsized instance is ready to rock before it
                             # sees any new clients.
                             self.run_pre_resize_script(db_instances[id].instance.instanceId)
-                            db_instances[id].update_instance_type(self.new_instance_type, self.fallback_instances)
+                            db_instances[id].update_instance_type(self.new_instance_type, self.fallback_instances, self.rule.id)
 
                             # We need to make sure streaming has resumed before we say we are ready for clients
                             db_instances[id].wait_till_replica_streaming()
@@ -276,7 +276,7 @@ class RuleHelper:
                 for id, helper in db_instances.items():
                     helper.check_average_load(self.rule_json, self.any_conditions, self.any_conditions)
                     helper.check_connections(self.rule_json, self.any_conditions)
-                    helper.update_instance_type(self.new_instance_type, self.fallback_instances)
+                    helper.update_instance_type(self.new_instance_type, self.fallback_instances, self.rule.id)
                     self.update_dns_entries(helper)
             all_good = True
         except Exception as e:
@@ -291,7 +291,7 @@ class RuleHelper:
             for db in self.secondary_dbs:
                 db_helper = DbHelper(db)
                 db_helper.check_connections(self.rule_json, self.any_conditions)
-                db_helper.update_instance_type(db.last_instance_type, self.fallback_instances)
+                db_helper.update_instance_type(db.last_instance_type, self.fallback_instances, self.rule.id)
                 self.update_dns_entries(db_helper)
         except Exception as e:
             logger.error("Reverse #Rule {}: Failed to apply", self.rule.id)

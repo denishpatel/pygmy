@@ -52,8 +52,10 @@ class EC2Service(AWSServices, metaclass=Singleton):
         return None
 
     def start_instance(self, instance):
-        self.ec2_client.start_instances(InstanceIds=[instance.instanceId])
-        return self.wait_till_status_up(instance)
+        self.ec2_client.start_instances(InstanceIds=[instance])
+        waiter = self.ec2_client.get_waiter('instance_running')
+        waiter.wait(InstanceIds=[instance])
+        logger.info(f"started {instance}")
 
     def get_instance_types(self, **kwargs):
         all_instance_types = []
@@ -130,10 +132,7 @@ class EC2Service(AWSServices, metaclass=Singleton):
 
 
         # Start the instance
-        self.ec2_client.start_instances(InstanceIds=[ec2_instance_id])
-        waiter = self.ec2_client.get_waiter('instance_running')
-        waiter.wait(InstanceIds=[ec2_instance_id])
-        logger.info(f"started {ec2_instance_id}")
+        self.start_instance(ec2_instance_id)
         return True
 
     def get_instances(self,extra_filters=None):

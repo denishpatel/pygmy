@@ -128,27 +128,28 @@ class DbHelper:
             raise Exception("{} check failed".format(msg))
         return result
 
-    def scale_down_instance(self, instance_type):
-        logger.info(f"scaling down instance {self.id} to {instance_type}")
-        self.update_instance_type(instance_type, SCALE_DOWN)
-
-    def scale_up_instance(self, instance_type):
-        logger.info(f"scaling up instance {self.id} to {instance_type}")
-        self.update_instance_type(instance_type, SCALE_UP)
-
     def get_supported_types(self):
         return self.table.get_instances_types()
 
     def count_user_connections(self, users):
         return self.db_conn().count_specific_active_connections(users)
 
-    def update_instance_type(self, instance_type, fallback_instances=[]):
+    def update_instance_type(self, instance_type, fallback_instances=[], rule_id):
         if instance_type == self.instance.instanceType:
             logger.info(f"Not going to change instance type because {self.instance.instanceType} == {instance_type}")
             return
 
         logger.info(f"changing instance {self.instance.instanceId} from {self.instance.instanceType} to {instance_type}")
+
+        # Mark our intent to resize an cluster member
+        CronUtil.create_cron_intent(rule_id,self.instance.instanceId)
+
         self.aws.scale_instance(self.instance, instance_type, fallback_instances)
+
+        # Remove our intent, now that it is over.
+        # (The rule might still be in progress, but if we were to restart at this moment it should be close enough to idempotent.)
+        CronUtil.delete_cron_intent(rule_id)
+
         logger.info(f"Scaling {self.instance.instanceId} complete.")
 
     def get_endpoint_address(self):

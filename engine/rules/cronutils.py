@@ -36,6 +36,19 @@ class CronUtil:
 
             cron.write()
 
+
+    def create_cron_intent(rule,instance):
+        with advisory_lock(cron_lock_id) as acquired:
+            cron = CronTab(user=getpass.getuser())
+            cron.remove_all(comment="intent_{}".format(str(rule.id)))
+            job = cron.new(command="{0}/venv/bin/python {0}/manage.py apply_intent {1} {2}".format(settings.BASE_DIR, rule.id, instance),
+                           comment="intent_{}".format(rule.id))
+
+            # Run on reboot, in case we have crashed.
+            job.every_reboot()
+
+            cron.write()
+
     @staticmethod
     def build_retry_rule_comment(rule_id):
         return f"retry_rule_{rule_id}"
@@ -99,6 +112,16 @@ class CronUtil:
         with advisory_lock(cron_lock_id) as acquired:
             cron = CronTab(user=getpass.getuser())
             cron.remove_all(comment="rule_{}".format(rule.id))
+            cron.write()
+
+
+    @staticmethod
+    def delete_cron_intent(rule):
+        if sys.platform == "win32":
+            return
+        with advisory_lock(cron_lock_id) as acquired:
+            cron = CronTab(user=getpass.getuser())
+            cron.remove_all(comment="intent_{}".format(rule.id))
             cron.write()
 
     @staticmethod
