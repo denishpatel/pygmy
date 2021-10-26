@@ -19,4 +19,4 @@ application = get_wsgi_application()
 from engine.management.commands.populate_settings_data import Command
 # Populate settings
 # Command.populate_settings()
-reset_sync_process_on_restart()
+# reset_sync_process_on_restart()
