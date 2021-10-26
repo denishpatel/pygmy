@@ -205,6 +205,7 @@ class EC2Service(AWSServices, metaclass=Singleton):
             # we'll just fail to run for now.
             db, created = Ec2DbInfo.objects.get_or_create(instance_id=instance.instanceId, type=EC2, last_instance_type=instance.instanceType)
         db.instance_object = instance
+        logger.debug(f"Found Ec2DbInfo record with cluster_id {db.cluster_id}")
         try:
             conn = self.create_connection(db)
             db.isPrimary = conn.is_ec2_postgres_instance_primary()

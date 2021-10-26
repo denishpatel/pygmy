@@ -46,14 +46,10 @@ RunType = (
 
 
 class ClusterInfo(models.Model):
-    name = models.CharField(max_length=100, default=getClusterName)
+    name = models.CharField(max_length=100, default=getClusterName, unique=True)
     primaryNodeIp = models.CharField(max_length=100)
     databaseName = models.CharField(max_length=255, default="postgres")
     type = models.CharField(choices=CLUSTER_TYPES, max_length=30)
-
-    class Meta:
-        unique_together = ['primaryNodeIp', 'type']
-        index_together = ['primaryNodeIp', 'type']
 
     @property
     def clusterName(self):

@@ -7,8 +7,7 @@ from webapp.models import Settings, AWS_REGION
 from webapp.models import Settings as SettingsModal
 from engine.models import ClusterInfo, DbCredentials
 import logging
-
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class AWSServices:
@@ -29,13 +28,13 @@ class AWSServices:
             self.aws_session = boto3.Session(aws_access_key_id=cred.user_name, aws_secret_access_key=cred.password)
             sts = self.aws_session.client('sts')
             sts.get_caller_identity()
-            log.info("Successfully create AWS Session using DB Credentials")
+            logger.info("Successfully create AWS Session using DB Credentials")
         except:
             try:
                 self.aws_session = boto3.Session()
-                log.info("Creating AWS Session using default/env credentials")
+                logger.info("Creating AWS Session using default/env credentials")
             except:
-                log.error("Failed to create AWS Session using DB Credentials")
+                logger.error("Failed to create AWS Session using DB Credentials")
         self.ec2_client = self.aws_session.client('ec2', region_name=settings.DEFAULT_REGION)
         self.rds_client = self.aws_session.client('rds', region_name=settings.DEFAULT_REGION)
         for region in self.ec2_client.describe_regions()["Regions"]:
@@ -81,22 +80,29 @@ class AWSServices:
         setting.save()
 
     def get_cluster_name(self, tag_map):
+        # Ideally we'd like this to eventually be configurable, but for now, assume the cluster name will be 
+        # made out of tags Project-Environment-Cluster
         project = tag_map.get(settings.EC2_INSTANCE_PROJECT_TAG_KEY_NAME, None)
         environment = tag_map.get(settings.EC2_INSTANCE_ENV_TAG_KEY_NAME, None)
         cluster = tag_map.get(settings.EC2_INSTANCE_CLUSTER_TAG_KEY_NAME, None)
-        print("Tag values project:{} environment:{} cluster:{}".format(project, environment, cluster))
+        logger.debug("Tag values project:{} environment:{} cluster:{}".format(project, environment, cluster))
         if project and environment and cluster:
             return "{}-{}-{}".format(project, environment, cluster)
         else:
+            logger.error(f"Looks like we were missing a critical tag; Project={project}, Environment={environment}, Cluster={cluster}")
             return None
 
     def get_or_create_cluster(self, instance, primary_node_ip, databaseName="postgres"):
-        cluster, created = ClusterInfo.objects.get_or_create(primaryNodeIp=primary_node_ip, type=self.SERVICE_TYPE, databaseName=databaseName)
+        cluster_name = self.get_cluster_name(self.get_tag_map(instance))
+        cluster, created = ClusterInfo.objects.get_or_create(name=cluster_name, type=self.SERVICE_TYPE, databaseName=databaseName)
         if created:
-            cluster_name = self.get_cluster_name(self.get_tag_map(instance))
-            print("Cluster name ", cluster_name)
-            if cluster_name:
-                cluster.name = cluster_name
+            logger.debug(f"Created cluster name {cluster_name}")
+            cluster.primaryNodeIp = primary_node_ip
+            cluster.save()
+        else:
+            if cluster.primaryNodeIp != primary_node_ip:
+                logger.info(f"updating cluster's primaryNodeIp from {cluster.primaryNodeIp} to {primary_node_ip}")
+                cluster.primaryNodeIp = primary_node_ip
                 cluster.save()
         return cluster
 
