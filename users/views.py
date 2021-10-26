@@ -44,7 +44,8 @@ class ObtainAuthToken(APIView):
             encoding="application/json",
         )
 
-    @swagger_auto_schema(request_body=AuthTokenSerializer, responses={200: LoginResponseSerializer})
+    @swagger_auto_schema(operation_summary="Login API", tags=["Authentication"], request_body=AuthTokenSerializer,
+                         responses={200: LoginResponseSerializer})
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
@@ -70,7 +71,7 @@ class Register(generics.CreateAPIView):
 
 
 class Logout(APIView):
-
+    @swagger_auto_schema(operation_summary="Logout API", tags=["Authentication"])
     def get(self, request, format=None):
         # simply delete the token to force a login
         request.user.auth_token.delete()
@@ -96,7 +97,19 @@ class Profile(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
-    
+
+    @swagger_auto_schema(operation_summary="Get Profile Data API", tags=["Authentication"])
+    def get(self, request, *args, **kwargs):
+        return self.retrieve(request, *args, **kwargs)
+
+    @swagger_auto_schema(operation_summary="Update Profile API", tags=["Authentication"])
+    def patch(self, request, *args, **kwargs):
+        return self.partial_update(request, *args, **kwargs)
+
+    @swagger_auto_schema(operation_summary="Update Profile API", tags=["Authentication"])
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
     def update(self, request, *args, **kwargs):
         kwargs['partial'] = True
         return super(Profile, self).update(request, *args, **kwargs)

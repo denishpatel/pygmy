@@ -172,7 +172,7 @@ class ExceptionEditApiView(APIView):
             logger.error(e)
             return Response({"status": "Failed"}, status=500)
 
-    @swagger_auto_schema(tags=["Exceptions"])
+    @swagger_auto_schema(operation_description="partial_update description override", tags=["Exceptions"])
     def delete(self, request, id, **kwargs):
         exc_date = ExceptionData.objects.get(id=id)
         exc_date.delete()
@@ -201,7 +201,7 @@ class CreateDNSEntry(ListCreateAPIView):
         return DNSData.objects.all()
 
 
-class CreateClusterManagement(CreateAPIView, ListAPIView):
+class CreateClusterManagement(ListCreateAPIView):
     """
     Create Cluster Management
     """
@@ -209,6 +209,14 @@ class CreateClusterManagement(CreateAPIView, ListAPIView):
     authentication_classes = []
     permission_classes = []
     serializer_class = ClusterManagementSerializer
+
+    @swagger_auto_schema(operation_summary="Get all Cluster Management Data", tags=["Cluster Management"])
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+    @swagger_auto_schema(operation_summary="Create Cluster Management Rule", tags=["Cluster Management"])
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
 
 
 class EditClusterManagement(RetrieveUpdateDestroyAPIView):
