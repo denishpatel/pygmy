@@ -13,3 +13,4 @@ PyCryptodome==3.10.1
 djangorestframework-datatables==0.6.0
 django-filter==21.1
 uwsgi==2.0.20
+django-pglocks
