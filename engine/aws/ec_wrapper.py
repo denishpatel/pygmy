@@ -147,6 +147,8 @@ class EC2Service(AWSServices, metaclass=Singleton):
                 'Name': 'instance-state-name',
                 'Values': ['running']
             }]
+        if len(settings.EC2_INSTANCE_VPC_MENU) > 0:
+            filters.extend([{'Name': 'vpc-id', 'Values': settings.EC2_INSTANCE_VPC_MENU}])
         if extra_filters is not None:
             filters.extend(extra_filters)
 
@@ -207,6 +209,9 @@ class EC2Service(AWSServices, metaclass=Singleton):
         db.instance_object = instance
         logger.debug(f"Found Ec2DbInfo record with cluster_id {db.cluster_id}")
         try:
+            if len(settings.EC2_INSTANCE_VPC_MENU) > 0:
+                if instance.vpcId in settings.EC2_INSTANCE_VPC_MENU:
+                    return
             conn = self.create_connection(db)
             db.isPrimary = conn.is_ec2_postgres_instance_primary()
             db.isConnected = True

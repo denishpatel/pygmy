@@ -201,6 +201,10 @@ EC2_INSTANCE_PROJECT_TAG_KEY_NAME = "Project"
 EC2_INSTANCE_ENV_TAG_KEY_NAME = "Environment"
 EC2_INSTANCE_CLUSTER_TAG_KEY_NAME = "Cluster"
 
+# If you wish to restrict the instances Pygmy will find to a subset of VPCs available, enumerate them with EC2_INSTANCE_VPC_MENU
+# Leaving the array empty will let Pygmy search all VPCs it would normally find.
+EC2_INSTANCE_VPC_MENU = []
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
