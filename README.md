@@ -125,15 +125,17 @@ Start local server ( Testing only )
 $ python manage.py runserver
 ```
 
+Modify `uwsgi.sgi` as needed.
+
 Start uwsgi ( Production )
 ```sh
-$  nohup uwsgi proj.ini &
+$  nohup uwsgi uwsgi.ini &
 ```
 
 Restart uwsgi ( Production )
 ```sh
 $  pkill -9 uwsgi
-$  nohup uwsgi proj.ini &
+$  nohup uwsgi uwsgi.ini &
 ```
 ---
 ## API Cookbook
