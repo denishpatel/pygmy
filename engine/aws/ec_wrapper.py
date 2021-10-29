@@ -229,7 +229,7 @@ class EC2Service(AWSServices, metaclass=Singleton):
             db.save()
 
     def get_tag_map(self, instance):
-        return dict((tag['Key'], tag['Value'].lower()) for tag in instance.tags)
+        return dict((tag['Key'], tag['Value']) for tag in instance.tags)
 
     def update_replica_cluster_info(self, private_dns_name, replicas):
         for node in replicas:
