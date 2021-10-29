@@ -37,12 +37,12 @@ class CronUtil:
             cron.write()
 
 
-    def create_cron_intent(rule,instance):
+    def create_cron_intent(rule_id,instance):
         with advisory_lock(cron_lock_id) as acquired:
             cron = CronTab(user=getpass.getuser())
-            cron.remove_all(comment="intent_{}".format(str(rule.id)))
-            job = cron.new(command="{0}/venv/bin/python {0}/manage.py apply_intent {1} {2}".format(settings.BASE_DIR, rule.id, instance),
-                           comment="intent_{}".format(rule.id))
+            cron.remove_all(comment="intent_{}".format(str(rule_id)))
+            job = cron.new(command="{0}/venv/bin/python {0}/manage.py apply_intent {1} {2}".format(settings.BASE_DIR, rule_id, instance),
+                           comment="intent_{}".format(rule_id))
 
             # Run on reboot, in case we have crashed.
             job.every_reboot()
@@ -116,12 +116,12 @@ class CronUtil:
 
 
     @staticmethod
-    def delete_cron_intent(rule):
+    def delete_cron_intent(rule_id):
         if sys.platform == "win32":
             return
         with advisory_lock(cron_lock_id) as acquired:
             cron = CronTab(user=getpass.getuser())
-            cron.remove_all(comment="intent_{}".format(rule.id))
+            cron.remove_all(comment="intent_{}".format(rule_id))
             cron.write()
 
     @staticmethod
