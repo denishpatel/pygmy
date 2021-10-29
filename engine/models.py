@@ -23,6 +23,8 @@ DAILY = "DAILY"
 CRON = "CRON"
 ALL = "ALL"
 ANY = "ANY"
+MATCH_INSTANCE = "MATCH_INSTANCE"
+MATCH_ROLE = "MATCH_ROLE"
 
 CLUSTER_TYPES = (
     (EC2, "EC2"),
@@ -42,6 +44,11 @@ RuleLogic = (
 RunType = (
     (DAILY, "DAILY"),
     (CRON, "CRON")
+)
+
+DNS_MATCH_TYPES = (
+    (MATCH_INSTANCE, "MATCH_INSTANCE"),
+    (MATCH_ROLE, "MATCH_ROLE")
 )
 
 
@@ -302,7 +309,25 @@ class DNSData(models.Model):
     """
     hosted_zone_name = models.CharField(max_length=64)
     dns_name = models.CharField(max_length=128)
-    instance_id = models.OneToOneField(Ec2DbInfo, on_delete=models.CASCADE, related_name="dns_entry")
+    match_type = models.CharField(choices=DNS_MATCH_TYPES, max_length=20, null=False)
+    instance = models.ForeignKey(Ec2DbInfo, on_delete=models.CASCADE, null=True, blank=True)
+    cluster = models.ForeignKey(ClusterInfo, on_delete=models.CASCADE, null=True, blank=True)
+    tag_role = models.CharField(max_length=128, null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(check=(models.Q(match_type__exact=MATCH_INSTANCE) &
+                                                ~models.Q(instance__exact=None) &
+                                                models.Q(cluster__exact=None) &
+                                                models.Q(tag_role__exact=None)) |
+                                            (models.Q(match_type__exact=MATCH_ROLE) &
+                                                models.Q(instance__exact=None) &
+                                                ~models.Q(cluster__exact=None) &
+                                                ~models.Q(tag_role__exact=None)),
+                                        name="match_data_present"),
+            models.UniqueConstraint(fields=["cluster", "tag_role"],
+                                        name="unique_cluster_role")
+        ]
 
 
 class ClusterManagement(models.Model):

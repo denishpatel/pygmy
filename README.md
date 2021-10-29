@@ -236,26 +236,36 @@ curl -X POST http://127.0.0.1:8000/v1/api/cluster/management \
 >{"id":5,"avg_load":"2","fallback_instances_scale_up":["m5.24xlarge","m5.16xlarge"],"fallback_instances_scale_down":["m5.large","m5.xlarge"],"check_active_users":["project%","bench-rw"],"cluster_id":252}
 
 ### Make a DNS entries
+When Pygmy manipulates a db, it will also twiddle DNS to move load away from, or back to, that replica. We will need to record the CNAME that Pygmy will change, but _also_ record how Pygmy will find that CNAME when it is working on a specific db. Pygmy supports two ways of matching an actual instance it is working on to a DNS entry:
+* MATCH_INSTANCE is used when there is a static, 1:1 relationship between a CNAME and an instance. This is simple and works well when your DB instances won't change: for example, i-123456 will always host cluster3-replica.example.com.
+* MATCH_ROLE is used when you want any db node with a specific tag for a given cluster to use a CNAME. This works well when your DB nodes have some flux, or if multiple share the same CNAME. For example, if cluster3-replica.example.com is serviced by one or more DBs tagged as Secondary, and those DBs might be replaced over time, MATCH_ROLE will reliably change the DNS for them whenever Pygmy runs.
+
 ```sh
-for id in $(curl -s  http://127.0.0.1:8000/v1/api/instances | jq '.[] | select(.cluster == 249 and .isPrimary == 'false') | .id'); do
- curl -X POST http://127.0.0.1:8000/v1/api/dns \
+curl -X POST http://127.0.0.1:8000/v1/api/dns \
    -H "Content-Type: application/json" \
    -d '{
-          "instance_id": '$id', 
+          "match_type": "MATCH_ROLE",
+          "tag_role": "Slave",
+          "cluster": 249,
+          "instance_id": null,
           "dns_name": "cluster1-slave-rrdns.project-loadtest.insops.net", 
           "hosted_zone_name": "n/a"
-      }'; done
+      }'
+
+# OR
 
 for id in $(curl -s  http://127.0.0.1:8000/v1/api/instances | jq '.[] | select(.cluster == 252 and .isPrimary == 'false') | .id'); do
  curl -X POST http://127.0.0.1:8000/v1/api/dns \
    -H "Content-Type: application/json" \
    -d '{
+          "match_type": "MATCH_INSTANCE",
           "instance_id": '$id', 
+          "tag_role": null,
+          "cluster": null,
           "dns_name": "clusterjobs1-secondary.project-loadtest.insops.net", 
           "hosted_zone_name": "n/a"
       }'; done
 ```
-
 
 ### Make a simple scaledown rule
 This is a simple scale down rule with a scheduled reverse. It is likely a terrible idea, but shows how the various checks can be defined.

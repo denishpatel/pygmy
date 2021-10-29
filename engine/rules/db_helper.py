@@ -4,6 +4,7 @@ import time
 from django.db.models import F
 from engine.models import EC2, SCALE_DOWN, SCALE_UP, Ec2DbInfo, AllRdsInstanceTypes, AllEc2InstanceTypes
 from engine.aws.aws_utils import AWSUtil
+from engine.rules.cronutils import CronUtil
 logger = logging.getLogger(__name__)
 
 
@@ -134,7 +135,7 @@ class DbHelper:
     def count_user_connections(self, users):
         return self.db_conn().count_specific_active_connections(users)
 
-    def update_instance_type(self, instance_type, fallback_instances=[], rule_id):
+    def update_instance_type(self, instance_type, rule_id, fallback_instances=[]):
         if instance_type == self.instance.instanceType:
             logger.info(f"Not going to change instance type because {self.instance.instanceType} == {instance_type}")
             return
