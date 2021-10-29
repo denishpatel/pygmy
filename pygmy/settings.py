@@ -184,6 +184,13 @@ REDOC_SETTINGS = {
     'LAZY_RENDERING': False,
 }
 
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+    }
+}
+
 DEFAULT_REGION = "us-east-1"
 
 # Login Redirect to
