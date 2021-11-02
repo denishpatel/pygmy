@@ -388,12 +388,14 @@ class RuleHelper:
                 logger.debug(f"running {script_path} {self.action} {zone_name} {dns_name} {target_address} {RECORD_TYPE} {replica_address} succeeded")
         except subprocess.CalledProcessError as e:
             logger.info(f"running {script_path} {self.action} {zone_name} {dns_name} {target_address} {RECORD_TYPE} {replica_address} returned: {e.returncode} ({e.output})")
+            raise Exception("DNS change failed")
         except Exception as e:
             if hasattr(e, 'message'):
                 message = e.message
             else:
                 message = e
             logger.info(f"running {script_path} {self.action} {zone_name} {dns_name} {target_address} {RECORD_TYPE} {replica_address} returned generic error: {message}")
+            raise Exception("DNS change failed")
 
     def run_pre_resize_script(self, instance_id):
         script_path = os.path.join(settings.BASE_DIR, "scripts", "pre-resize.sh")
