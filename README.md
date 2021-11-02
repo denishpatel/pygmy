@@ -125,8 +125,19 @@ Start local server ( Testing only )
 $ python manage.py runserver
 ```
 
+### Prep Pygmy to run as a service...
 Modify `uwsgi.sgi` as needed.
 
+#### ...via systemd
+Copy `pygmy.service` to `/etc/systemd/system/`
+
+Enable and start uwsgi via systemd:
+```sh
+sudo systemctl enable pygmy.service
+sudo systemctl start pygmy
+```
+
+#### ...via nohup
 Start uwsgi ( Production )
 ```sh
 $  nohup uwsgi uwsgi.ini &

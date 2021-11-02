@@ -1,0 +1,14 @@
+[Unit]
+Description=Pygmy uWSGI app
+After=syslog.target
+
+[Service]
+ExecStart=/home/pygmy/pygmy/venv/bin/uwsgi --ini /home/pygmy/pygmy/uwsgi.ini
+Restart=always
+KillSignal=SIGQUIT
+Type=notify
+StandardError=syslog
+NotifyAccess=all
+
+[Install]
+WantedBy=multi-user.target
