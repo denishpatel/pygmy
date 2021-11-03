@@ -20,7 +20,6 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         logger.debug(os.environ)
-        logger.debug(f"My PID is {os.getpid()}")
         msg = ""
         for rid in kwargs['rule_id']:
             self.try_rule(rid)
@@ -110,7 +109,7 @@ class Command(BaseCommand):
                         logger.debug(f"instance {node.instance_id} (currently {new_instances[node.instance_id]['instance_type']}) remains part of this cluster.")
                         resizedNode = Ec2DbInfo.objects.get(instance_id=node.instance_id)
                         if resizedNode.last_instance_type != new_instances[node.instance_id]['instance_type']:
-                            logger.debug(f"Was {resizedNode.last_instance_type}; is now {new_instances[node.instance_id]['instance_type']}")
+                            logger.warn(f"Was {resizedNode.last_instance_type}; is now {new_instances[node.instance_id]['instance_type']}")
                             resizedNode.last_instance_type = new_instances[node.instance_id]['instance_type']
                             resizedNode.save()
                     else:
