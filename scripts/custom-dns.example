@@ -103,6 +103,7 @@ ips="$(echo "${dig_output}" | awk '{print $NF}')"
 (( debug > 0 )) && echo "IPs: ${ips} for ${ttl} more seconds"
 
 # Record our existing IPs in a list form now, to see later if we can avoid doing a no-op resize
+# shellcheck disable=SC2207
 IFS=$'\n' existing_ips=( $(echo "${ips}" | sort | uniq ) ) || die "building list of exisint IPs from [${ips}]"
 
 # Get the value of the ip to set
@@ -147,9 +148,9 @@ then
     # We disable shellcheck's preference here so that we can use error checking, as we want to make sure this succeeds
     # shellcheck disable=SC2207
     IFS=$'\n' new_ips=( $(echo "${ips}" | sed "s/${REPLICA_IP}/${TARGET_IP}/" | sort | uniq ) ) || die "swapping ${REPLICA_IP} with ${TARGET_IP} in ${ips}"
-    if [[ "${existing_ips[@]}" == "${new_ips[@]}" ]]
+    if [[ "${existing_ips[*]}" == "${new_ips[*]}" ]]
     then
-      (( debug > 1 )) && echo "No-op detected: ${existing_ips} == ${new_ips}"
+      (( debug > 1 )) && echo "No-op detected: ${existing_ips[*]} == ${new_ips[*]}"
       (( debug > 0 )) && echo "Exiting early to avoid waiting on a no-op update"
       exit 0
     fi
@@ -177,9 +178,9 @@ then
     # We disable shellcheck's preference here so that we can use error checking, as we want to make sure this succeeds
     #shellcheck disable=SC2207
     IFS=$'\n' new_ips=( $(printf "%s\n%s\n" "${ips}" "${TARGET_IP}" | sed "s/${primary_ip}/${TARGET_IP}/" | sort | uniq ) ) || die "swapping ${REPLICA_IP} with ${TARGET_IP} in ${ips}"
-    [[ "${existing_ips[@]}" == "${new_ips[@]}" ]]
+    if [[ "${existing_ips[*]}" == "${new_ips[*]}" ]]
     then
-      (( debug > 1 )) && echo "No-op detected: ${existing_ips} == ${new_ips}"
+      (( debug > 1 )) && echo "No-op detected: ${existing_ips[*]} == ${new_ips[*]}"
       (( debug > 0 )) && echo "Exiting early to avoid waiting on a no-op update"
       exit 0
     fi
@@ -204,9 +205,9 @@ else
   # the only thing we want to do is set DNS_NAME to point at TARGET_HOSTNAME.
 
   # Of course, first we should check if we are actually going to make a change.
-  [[ "${existing_ips[@]}" == "${TARGET_IP}" ]]
+  if [[ "${existing_ips[*]}" == "${TARGET_IP}" ]]
   then
-    (( debug > 1 )) && echo "No-op detected: ${existing_ips} == ${TARGET_IP}"
+    (( debug > 1 )) && echo "No-op detected: ${existing_ips[*]} == ${TARGET_IP}"
     (( debug > 0 )) && echo "Exiting early to avoid waiting on a no-op update"
     exit 0
   fi
