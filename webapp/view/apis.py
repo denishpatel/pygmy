@@ -11,6 +11,8 @@ from webapp.serializers import RuleSerializer, ExceptionDataSerializer, ClusterS
     ExceptionCreateSerializer, Ec2DbInfoSerializer, DNSDataSerializer, ClusterManagementSerializer, ToggleClusterSerializer
 from rest_framework.generics import ListAPIView, CreateAPIView, RetrieveUpdateDestroyAPIView, ListCreateAPIView, UpdateAPIView
 from distutils.util import strtobool
+from django.db import DatabaseError
+from django.db import transaction
 logger = logging.getLogger(__name__)
 
 
@@ -239,6 +241,7 @@ class ToggleCluster(UpdateAPIView):
     serializer_class = ToggleClusterSerializer
 
     @swagger_auto_schema(operation_summary="Toggle Pygmy Management",  tags=["Cluster"], request_body=ToggleClusterSerializer(), responses={200: '{"success": True}'})
+    @transaction.atomic()
     def put(self, request, name):
         try:
             enable_cluster = bool(strtobool(request.data.get("enabled", None)))
@@ -247,7 +250,7 @@ class ToggleCluster(UpdateAPIView):
             return Response(result)
 
         try:
-            cluster = ClusterInfo.objects.get(name=name)
+            cluster = ClusterInfo.objects.select_for_update(nowait=True).get(name=name)
             if cluster.enabled == True and enable_cluster == True:
                 result = {"Success": "Cluster was already enabled"}
             elif cluster.enabled == False and enable_cluster == False:
@@ -262,6 +265,8 @@ class ToggleCluster(UpdateAPIView):
                 result = {"Success": "Cluster enabled"}
         except ClusterInfo.DoesNotExist:
             result = {"Error": "Cluster not found"}
+        except DatabaseError as e:
+            result = {"Error": f"Cluster is being resized"}
         except Exception as e:
             logger.error(f"Generic exception pausing or resuming cluster: {e}")
             result = {"Error": "missing parameter", "data": request.POST}
