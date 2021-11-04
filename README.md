@@ -285,7 +285,7 @@ for id in $(curl -s  http://127.0.0.1:8000/v1/api/instances | jq '.[] | select(.
 If you have a need to temporarily tell pygmy to stay away from a given cluster (say your automated cluster failover script is in progress), you can simply disable the cluster.
 #### To disable
 ```sh
-curl -X PUT http://127.0.0.1:8000/v1/api/cluster/toggle/canvas-loadtest-jobs2 \
+curl -X PUT http://127.0.0.1:8000/v1/api/cluster/toggle/project-loadtest-1 \
    -H "Content-Type: application/json" \
    -d '{
           "enabled": "false"
@@ -295,7 +295,7 @@ curl -X PUT http://127.0.0.1:8000/v1/api/cluster/toggle/canvas-loadtest-jobs2 \
 #### To renable
 If you have a need to temporarily tell pygmy to stay away from a given cluster (say your automated cluster failover script is in progress), you can simply disable the cluster.
 ```sh
-curl -X PUT http://127.0.0.1:8000/v1/api/cluster/toggle/canvas-loadtest-jobs2 \
+curl -X PUT http://127.0.0.1:8000/v1/api/cluster/toggle/project-loadtest-1 \
    -H "Content-Type: application/json" \
    -d '{
           "enabled": "true"
