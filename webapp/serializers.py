@@ -16,10 +16,14 @@ class RuleCreateSerializer(serializers.Serializer):
     typeTime = serializers.ChoiceField(choices=["daily", "cron"])
 
 
+class ToggleClusterSerializer(serializers.Serializer):
+    enabled = serializers.BooleanField(help_text="Should Pygmy twiddle this cluster?")
+
+
 class ClusterSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClusterInfo
-        fields = ['id', 'name', 'primaryNodeIp', 'type']
+        fields = ['id', 'name', 'primaryNodeIp', 'type', 'enabled']
 
 
 class ExceptionDataSerializer(serializers.ModelSerializer):

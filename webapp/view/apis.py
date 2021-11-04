@@ -8,8 +8,9 @@ from engine.rules.rules_helper import RuleHelper
 from engine.rules.cronutils import CronUtil
 from drf_yasg2.utils import swagger_auto_schema
 from webapp.serializers import RuleSerializer, ExceptionDataSerializer, ClusterSerializer, RuleCreateSerializer, \
-    ExceptionCreateSerializer, Ec2DbInfoSerializer, DNSDataSerializer, ClusterManagementSerializer
-from rest_framework.generics import ListAPIView, CreateAPIView, RetrieveUpdateDestroyAPIView, ListCreateAPIView
+    ExceptionCreateSerializer, Ec2DbInfoSerializer, DNSDataSerializer, ClusterManagementSerializer, ToggleClusterSerializer
+from rest_framework.generics import ListAPIView, CreateAPIView, RetrieveUpdateDestroyAPIView, ListCreateAPIView, UpdateAPIView
+from distutils.util import strtobool
 logger = logging.getLogger(__name__)
 
 
@@ -227,3 +228,41 @@ class EditClusterManagement(RetrieveUpdateDestroyAPIView):
     authentication_classes = []
     permission_classes = []
     serializer_class = ClusterManagementSerializer
+
+class ToggleCluster(UpdateAPIView):
+    """
+    Pause or Resume Cluster Scaling
+    """
+    authentication_classes = []
+    permission_classes = []
+    parser_classes = [JSONParser]
+    serializer_class = ToggleClusterSerializer
+
+    @swagger_auto_schema(operation_summary="Toggle Pygmy Management",  tags=["Cluster"], request_body=ToggleClusterSerializer(), responses={200: '{"success": True}'})
+    def put(self, request, name):
+        try:
+            enable_cluster = bool(strtobool(request.data.get("enabled", None)))
+        except Exception as e:
+            result = {"Error": f"Invalid boolean used for enabled field: ({request.data.get('enabled', None)})"}
+            return Response(result)
+
+        try:
+            cluster = ClusterInfo.objects.get(name=name)
+            if cluster.enabled == True and enable_cluster == True:
+                result = {"Success": "Cluster was already enabled"}
+            elif cluster.enabled == False and enable_cluster == False:
+                result = {"Success": "Cluster was already disabled"}
+            elif cluster.enabled == True:
+                cluster.enabled = False
+                cluster.save()
+                result = {"Success": "Cluster disabled"}
+            else:
+                cluster.enabled = True
+                cluster.save()
+                result = {"Success": "Cluster enabled"}
+        except ClusterInfo.DoesNotExist:
+            result = {"Error": "Cluster not found"}
+        except Exception as e:
+            logger.error(f"Generic exception pausing or resuming cluster: {e}")
+            result = {"Error": "missing parameter", "data": request.POST}
+        return Response(result)

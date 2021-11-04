@@ -61,6 +61,8 @@ class Command(BaseCommand):
                 logger.error(f"Refusing to run because cluster {rule_db.cluster_id} is currently locked by something else: {e}")
 
             logger.debug(f"Successfully locked cluster {cluster.id} ({cluster.name})")
+            if cluster.enabled == False:
+                raise Exception(f"Not going to work on cluster {cluster.name} because it has been disabled.")
 
             try:
                 # TODO: Make sure rows are locked by id order, so that we don't get some kind of deadlock
