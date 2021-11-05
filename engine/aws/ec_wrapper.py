@@ -215,7 +215,8 @@ class EC2Service(AWSServices, metaclass=Singleton):
         logger.debug(f"Found Ec2DbInfo record with cluster_id {db.cluster_id}")
         try:
             if len(settings.EC2_INSTANCE_VPC_MENU) > 0:
-                if instance.vpcId in settings.EC2_INSTANCE_VPC_MENU:
+                if instance.vpcId not in settings.EC2_INSTANCE_VPC_MENU:
+                    logger.info(f"Ignoring {instance.instanceId} because we don't care about VPC {instance.vpcId}")
                     return
             conn = self.create_connection(db)
             db.isPrimary = conn.is_ec2_postgres_instance_primary()
@@ -226,6 +227,8 @@ class EC2Service(AWSServices, metaclass=Singleton):
                 db.cluster = self.get_or_create_cluster(instance, instance.privateIpAddress)
                 replicas = conn.get_all_slave_servers()
                 self.update_replica_cluster_info(instance.privateIpAddress, replicas)
+            else:
+                logger.info(f"Instance {instance.instanceId} isn't a primary node")
         except Exception as e:
             logger.error(f"Ruh oh, looks like we found an exception checking out {instance.instanceId}: {e}")
             db.isPrimary = False
