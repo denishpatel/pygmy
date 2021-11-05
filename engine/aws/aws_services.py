@@ -87,7 +87,7 @@ class AWSServices:
         cluster = tag_map.get(settings.EC2_INSTANCE_CLUSTER_TAG_KEY_NAME, None)
         logger.debug("Tag values project:{} environment:{} cluster:{}".format(project, environment, cluster))
         if project and environment and cluster:
-            return "{}-{}-{}".format(project, environment, cluster)
+            return "{}-{}-{}".format(project.lower(), environment.lower(), cluster.lower())
         else:
             logger.error(f"Looks like we were missing a critical tag; Project={project}, Environment={environment}, Cluster={cluster}")
             return None
