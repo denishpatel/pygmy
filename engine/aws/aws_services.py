@@ -33,8 +33,9 @@ class AWSServices:
             try:
                 self.aws_session = boto3.Session()
                 logger.info("Creating AWS Session using default/env credentials")
-            except:
+            except Exception as e:
                 logger.error("Failed to create AWS Session using DB Credentials")
+                raise e
         self.ec2_client = self.aws_session.client('ec2', region_name=settings.DEFAULT_REGION)
         self.rds_client = self.aws_session.client('rds', region_name=settings.DEFAULT_REGION)
         for region in self.ec2_client.describe_regions()["Regions"]:
