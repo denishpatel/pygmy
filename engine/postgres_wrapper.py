@@ -10,7 +10,11 @@ class PostgresData:
     def __init__(self, DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT=5432):
         try:
             logger.debug(f"Connecting to Postgres {DB_HOST}/{DB_NAME}")
-            self.conn = psycopg2.connect(host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS, port=DB_PORT)
+            if DB_USER and DB_PASS:
+                self.conn = psycopg2.connect(host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS, port=DB_PORT)
+            else:
+                # Assume libpq will do the needful to find a working username and password, such as with pgpass
+                self.conn = psycopg2.connect(host=DB_HOST, database=DB_NAME, port=DB_PORT)
             self.cursor = self.conn.cursor()
         except Exception as e:
             logger.error("ERROR: Cannot connect to the postgres db!")

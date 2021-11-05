@@ -20,11 +20,16 @@ class EC2Service(AWSServices, metaclass=Singleton):
         return "<EC2Service type:%s>" % (self.SERVICE_TYPE)
 
     def create_connection(self, db):
-        credentials = DbCredentials.objects.get(name="ec2")
         host = db.instance_object.privateIpAddress
-        username = credentials.user_name
-        password = credentials.password
         db_name = db.cluster.databaseName if db.cluster else "postgres"
+        try:
+            credentials = DbCredentials.objects.get(name="ec2")
+            username = credentials.user_name
+            password = credentials.password
+        except:
+            logger.debug("Failed to find ec2 credentials, so we're going to hope libpq finds a way to auth")
+            username = None
+            password = None
         return PostgresData(host, username, password, db_name)
 
     def get_all_regions(self):

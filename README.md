@@ -80,7 +80,7 @@ This will also enable
 $ python manage.py populate_settings_data
 ```
 
-Optional You can enter secrets using following command (COMMAND LINE)
+Optional: You can enter secrets using following interactive command. If you don't do this, pygmy will depend upon an instance profile to talk to AWS and assume libpq will be able to do the necessary authentication for the pygmy db and for the dbs it will be managing.
 ```sh
 $ python manage.py set_secrets
 ```
