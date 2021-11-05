@@ -7,7 +7,7 @@ class PostgresData:
     """
     Interact with postgres data using DB host and password
     """
-    def __init__(self, DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT=5432):
+    def __init__(self, DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT=5432, expect_errors=False):
         try:
             logger.debug(f"Connecting to Postgres {DB_HOST}/{DB_NAME}")
             if DB_USER and DB_PASS:
@@ -17,11 +17,18 @@ class PostgresData:
                 self.conn = psycopg2.connect(host=DB_HOST, database=DB_NAME, port=DB_PORT)
             self.cursor = self.conn.cursor()
         except Exception as e:
-            logger.error("ERROR: Cannot connect to the postgres db!")
-            logger.exception(e)
-            raise e
+            if expect_errors == False:
+                logger.error("ERROR: Cannot connect to the postgres db!")
+                logger.exception(e)
+                raise e
+            else:
+                logger.info(f"Got not-unexpected error connecting to {DB_HOST}/{DB_NAME}")
+                raise e
 
-    def execute_and_return_data(self, query):
+    def execute_and_return_data(self, query, expect_errors=False):
+        if expect_errors == True and self is None:
+            return None
+
         try:
             result = []
             self.cursor.execute(query)
@@ -31,10 +38,11 @@ class PostgresData:
                 result.append(line)
             return result
         except Exception as e:
-            logger.exception(e)
             if self.conn.closed() == False:
                 self.conn.close()
-            raise e
+            if expect_errors == False:
+                logger.exception(e)
+                raise e
 
     def execute_command(self, query, params):
         try:
@@ -79,18 +87,18 @@ class PostgresData:
             self.conn.close()
             raise e
 
-    def is_alive(self):
+    def is_alive(self, expect_errors=False):
         """
         A simple check for service
         """
         query = "SELECT 1"
         try:
-            result = self.execute_and_return_data(query)[0][0]
+            result = self.execute_and_return_data(query, expect_errors)[0][0]
             return (str(result) == "1")
         except psycopg2.InterfaceError:
             logger.info(f"Replica not accepting connections: {e}")
             return False
-        except:
+        except Exception as e:
             logger.info(f"Replica doesn't seem to be ready yet: {e}")
             return False
 

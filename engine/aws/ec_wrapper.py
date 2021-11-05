@@ -19,7 +19,7 @@ class EC2Service(AWSServices, metaclass=Singleton):
     def __repr__(self):
         return "<EC2Service type:%s>" % (self.SERVICE_TYPE)
 
-    def create_connection(self, db):
+    def create_connection(self, db, expect_errors=False):
         host = db.instance_object.privateIpAddress
         db_name = db.cluster.databaseName if db.cluster else "postgres"
         try:
@@ -30,7 +30,7 @@ class EC2Service(AWSServices, metaclass=Singleton):
             logger.debug("Failed to find ec2 credentials, so we're going to hope libpq finds a way to auth")
             username = None
             password = None
-        return PostgresData(host, username, password, db_name)
+        return PostgresData(host, username, password, db_name, expect_errors=expect_errors)
 
     def get_all_regions(self):
         regions = self.ec2_client.describe_regions()

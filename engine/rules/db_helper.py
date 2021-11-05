@@ -21,12 +21,12 @@ class DbHelper:
     def __repr__(self):
         return "<DbHelper db_info:%s type:%s aws:%s table:%s instance:%s>" % (self.db_info, self.type, self.aws, self.table, self.instance)
 
-    def new_db_conn(self):
-        return self.db_conn(True)
+    def new_db_conn(self, expect_errors=False):
+        return self.db_conn(force=True, expect_errors=expect_errors)
 
-    def db_conn(self, force=False):
+    def db_conn(self, force=False, expect_errors=False):
         if force or not self.conn:
-            self.conn = self.aws.create_connection(self.db_info)
+            self.conn = self.aws.create_connection(self.db_info, expect_errors)
         return self.conn
 
     @classmethod
@@ -40,7 +40,7 @@ class DbHelper:
         while is_alive == False:
             try:
                 logging.debug("Checking if db is alive")
-                is_alive = self.new_db_conn().is_alive()
+                is_alive = self.new_db_conn(expect_errors=True).is_alive(expect_errors=True)
                 time.sleep(5)
             except:
                 logger.info("Replica not yet accepting connections")
@@ -102,7 +102,7 @@ class DbHelper:
             if active_connections is None:
                 raise Exception("Could not get active connection count")
             else:
-                logger.info("No of active connections to check {} actual {}".format(rule.get("value"), active_connections))
+                logger.info("Active connection count threshold is {}, actual count is {}".format(rule.get("value"), active_connections))
                 return self._check_value(rule, active_connections, msg="Check Connection")
         else:
             # If we haven't bothered to define a check condition for this metric, 
@@ -140,7 +140,7 @@ class DbHelper:
             logger.info(f"Not going to change instance type because {self.instance.instanceType} == {instance_type}")
             return
 
-        logger.info(f"changing instance {self.instance.instanceId} from {self.instance.instanceType} to {instance_type}")
+        logger.debug(f"changing instance {self.instance.instanceId} from {self.instance.instanceType} to {instance_type}")
 
         # Mark our intent to resize an cluster member
         CronUtil.create_cron_intent(rule_id,self.instance.instanceId)
@@ -151,7 +151,7 @@ class DbHelper:
         # (The rule might still be in progress, but if we were to restart at this moment it should be close enough to idempotent.)
         CronUtil.delete_cron_intent(rule_id)
 
-        logger.info(f"Scaling {self.instance.instanceId} complete.")
+        logger.debug(f"Scaling {self.instance.instanceId} complete.")
 
     def get_endpoint_address(self):
         return self.table.get_endpoint_address(self.instance)
