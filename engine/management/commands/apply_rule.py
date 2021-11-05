@@ -27,6 +27,7 @@ class Command(BaseCommand):
     @transaction.atomic()
     def try_rule(self,rid):
         too_many_cooks = False
+        aborted = False
         try:
             try:
                 rule_db = Rules.objects.select_for_update(skip_locked=True).get(id=rid)
@@ -59,10 +60,13 @@ class Command(BaseCommand):
                 # We know the cluster *exists* (thanks foreign keys!) so it must be locked by something else.
                 # This rule run was not meant to be.
                 logger.error(f"Refusing to run because cluster {rule_db.cluster_id} is currently locked by something else: {e}")
+                return
 
             logger.debug(f"Successfully locked cluster {cluster.id} ({cluster.name})")
             if cluster.enabled == False:
-                raise Exception(f"Not going to work on cluster {cluster.name} because it has been disabled.")
+                logger.error(f"Not going to work on cluster {cluster.name} because it has been disabled.")
+                aborted = True
+                return
 
             try:
                 # TODO: Make sure rows are locked by id order, so that we don't get some kind of deadlock
@@ -70,6 +74,8 @@ class Command(BaseCommand):
                 nodes = Ec2DbInfo.objects.select_for_update().filter(cluster_id=rule_db.cluster_id)
             except Exception as e:
                 logger.error(f"Refusing to run because we failed to lock our ec2dbinfo rows for cluster {rule_db.cluster_id}: {e}")
+                aborted = True
+                return
 
             nodeData = dict()
             for node in nodes:
@@ -80,6 +86,8 @@ class Command(BaseCommand):
                     nodeData[node.instance_id] = AllEc2InstancesData.objects.select_for_update().get(instanceId=node.instance_id)
                 except Exception as e:
                     logger.error(f"Refusing to run because we failed to lock our ec2 instance data row for instance {node.instance_id}: {e}")
+                    aborted = True
+                    return
                 logger.debug(f"Successfully locked AllEc2InstancesData row for instance {node.instance_id}")
 
             # Now that we have all the rows locked that we're going to need, update our instances related to the cluster and their types
@@ -129,6 +137,7 @@ class Command(BaseCommand):
                 # TODO: also support RDS
             except Exception as e:
                 logger.exception(f"Failed to refresh db nodes: {e}")
+                aborted = True
                 return
 
             # Now that we have updated any data we might want, finally instantiate a RuleHelper (which will go pull our recently-refreshed DB instance type data)
@@ -150,7 +159,7 @@ class Command(BaseCommand):
             msg = f"Exception caused rule failure: {e}"
             logger.error(f"Got an exception when running the rule: {e}")
         finally:
-            if too_many_cooks == False:
+            if too_many_cooks == False and aborted == False:
                 if helper is not None:
                     logger.debug("cleaning up rule upon completion")
                     if rule_db.status:
