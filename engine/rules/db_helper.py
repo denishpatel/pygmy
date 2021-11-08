@@ -59,7 +59,7 @@ class DbHelper:
             if replication_lag is None:
                 raise Exception("Could not get replication lag")
             else:
-                logger.info("Replication lag to check {} actual {}".format(replication_lag_rule.get("value"),
+                logger.info("Replication lag check threshold is {}, actual lag is {}".format(replication_lag_rule.get("value"),
                                                                            replication_lag))
                 return self._check_value(replication_lag_rule, replication_lag, msg="Replication Lag")
         else:
@@ -79,7 +79,7 @@ class DbHelper:
             if avg_load is None:
                 raise Exception("Could not get system load avg")
             else:
-                logger.info(f"Avg load threshold {rule.get('value')}, actual {avg_load}, offset {offset}")
+                logger.info(f"Avg load check threshold is {rule.get('value')}, actual is {avg_load}, offset {offset}")
                 return self._check_value(rule, avg_load+offset, msg="Average load")
         else:
             # If we haven't bothered to define a check condition for this metric, 
