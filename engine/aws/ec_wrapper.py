@@ -228,7 +228,7 @@ class EC2Service(AWSServices, metaclass=Singleton):
                 replicas = conn.get_all_slave_servers()
                 self.update_replica_cluster_info(instance.privateIpAddress, replicas)
             else:
-                logger.info(f"Instance {instance.instanceId} isn't a primary node")
+                logger.debug(f"Instance {instance.instanceId} isn't a primary node")
         except Exception as e:
             logger.error(f"Ruh oh, looks like we found an exception checking out {instance.instanceId}: {e}")
             db.isPrimary = False
@@ -242,10 +242,14 @@ class EC2Service(AWSServices, metaclass=Singleton):
     def update_replica_cluster_info(self, private_dns_name, replicas):
         for node in replicas:
             logger.debug(f"node {node}")
-            instance = AllEc2InstancesData.objects.get(privateIpAddress=node)
+            try:
+                instance = AllEc2InstancesData.objects.get(privateIpAddress=node)
+            except AllEc2InstancesData.DoesNotExist:
+                logger.info(f"{node} doesn't seem to be an instance we know about; skipping")
+                return
             try:
                 db_info = Ec2DbInfo.objects.get(instance_id=instance.instanceId)
-            except Exception as e:
+            except Ec2DbInfo.DoesNotExist:
                 logger.info(f"Instance {instance.instanceId} appears new to us: {e}")
                 # Because we don't have this yet, go ahead and create it. In the unlikely event that it fails,
                 # we'll just fail to run for now.
