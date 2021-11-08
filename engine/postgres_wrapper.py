@@ -77,7 +77,7 @@ class PostgresData:
         server IP addresses
         """
         try:
-            query = "select * from pg_stat_replication"
+            query = "select * from pg_stat_replication where pid not in (select active_pid from pg_replication_slots)"
             all_ips = []
             for x in self.execute_and_return_data(query):
                 all_ips.append(x[4])
