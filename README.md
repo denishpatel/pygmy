@@ -305,7 +305,7 @@ curl -X PUT http://127.0.0.1:8000/v1/api/cluster/toggle/project-loadtest-1 \
 
 ### Make a simple scaledown rule
 This is a simple scale down rule with a scheduled reverse. It is likely a terrible idea, but shows how the various checks can be defined.
-- Every 10 minutes, starting at the top of the hour, the cluster will scale down to an m5.2xlarge.
+- Every 10 minutes, starting at the top of the hour, the cluster will scale down all replicas to m5.2xlarge.
 - The rule will only run if our replication lag is exactly equal to 12 seconds (unlikely)
 - The rule will only run if we have more than 12 active connections, as defined by the owners above (unlikely what we want)
 - The rule will only run if the combined average load of the nodes in the cluster is <32.
@@ -321,7 +321,7 @@ curl -X POST http://127.0.0.1:8000/v1/api/rules \
 
           "cluster_id": 249,
           "action": "SCALE_DOWN",
-          "ec2_type": "m5.2xlarge",
+          "ec2_default_type": "m5.2xlarge",
 
           "enableReplicationLag": "on",
           "selectReplicationLagOp": "equal",
@@ -363,7 +363,7 @@ curl -X POST http://127.0.0.1:8000/v1/api/rules \
 
           "cluster_id": 249,
           "action": "SCALE_DOWN",
-          "ec2_type": "m5.2xlarge",
+          "ec2_default_type": "m5.2xlarge",
 
           "enableCheckConnection": "on",
           "selectCheckConnectionOp": "less",
@@ -400,7 +400,7 @@ curl -X POST http://127.0.0.1:8000/v1/api/rules \
 
           "cluster_id": 252,
           "action": "SCALE_DOWN",
-          "ec2_type": "c5.large",
+          "ec2_default_type": "c5.large",
 
           "enableCheckConnection": "on",
           "selectCheckConnectionOp": "less",
@@ -421,7 +421,7 @@ curl -X POST http://127.0.0.1:8000/v1/api/rules \
 ```
 
 #### Make a scheduled scaleup rule for jobs1
-We don't care about checks here - when the time comes, make sure the cluster is embiggened.
+We don't care about checks here - when the time comes, make sure the cluster is embiggened. Note that when scaling up, we'll make replicas tagged with the role of Backup into a c5.xlarge, instead of a c5.2xlarge.
 ```sh
 curl -X POST http://127.0.0.1:8000/v1/api/rules \
    -H "Content-Type: application/json" \
@@ -432,7 +432,8 @@ curl -X POST http://127.0.0.1:8000/v1/api/rules \
 
           "cluster_id": 252,
           "action": "SCALE_UP",
-          "ec2_type": "c5.2xlarge",
+          "ec2_default_type": "c5.2xlarge",
+          "ec2_role_types": ["Backup:c5.xlarge"],
 
           "enableRetry": "on",
           "retryAfter": "5",
@@ -456,7 +457,8 @@ curl -X POST http://127.0.0.1:8000/v1/api/rules \
 
           "cluster_id": 252,
           "action": "SCALE_UP",
-          "ec2_type": "c5.2xlarge",
+          "ec2_default_type": "c5.2xlarge",
+          "ec2_role_types": ["Backup:c5.xlarge"],
 
           "enableReplicationLag": "on",
           "selectReplicationLagOp": "greater",

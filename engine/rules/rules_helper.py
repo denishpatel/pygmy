@@ -20,7 +20,8 @@ class RuleHelper:
         self.action = rule.action  # SCALE_DOWN or SCALE_UP
         self.cluster = rule.cluster
         self.cluster_type = rule.cluster.type
-        self.new_instance_type = self.rule_json.get("rds_type") if self.rule.cluster.type == RDS else self.rule_json.get("ec2_type")
+        self.new_instance_type = self.rule_json.get("rds_default_type") if self.rule.cluster.type == RDS else self.rule_json.get("ec2_default_type")
+        self.new_instance_role_types = self.rule_json.get("rds_role_types") if self.rule.cluster.type == RDS else self.rule_json.get("ec2_role_types")
         self.secondary_dbs = Ec2DbInfo.objects.filter(cluster=self.rule.cluster, isPrimary=False)
         self.primary_dbs = Ec2DbInfo.objects.filter(cluster=self.rule.cluster, isPrimary=True)
         self._is_cluster_managed = hasattr(self.rule.cluster, "load_management")
@@ -41,10 +42,11 @@ class RuleHelper:
         if not rule_db:
             rule_db = Rules()
 
-        # name, rule_type, cluster_id, time, ec2_type, rds_type
         new_rule = {
-            "ec2_type": data.get("ec2_type", None),
-            "rds_type": data.get("rds_type", None)
+            "ec2_default_type": data.get("ec2_default_type", None),
+            "ec2_role_types": data.get("ec2_role_types", None),
+            "rds_default_type": data.get("rds_default_type", None),
+            "rds_role_types": data.get("rds_role_types", None),
         }
 
         # Set replication check
@@ -223,6 +225,19 @@ class RuleHelper:
                 changed_replicas = 0
                 for id, replica_avg_load in db_avg_load.items():
                     logger.info(f"Working on {db_instances[id].instance.instanceId} with a load of {replica_avg_load} using aggregated primary load of {aggregated_avg_load}")
+                    actual_new_instance_type = self.new_instance_type
+                    if self.new_instance_role_types is not None:
+                        # We seem to think specific cluster roles should have instance sizes that aren't the default.
+                        # See if _this_ instance has such an exception, and, if so, use it.
+                        tags = helper.aws.get_tag_map(helper.instance)
+                        role = tags.get(settings.EC2_INSTANCE_ROLE_TAG_KEY_NAME,None)
+                        logger.debug(f"Looking for exception instance size for role {role}")
+                        for item in self.new_instance_role_types:
+                            combo = item.split(':')
+                            if combo[0] == role:
+                                logger.debug(f"Rule says role {role} should have a type of {combo[1]} instead of {actual_new_instance_type}, so using that instead")
+                                actual_new_instance_type = combo[1]
+                                break
                     try:
                         try:
                             db_instances[id].check_average_load(self.rule_json, self.any_conditions, aggregated_avg_load)
@@ -241,7 +256,7 @@ class RuleHelper:
                             # so that we can get load off of our replica(s) before resizing.
                             self.update_dns_entries(db_instances[id])
                             self.run_pre_resize_script(db_instances[id].instance.instanceId)
-                            db_instances[id].update_instance_type(self.new_instance_type, self.rule.id, self.fallback_instances)
+                            db_instances[id].update_instance_type(actual_new_instance_type, self.rule.id, self.fallback_instances)
                             aggregated_avg_load += replica_avg_load
 
                             # Because we're scaling down and have moved load off of this node,
@@ -255,7 +270,7 @@ class RuleHelper:
                             # so that we can make sure the upsized instance is ready to rock before it
                             # sees any new clients.
                             self.run_pre_resize_script(db_instances[id].instance.instanceId)
-                            db_instances[id].update_instance_type(self.new_instance_type, self.rule.id, self.fallback_instances)
+                            db_instances[id].update_instance_type(actual_new_instance_type, self.rule.id, self.fallback_instances)
 
                             # We need to make sure streaming has resumed before we say we are ready for clients
                             db_instances[id].wait_till_replica_streaming()
