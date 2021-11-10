@@ -229,7 +229,7 @@ class RuleHelper:
                     if self.new_instance_role_types is not None:
                         # We seem to think specific cluster roles should have instance sizes that aren't the default.
                         # See if _this_ instance has such an exception, and, if so, use it.
-                        tags = helper.aws.get_tag_map(helper.instance)
+                        tags = db_instances[id].aws.get_tag_map(db_instances[id].instance)
                         role = tags.get(settings.EC2_INSTANCE_ROLE_TAG_KEY_NAME,None)
                         logger.debug(f"Looking for exception instance size for role {role}")
                         for item in self.new_instance_role_types:
