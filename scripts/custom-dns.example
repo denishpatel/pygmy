@@ -32,8 +32,8 @@ die()
 build_target_hostname()
 {
   hostname="$1.${PROJECT}"
-  [[ "${PROJECT}" == "snowflake" ]] && [[ "${PROJECT_ENV}" == "prod" ]] || hostname="${hostname}-${PROJECT_ENV:0:4}"
-  hostname="${hostname}.${REGION}.example.com"
+  hostname="${hostname}-${PROJECT_ENV:0:4}"
+  hostname="${hostname}.${REGION}.insops.net"
 
   echo "$hostname"
 }
@@ -94,8 +94,8 @@ smi_aws_region=""
 REGION="${smi_aws_region}"
 (( debug > 0 )) && echo "Region: ${REGION}"
 
-# Figure out where our DNS_NAME currently points, and how much longer we have till the DNS TTL expires
-dig_output="$(dig +nocmd +noall +answer +ttlid "${DNS_NAME}")"
+# Figure out the IP(s) where our DNS_NAME currently points, and how much longer we have till the DNS TTL expires
+dig_output="$(dig +nocmd +noall +answer +ttlid "${DNS_NAME}" | grep -v CNAME)"
 (( debug > 1 )) && echo "Dig says: ${dig_output}"
 ttl="$(echo "${dig_output}" | awk '{print $2}' | head -1)"
 
@@ -104,7 +104,7 @@ ips="$(echo "${dig_output}" | awk '{print $NF}')"
 
 # Record our existing IPs in a list form now, to see later if we can avoid doing a no-op resize
 # shellcheck disable=SC2207
-IFS=$'\n' existing_ips=( $(echo "${ips}" | sort | uniq ) ) || die "building list of exisint IPs from [${ips}]"
+IFS=$'\n' existing_ips=( $(echo "${ips}" | sort | uniq ) ) || die "building list of existing IPs from [${ips}]"
 
 # Get the value of the ip to set
 TARGET_IP=$4
@@ -210,6 +210,8 @@ else
     (( debug > 1 )) && echo "No-op detected: ${existing_ips[*]} == ${TARGET_IP}"
     (( debug > 0 )) && echo "Exiting early to avoid waiting on a no-op update"
     exit 0
+  else
+    (( debug > 1 )) && echo "Will do the work because ${existing_ips[*]} != ${TARGET_IP}"
   fi
 
   vault-client-exec pygmy domain_manager upsert -t CNAME -T "${new_ttl}" -f "${DNS_NAME}" -v "${TARGET_HOSTNAME}" || die "domain_manager upsert -t CNAME -T ${new_ttl} -f ${DNS_NAME} -v ${TARGET_HOSTNAME} said $?"
