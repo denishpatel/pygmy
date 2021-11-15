@@ -317,7 +317,7 @@ curl -X POST http://127.0.0.1:8000/v1/api/rules \
    -d '{ 
           "name": "Test rule", 
           "typeTime": "CRON", 
-          "cronTime": "0,10,20,30,40,50 * * * *",
+          "cronTime": ["0,10,20,30,40,50 * * * *"],
 
           "cluster_id": 249,
           "action": "SCALE_DOWN",
@@ -359,7 +359,7 @@ curl -X POST http://127.0.0.1:8000/v1/api/rules \
    -d '{ 
           "name": "Simple cluster1 control", 
           "typeTime": "CRON", 
-          "cronTime": "0 * * * *",
+          "cronTime": ["0 * * * *"],
 
           "cluster_id": 249,
           "action": "SCALE_DOWN",
@@ -396,7 +396,7 @@ curl -X POST http://127.0.0.1:8000/v1/api/rules \
    -d '{ 
           "name": "jobs1 downsize", 
           "typeTime": "CRON", 
-          "cronTime": "0 * * * *",
+          "cronTime": ["0 10 * * *"],
 
           "cluster_id": 252,
           "action": "SCALE_DOWN",
@@ -428,7 +428,7 @@ curl -X POST http://127.0.0.1:8000/v1/api/rules \
    -d '{ 
           "name": "jobs1 deadline upsize", 
           "typeTime": "CRON", 
-          "cronTime": "55 * * * *",
+          "cronTime": ["55 20 * * *"],
 
           "cluster_id": 252,
           "action": "SCALE_UP",
@@ -442,16 +442,17 @@ curl -X POST http://127.0.0.1:8000/v1/api/rules \
 ```
 
 #### Make a pre-emptive scaleup rule for jobs1
-This rule starts soon after the scaledown has completed, and repeatedly checks if the load has gotten too high or if replication has fallen behind. If so, then scale up before we normally would.
+This rule starts after the scaledown has completed, and repeatedly checks if the load has gotten too high or if replication has fallen behind. If so, then scale up before we normally would.
 - `conditionLogic` set to ANY means that if any of the checks are true, the rule will run. The default is for ALL, meaning all checks must be true.
 - `retryAfter` and `retryMax` are set to make sure the rule keeps trying until the manditory scaleup occurs.
+Note that we do not enable retrying on our pre-emtpive scaleup, because cron retries have a problem: if the pygmy server is off when the rule should first run, the first attempt(s) won't be run by cron (as it isn't running), so retries also won't run and we won't get any pre-emptive checking this cycle. Instead, run each check independently via cron. That way, when cron is running, pre-emptive checks are running. In the rare case where one needs to fire, we'll still run the rest of them... but they are no-ops anyway, so it shouldn't be a problem.
 ```sh
 curl -X POST http://127.0.0.1:8000/v1/api/rules \
    -H "Content-Type: application/json" \
    -d '{ 
           "name": "jobs1 early upsize", 
           "typeTime": "CRON", 
-          "cronTime": "20 * * * *",
+          "cronTime": ["0/5 11-20 * * *"],
 
           "conditionLogic": "ANY",
 
@@ -468,8 +469,89 @@ curl -X POST http://127.0.0.1:8000/v1/api/rules \
           "selectAverageLoadOp": "greater",
           "averageLoad": "2",
 
+          "enableRetry": "off"
+    }'
+```
+
+### ...now scale that realistic rule
+The downsize looks about the same, but note how we have jittered the start time so one pygmy server doesn't do hundreds of jobs at the top of the hour.
+#### The scaledown
+```sh
+curl -X POST http://127.0.0.1:8000/v1/api/rules \
+   -H "Content-Type: application/json" \
+   -d '{ 
+          "name": "jobs1 downsize", 
+          "typeTime": "CRON", 
+          "cronTime": ["23 10 * * *"],
+
+          "cluster_id": 252,
+          "action": "SCALE_DOWN",
+          "ec2_default_type": "c5.large",
+
+          "enableCheckConnection": "on",
+          "selectCheckConnectionOp": "less",
+          "checkConnection": "2",
+
+          "enableReplicationLag": "on",
+          "selectReplicationLagOp": "less",
+          "replicationLag": "60",
+
+          "enableAverageLoad": "on",
+          "selectAverageLoadOp": "less",
+          "averageLoad": "2",
+
           "enableRetry": "on",
           "retryAfter": "5",
-          "retryMax": "6"
+          "retryMax": "3"
+    }'
+```
+
+#### The scheduled scaleup
+Again the scheduled scaleup. We have jittered the minute here too.
+```sh
+curl -X POST http://127.0.0.1:8000/v1/api/rules \
+   -H "Content-Type: application/json" \
+   -d '{ 
+          "name": "jobs1 deadline upsize", 
+          "typeTime": "CRON", 
+          "cronTime": ["47 20 * * *"],
+
+          "cluster_id": 252,
+          "action": "SCALE_UP",
+          "ec2_default_type": "c5.2xlarge",
+          "ec2_role_types": ["Backup:c5.xlarge"],
+
+          "enableRetry": "on",
+          "retryAfter": "5",
+          "retryMax": "3"
+    }'
+```
+
+#### Pre-emptive scaleup rule, times two
+Similiar to the previous pre-emptive scaleup rule, we start looking to upsize the hour after we downsize. We _also_ have a different time spec for the final hour, to take into account the jittered upsize time.
+```sh
+curl -X POST http://127.0.0.1:8000/v1/api/rules \
+   -H "Content-Type: application/json" \
+   -d '{ 
+          "name": "jobs1 early upsize", 
+          "typeTime": "CRON", 
+          "cronTime": ["0/5 11-19 * * *","0-47/5 20 * * *"],
+
+          "conditionLogic": "ANY",
+
+          "cluster_id": 252,
+          "action": "SCALE_UP",
+          "ec2_default_type": "c5.2xlarge",
+          "ec2_role_types": ["Backup:c5.xlarge"],
+
+          "enableReplicationLag": "on",
+          "selectReplicationLagOp": "greater",
+          "replicationLag": "60",
+
+          "enableAverageLoad": "on",
+          "selectAverageLoadOp": "greater",
+          "averageLoad": "2",
+
+          "enableRetry": "off"
     }'
 ```

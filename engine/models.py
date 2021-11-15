@@ -1,5 +1,6 @@
 from engine.utils import CryptoUtil
 from django.db import models
+from django.contrib.postgres.fields import ArrayField
 from datetime import datetime
 from django.utils import timezone
 from django.contrib.contenttypes.models import ContentType
@@ -255,7 +256,7 @@ class Rules(models.Model):
     action_arg = models.CharField(max_length=255, null=True)
     status = models.BooleanField(default=False, null=True)
     run_type = models.CharField(choices=RunType, max_length=100)
-    run_at = models.CharField(max_length=100, null=False)
+    run_at = ArrayField(models.CharField(max_length=100), null=False)
     err_msg = models.CharField(max_length=255, null=True)
     last_run = models.DateTimeField(auto_created=True, null=True)
     parent_rule = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True, related_name="child_rule")
