@@ -21,13 +21,18 @@ class EC2Service(AWSServices, metaclass=Singleton):
     def __repr__(self):
         return "<EC2Service type:%s>" % (self.SERVICE_TYPE)
 
-    def create_connection(self, db):
-        credentials = DbCredentials.objects.get(name="ec2")
+    def create_connection(self, db, expect_errors=False):
         host = db.instance_object.privateIpAddress
-        username = credentials.user_name
-        password = credentials.password
         db_name = db.cluster.databaseName if db.cluster else "postgres"
-        return PostgresData(host, username, password, db_name)
+        try:
+            credentials = DbCredentials.objects.get(name="ec2")
+            username = credentials.user_name
+            password = credentials.password
+        except:
+            logger.debug("Failed to find ec2 credentials, so we're going to hope libpq finds a way to auth")
+            username = None
+            password = None
+        return PostgresData(host, username, password, db_name, expect_errors=expect_errors)
 
     def get_all_regions(self):
         regions = self.ec2_client.describe_regions()
@@ -54,8 +59,10 @@ class EC2Service(AWSServices, metaclass=Singleton):
         return None
 
     def start_instance(self, instance):
-        self.ec2_client.start_instances(InstanceIds=[instance.instanceId])
-        return self.wait_till_status_up(instance)
+        self.ec2_client.start_instances(InstanceIds=[instance])
+        waiter = self.ec2_client.get_waiter('instance_running')
+        waiter.wait(InstanceIds=[instance])
+        logger.info(f"started {instance}")
 
     def get_instance_types(self, **kwargs):
         all_instance_types = []
@@ -136,10 +143,7 @@ class EC2Service(AWSServices, metaclass=Singleton):
             logger.warning(f"Failed to record new instance size, so we'll just keep going and pick it up when the next run starts.")
 
         # Start the instance
-        self.ec2_client.start_instances(InstanceIds=[ec2_instance_id])
-        waiter = self.ec2_client.get_waiter('instance_running')
-        waiter.wait(InstanceIds=[ec2_instance_id])
-        logger.info(f"started {ec2_instance_id}")
+        self.start_instance(ec2_instance_id)
         return True
 
     def get_instances(self,extra_filters=None):
@@ -154,6 +158,8 @@ class EC2Service(AWSServices, metaclass=Singleton):
                 'Name': 'instance-state-name',
                 'Values': ['running']
             }]
+        if len(settings.EC2_INSTANCE_VPC_MENU) > 0:
+            filters.extend([{'Name': 'vpc-id', 'Values': settings.EC2_INSTANCE_VPC_MENU}])
         if extra_filters is not None:
             filters.extend(extra_filters)
 
@@ -217,7 +223,12 @@ class EC2Service(AWSServices, metaclass=Singleton):
             # we'll just fail to run for now.
             db, created = Ec2DbInfo.objects.get_or_create(instance_id=instance.instanceId, type=EC2, last_instance_type=instance.instanceType)
         db.instance_object = instance
+        logger.debug(f"Found Ec2DbInfo record with cluster_id {db.cluster_id}")
         try:
+            if len(settings.EC2_INSTANCE_VPC_MENU) > 0:
+                if instance.vpcId not in settings.EC2_INSTANCE_VPC_MENU:
+                    logger.info(f"Ignoring {instance.instanceId} because we don't care about VPC {instance.vpcId}")
+                    return
             conn = self.create_connection(db)
             db.isPrimary = conn.is_ec2_postgres_instance_primary()
             db.isConnected = True
@@ -227,6 +238,8 @@ class EC2Service(AWSServices, metaclass=Singleton):
                 db.cluster = self.get_or_create_cluster(instance, instance.privateIpAddress)
                 replicas = conn.get_all_slave_servers()
                 self.update_replica_cluster_info(instance.privateIpAddress, replicas)
+            else:
+                logger.debug(f"Instance {instance.instanceId} isn't a primary node")
         except Exception as e:
             logger.error(f"Ruh oh, looks like we found an exception checking out {instance.instanceId}: {e}")
             db.isPrimary = False
@@ -235,15 +248,19 @@ class EC2Service(AWSServices, metaclass=Singleton):
             db.save()
 
     def get_tag_map(self, instance):
-        return dict((tag['Key'], tag['Value'].lower()) for tag in instance.tags)
+        return dict((tag['Key'], tag['Value']) for tag in instance.tags)
 
     def update_replica_cluster_info(self, private_dns_name, replicas):
         for node in replicas:
             logger.debug(f"node {node}")
-            instance = AllEc2InstancesData.objects.get(privateIpAddress=node)
+            try:
+                instance = AllEc2InstancesData.objects.get(privateIpAddress=node)
+            except AllEc2InstancesData.DoesNotExist:
+                logger.info(f"{node} doesn't seem to be an instance we know about; skipping")
+                return
             try:
                 db_info = Ec2DbInfo.objects.get(instance_id=instance.instanceId)
-            except Exception as e:
+            except Ec2DbInfo.DoesNotExist:
                 logger.info(f"Instance {instance.instanceId} appears new to us: {e}")
                 # Because we don't have this yet, go ahead and create it. In the unlikely event that it fails,
                 # we'll just fail to run for now.

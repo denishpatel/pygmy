@@ -80,7 +80,7 @@ This will also enable
 $ python manage.py populate_settings_data
 ```
 
-Optional You can enter secrets using following command (COMMAND LINE)
+Optional: You can enter secrets using following interactive command. If you don't do this, pygmy will depend upon an instance profile to talk to AWS and assume libpq will be able to do the necessary authentication for the pygmy db and for the dbs it will be managing.
 ```sh
 $ python manage.py set_secrets
 ```
@@ -125,15 +125,28 @@ Start local server ( Testing only )
 $ python manage.py runserver
 ```
 
+### Prep Pygmy to run as a service...
+Modify `uwsgi.sgi` as needed.
+
+#### ...via systemd
+Copy `pygmy.service` to `/etc/systemd/system/`
+
+Enable and start uwsgi via systemd:
+```sh
+sudo systemctl enable pygmy.service
+sudo systemctl start pygmy
+```
+
+#### ...via nohup
 Start uwsgi ( Production )
 ```sh
-$  nohup uwsgi proj.ini &
+$  nohup uwsgi uwsgi.ini &
 ```
 
 Restart uwsgi ( Production )
 ```sh
 $  pkill -9 uwsgi
-$  nohup uwsgi proj.ini &
+$  nohup uwsgi uwsgi.ini &
 ```
 ---
 ## API Cookbook
@@ -145,13 +158,15 @@ curl -s  http://127.0.0.1:8000/v1/api/clusters | jq '.'
     "id": 249,
     "name": "project-loadtest-1",
     "primaryNodeIp": "10.37.71.67",
-    "type": "EC2"
+    "type": "EC2",
+    "enabled": "true"
    },
   {
     "id": 252,
     "name": "project-loadtest-jobs1",
     "primaryNodeIp": "10.37.90.106",
-    "type": "EC2"
+    "type": "EC2",
+    "enabled": "true"
   }
 ]
 
@@ -219,6 +234,7 @@ curl -X PUT http://127.0.0.1:8000/v1/api/cluster/management/2 \
       }'
 ```
 
+
 ### Now manage cluster 252 (project-loadtest-jobs1)
 ```sh
 curl -X POST http://127.0.0.1:8000/v1/api/cluster/management \
@@ -234,30 +250,62 @@ curl -X POST http://127.0.0.1:8000/v1/api/cluster/management \
 >{"id":5,"avg_load":"2","fallback_instances_scale_up":["m5.24xlarge","m5.16xlarge"],"fallback_instances_scale_down":["m5.large","m5.xlarge"],"check_active_users":["project%","bench-rw"],"cluster_id":252}
 
 ### Make a DNS entries
+When Pygmy manipulates a db, it will also twiddle DNS to move load away from, or back to, that replica. We will need to record the CNAME that Pygmy will change, but _also_ record how Pygmy will find that CNAME when it is working on a specific db. Pygmy supports two ways of matching an actual instance it is working on to a DNS entry:
+* MATCH_INSTANCE is used when there is a static, 1:1 relationship between a CNAME and an instance. This is simple and works well when your DB instances won't change: for example, i-123456 will always host cluster3-replica.example.com.
+* MATCH_ROLE is used when you want any db node with a specific tag for a given cluster to use a CNAME. This works well when your DB nodes have some flux, or if multiple share the same CNAME. For example, if cluster3-replica.example.com is serviced by one or more DBs tagged as Secondary, and those DBs might be replaced over time, MATCH_ROLE will reliably change the DNS for them whenever Pygmy runs.
+
 ```sh
-for id in $(curl -s  http://127.0.0.1:8000/v1/api/instances | jq '.[] | select(.cluster == 249 and .isPrimary == 'false') | .id'); do
- curl -X POST http://127.0.0.1:8000/v1/api/dns \
+curl -X POST http://127.0.0.1:8000/v1/api/dns \
    -H "Content-Type: application/json" \
    -d '{
-          "instance_id": '$id', 
+          "match_type": "MATCH_ROLE",
+          "tag_role": "Slave",
+          "cluster": 249,
+          "instance_id": null,
           "dns_name": "cluster1-slave-rrdns.project-loadtest.insops.net", 
           "hosted_zone_name": "n/a"
-      }'; done
+      }'
+
+# OR
 
 for id in $(curl -s  http://127.0.0.1:8000/v1/api/instances | jq '.[] | select(.cluster == 252 and .isPrimary == 'false') | .id'); do
  curl -X POST http://127.0.0.1:8000/v1/api/dns \
    -H "Content-Type: application/json" \
    -d '{
+          "match_type": "MATCH_INSTANCE",
           "instance_id": '$id', 
+          "tag_role": null,
+          "cluster": null,
           "dns_name": "clusterjobs1-secondary.project-loadtest.insops.net", 
           "hosted_zone_name": "n/a"
       }'; done
 ```
 
+### Disable a cluster
+If you have a need to temporarily tell pygmy to stay away from a given cluster (say your automated cluster failover script is in progress), you can simply disable the cluster.
+#### To disable
+```sh
+curl -X PUT http://127.0.0.1:8000/v1/api/cluster/toggle/project-loadtest-1 \
+   -H "Content-Type: application/json" \
+   -d '{
+          "enabled": "false"
+      }'
+```
+
+#### To renable
+If you have a need to temporarily tell pygmy to stay away from a given cluster (say your automated cluster failover script is in progress), you can simply disable the cluster.
+```sh
+curl -X PUT http://127.0.0.1:8000/v1/api/cluster/toggle/project-loadtest-1 \
+   -H "Content-Type: application/json" \
+   -d '{
+          "enabled": "true"
+      }'
+```
+
 
 ### Make a simple scaledown rule
 This is a simple scale down rule with a scheduled reverse. It is likely a terrible idea, but shows how the various checks can be defined.
-- Every 10 minutes, starting at the top of the hour, the cluster will scale down to an m5.2xlarge.
+- Every 10 minutes, starting at the top of the hour, the cluster will scale down all replicas to m5.2xlarge.
 - The rule will only run if our replication lag is exactly equal to 12 seconds (unlikely)
 - The rule will only run if we have more than 12 active connections, as defined by the owners above (unlikely what we want)
 - The rule will only run if the combined average load of the nodes in the cluster is <32.
@@ -273,7 +321,7 @@ curl -X POST http://127.0.0.1:8000/v1/api/rules \
 
           "cluster_id": 249,
           "action": "SCALE_DOWN",
-          "ec2_type": "m5.2xlarge",
+          "ec2_default_type": "m5.2xlarge",
 
           "enableReplicationLag": "on",
           "selectReplicationLagOp": "equal",
@@ -315,7 +363,7 @@ curl -X POST http://127.0.0.1:8000/v1/api/rules \
 
           "cluster_id": 249,
           "action": "SCALE_DOWN",
-          "ec2_type": "m5.2xlarge",
+          "ec2_default_type": "m5.2xlarge",
 
           "enableCheckConnection": "on",
           "selectCheckConnectionOp": "less",
@@ -340,6 +388,7 @@ curl -X POST http://127.0.0.1:8000/v1/api/rules \
 ```
 
 ### Make a realistic rule
+In most situations, we're going to want to be able to pre-emptively scale back up in case load returns earlier than we predict. 
 #### First the scaledown
 ```sh
 curl -X POST http://127.0.0.1:8000/v1/api/rules \
@@ -351,7 +400,7 @@ curl -X POST http://127.0.0.1:8000/v1/api/rules \
 
           "cluster_id": 252,
           "action": "SCALE_DOWN",
-          "ec2_type": "c5.large",
+          "ec2_default_type": "c5.large",
 
           "enableCheckConnection": "on",
           "selectCheckConnectionOp": "less",
@@ -372,7 +421,7 @@ curl -X POST http://127.0.0.1:8000/v1/api/rules \
 ```
 
 #### Make a scheduled scaleup rule for jobs1
-We don't care about checks here - when the time comes, make sure the cluster is embiggened.
+We don't care about checks here - when the time comes, make sure the cluster is embiggened. Note that when scaling up, we'll make replicas tagged with the role of Backup into a c5.xlarge, instead of a c5.2xlarge.
 ```sh
 curl -X POST http://127.0.0.1:8000/v1/api/rules \
    -H "Content-Type: application/json" \
@@ -383,7 +432,8 @@ curl -X POST http://127.0.0.1:8000/v1/api/rules \
 
           "cluster_id": 252,
           "action": "SCALE_UP",
-          "ec2_type": "c5.2xlarge",
+          "ec2_default_type": "c5.2xlarge",
+          "ec2_role_types": ["Backup:c5.xlarge"],
 
           "enableRetry": "on",
           "retryAfter": "5",
@@ -407,7 +457,8 @@ curl -X POST http://127.0.0.1:8000/v1/api/rules \
 
           "cluster_id": 252,
           "action": "SCALE_UP",
-          "ec2_type": "c5.2xlarge",
+          "ec2_default_type": "c5.2xlarge",
+          "ec2_role_types": ["Backup:c5.xlarge"],
 
           "enableReplicationLag": "on",
           "selectReplicationLagOp": "greater",

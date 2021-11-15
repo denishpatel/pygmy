@@ -4,8 +4,9 @@ import subprocess
 import sys
 from django.conf import settings
 from django.utils import timezone
+from django.core.exceptions import ObjectDoesNotExist
 from engine.rules.db_helper import DbHelper
-from engine.models import Rules, RDS, Ec2DbInfo, ExceptionData, SCALE_DOWN, EC2, DbCredentials, DAILY, CRON, SCALE_UP
+from engine.models import Rules, RDS, Ec2DbInfo, ExceptionData, SCALE_DOWN, EC2, DbCredentials, DNSData, DAILY, CRON, SCALE_UP
 from engine.rules.cronutils import CronUtil
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,8 @@ class RuleHelper:
         self.action = rule.action  # SCALE_DOWN or SCALE_UP
         self.cluster = rule.cluster
         self.cluster_type = rule.cluster.type
-        self.new_instance_type = self.rule_json.get("rds_type") if self.rule.cluster.type == RDS else self.rule_json.get("ec2_type")
+        self.new_instance_type = self.rule_json.get("rds_default_type") if self.rule.cluster.type == RDS else self.rule_json.get("ec2_default_type")
+        self.new_instance_role_types = self.rule_json.get("rds_role_types") if self.rule.cluster.type == RDS else self.rule_json.get("ec2_role_types")
         self.secondary_dbs = Ec2DbInfo.objects.filter(cluster=self.rule.cluster, isPrimary=False)
         self.primary_dbs = Ec2DbInfo.objects.filter(cluster=self.rule.cluster, isPrimary=True)
         self._is_cluster_managed = hasattr(self.rule.cluster, "load_management")
@@ -40,10 +42,11 @@ class RuleHelper:
         if not rule_db:
             rule_db = Rules()
 
-        # name, rule_type, cluster_id, time, ec2_type, rds_type
         new_rule = {
-            "ec2_type": data.get("ec2_type", None),
-            "rds_type": data.get("rds_type", None)
+            "ec2_default_type": data.get("ec2_default_type", None),
+            "ec2_role_types": data.get("ec2_role_types", None),
+            "rds_default_type": data.get("rds_default_type", None),
+            "rds_role_types": data.get("rds_role_types", None),
         }
 
         # Set replication check
@@ -222,6 +225,19 @@ class RuleHelper:
                 changed_replicas = 0
                 for id, replica_avg_load in db_avg_load.items():
                     logger.info(f"Working on {db_instances[id].instance.instanceId} with a load of {replica_avg_load} using aggregated primary load of {aggregated_avg_load}")
+                    actual_new_instance_type = self.new_instance_type
+                    if self.new_instance_role_types is not None:
+                        # We seem to think specific cluster roles should have instance sizes that aren't the default.
+                        # See if _this_ instance has such an exception, and, if so, use it.
+                        tags = db_instances[id].aws.get_tag_map(db_instances[id].instance)
+                        role = tags.get(settings.EC2_INSTANCE_ROLE_TAG_KEY_NAME,None)
+                        logger.debug(f"Looking for exception instance size for role {role}")
+                        for item in self.new_instance_role_types:
+                            combo = item.split(':')
+                            if combo[0] == role:
+                                logger.debug(f"Rule says role {role} should have a type of {combo[1]} instead of {actual_new_instance_type}, so using that instead")
+                                actual_new_instance_type = combo[1]
+                                break
                     try:
                         try:
                             db_instances[id].check_average_load(self.rule_json, self.any_conditions, aggregated_avg_load)
@@ -240,7 +256,7 @@ class RuleHelper:
                             # so that we can get load off of our replica(s) before resizing.
                             self.update_dns_entries(db_instances[id])
                             self.run_pre_resize_script(db_instances[id].instance.instanceId)
-                            db_instances[id].update_instance_type(self.new_instance_type, self.fallback_instances)
+                            db_instances[id].update_instance_type(actual_new_instance_type, self.rule.id, self.fallback_instances)
                             aggregated_avg_load += replica_avg_load
 
                             # Because we're scaling down and have moved load off of this node,
@@ -254,7 +270,7 @@ class RuleHelper:
                             # so that we can make sure the upsized instance is ready to rock before it
                             # sees any new clients.
                             self.run_pre_resize_script(db_instances[id].instance.instanceId)
-                            db_instances[id].update_instance_type(self.new_instance_type, self.fallback_instances)
+                            db_instances[id].update_instance_type(actual_new_instance_type, self.rule.id, self.fallback_instances)
 
                             # We need to make sure streaming has resumed before we say we are ready for clients
                             db_instances[id].wait_till_replica_streaming()
@@ -276,7 +292,7 @@ class RuleHelper:
                 for id, helper in db_instances.items():
                     helper.check_average_load(self.rule_json, self.any_conditions, self.any_conditions)
                     helper.check_connections(self.rule_json, self.any_conditions)
-                    helper.update_instance_type(self.new_instance_type, self.fallback_instances)
+                    helper.update_instance_type(self.new_instance_type, self.rule.id, self.fallback_instances)
                     self.update_dns_entries(helper)
             all_good = True
         except Exception as e:
@@ -291,7 +307,7 @@ class RuleHelper:
             for db in self.secondary_dbs:
                 db_helper = DbHelper(db)
                 db_helper.check_connections(self.rule_json, self.any_conditions)
-                db_helper.update_instance_type(db.last_instance_type, self.fallback_instances)
+                db_helper.update_instance_type(db.last_instance_type, self.rule.id, self.fallback_instances)
                 self.update_dns_entries(db_helper)
         except Exception as e:
             logger.error("Reverse #Rule {}: Failed to apply", self.rule.id)
@@ -309,14 +325,43 @@ class RuleHelper:
 
     def update_dns_entries(self, helper):
         logger.info(f"updating dns entries for {self.action} of {helper.instance.instanceId}")
-        if hasattr(helper.db_info, "dns_entry"):
+
+        dns_entry = None
+        # See if there are any DNS entries for this node specifically
+        try:
+            logger.debug(f"Looking for instance match of instance {helper.instance.instanceId}")
+            dns_entry = DNSData.objects.get(match_type='MATCH_INSTANCE', instance=Ec2DbInfo.objects.get(instance_id=helper.instance.instanceId))
+            logger.debug(f"Found dns match of {dns_entry.dns_name}")
+        except ObjectDoesNotExist:
+            logger.debug(f"{helper.instance.instanceId} does not have an instance match dns entry")
+        except Exception as e:
+            logger.warn(f"{helper.instance.instanceId} found exception when looking for instance match dns entry: {e}")
+
+        if dns_entry == None:
+            # If we don't have an instance match for this instance, maybe we have a role match?
+            tags = helper.aws.get_tag_map(helper.instance)
+            role = tags.get(settings.EC2_INSTANCE_ROLE_TAG_KEY_NAME,None)
+            if role:
+                logger.debug(f"{helper.instance.instanceId} has role tag {settings.EC2_INSTANCE_ROLE_TAG_KEY_NAME}={role}; looking for role match in cluster {self.cluster.id}")
+                try:
+                    dns_entry = DNSData.objects.get(match_type='MATCH_ROLE', cluster=self.cluster, tag_role=role )
+                    logger.debug(f"Found dns match of {dns_entry.dns_name}")
+                except ObjectDoesNotExist:
+                    logger.debug(f"{helper.instance.instanceId} does not have an role match dns entry")
+            else:
+                logger.debug(f"{helper.instance.instanceId} does not have a {settings.EC2_INSTANCE_ROLE_TAG_KEY_NAME} tag for role matching")
+
+        if dns_entry == None:
+            logger.warn(f"not updating dns because {helper.db_info.id} has no dns_entry attribute")
+        else:
+            dns_name = dns_entry.dns_name
+            zone_name = dns_entry.hosted_zone_name
             if self.action == SCALE_DOWN:
                 dns_address = self.get_primary_address()
             else:
                 dns_address = helper.get_endpoint_address()
-            self.run_dns_script(helper.db_info, dns_address, helper.get_endpoint_address())
-        else:
-            logger.warn(f"not updating dns because {helper.db_info.id} has no dns_entry attribute")
+            self.run_dns_script(dns_name, zone_name, dns_address, helper.get_endpoint_address())
+
         return None
 
     def get_primary_address(self):
@@ -326,7 +371,7 @@ class RuleHelper:
         else:
             logger.error("NO primary db present for cluster {}".format(self.cluster.name))
 
-    def run_dns_script(self, instance, target_address, replica_address):
+    def run_dns_script(self, dns_name, zone_name, target_address, replica_address):
         """
         Run dns script only when dns entry present
         """
@@ -337,9 +382,6 @@ class RuleHelper:
             RECORD_TYPE = "A"
         else:
             RECORD_TYPE = "CNAME"
-
-        zone_name = instance.dns_entry.hosted_zone_name
-        dns_name = instance.dns_entry.dns_name
 
         script_path = os.path.join(settings.BASE_DIR, "scripts", "dns-change.sh")
 
@@ -361,12 +403,14 @@ class RuleHelper:
                 logger.debug(f"running {script_path} {self.action} {zone_name} {dns_name} {target_address} {RECORD_TYPE} {replica_address} succeeded")
         except subprocess.CalledProcessError as e:
             logger.info(f"running {script_path} {self.action} {zone_name} {dns_name} {target_address} {RECORD_TYPE} {replica_address} returned: {e.returncode} ({e.output})")
+            raise Exception("DNS change failed")
         except Exception as e:
             if hasattr(e, 'message'):
                 message = e.message
             else:
                 message = e
             logger.info(f"running {script_path} {self.action} {zone_name} {dns_name} {target_address} {RECORD_TYPE} {replica_address} returned generic error: {message}")
+            raise Exception("DNS change failed")
 
     def run_pre_resize_script(self, instance_id):
         script_path = os.path.join(settings.BASE_DIR, "scripts", "pre-resize.sh")

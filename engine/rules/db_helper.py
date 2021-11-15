@@ -4,6 +4,7 @@ import time
 from django.db.models import F
 from engine.models import EC2, SCALE_DOWN, SCALE_UP, Ec2DbInfo, AllRdsInstanceTypes, AllEc2InstanceTypes
 from engine.aws.aws_utils import AWSUtil
+from engine.rules.cronutils import CronUtil
 logger = logging.getLogger(__name__)
 
 
@@ -20,12 +21,12 @@ class DbHelper:
     def __repr__(self):
         return "<DbHelper db_info:%s type:%s aws:%s table:%s instance:%s>" % (self.db_info, self.type, self.aws, self.table, self.instance)
 
-    def new_db_conn(self):
-        return self.db_conn(True)
+    def new_db_conn(self, expect_errors=False):
+        return self.db_conn(force=True, expect_errors=expect_errors)
 
-    def db_conn(self, force=False):
+    def db_conn(self, force=False, expect_errors=False):
         if force or not self.conn:
-            self.conn = self.aws.create_connection(self.db_info)
+            self.conn = self.aws.create_connection(self.db_info, expect_errors)
         return self.conn
 
     @classmethod
@@ -39,7 +40,7 @@ class DbHelper:
         while is_alive == False:
             try:
                 logging.debug("Checking if db is alive")
-                is_alive = self.new_db_conn().is_alive()
+                is_alive = self.new_db_conn(expect_errors=True).is_alive(expect_errors=True)
                 time.sleep(5)
             except:
                 logger.info("Replica not yet accepting connections")
@@ -58,7 +59,7 @@ class DbHelper:
             if replication_lag is None:
                 raise Exception("Could not get replication lag")
             else:
-                logger.info("Replication lag to check {} actual {}".format(replication_lag_rule.get("value"),
+                logger.info("Replication lag check threshold is {}, actual lag is {}".format(replication_lag_rule.get("value"),
                                                                            replication_lag))
                 return self._check_value(replication_lag_rule, replication_lag, msg="Replication Lag")
         else:
@@ -78,7 +79,7 @@ class DbHelper:
             if avg_load is None:
                 raise Exception("Could not get system load avg")
             else:
-                logger.info(f"Avg load threshold {rule.get('value')}, actual {avg_load}, offset {offset}")
+                logger.info(f"Avg load check threshold is {rule.get('value')}, actual is {avg_load}, offset {offset}")
                 return self._check_value(rule, avg_load+offset, msg="Average load")
         else:
             # If we haven't bothered to define a check condition for this metric, 
@@ -101,7 +102,7 @@ class DbHelper:
             if active_connections is None:
                 raise Exception("Could not get active connection count")
             else:
-                logger.info("No of active connections to check {} actual {}".format(rule.get("value"), active_connections))
+                logger.info("Active connection count threshold is {}, actual count is {}".format(rule.get("value"), active_connections))
                 return self._check_value(rule, active_connections, msg="Check Connection")
         else:
             # If we haven't bothered to define a check condition for this metric, 
@@ -128,28 +129,29 @@ class DbHelper:
             raise Exception("{} check failed".format(msg))
         return result
 
-    def scale_down_instance(self, instance_type):
-        logger.info(f"scaling down instance {self.id} to {instance_type}")
-        self.update_instance_type(instance_type, SCALE_DOWN)
-
-    def scale_up_instance(self, instance_type):
-        logger.info(f"scaling up instance {self.id} to {instance_type}")
-        self.update_instance_type(instance_type, SCALE_UP)
-
     def get_supported_types(self):
         return self.table.get_instances_types()
 
     def count_user_connections(self, users):
         return self.db_conn().count_specific_active_connections(users)
 
-    def update_instance_type(self, instance_type, fallback_instances=[]):
+    def update_instance_type(self, instance_type, rule_id, fallback_instances=[]):
         if instance_type == self.instance.instanceType:
             logger.info(f"Not going to change instance type because {self.instance.instanceType} == {instance_type}")
             return
 
-        logger.info(f"changing instance {self.instance.instanceId} from {self.instance.instanceType} to {instance_type}")
+        logger.debug(f"changing instance {self.instance.instanceId} from {self.instance.instanceType} to {instance_type}")
+
+        # Mark our intent to resize an cluster member
+        CronUtil.create_cron_intent(rule_id,self.instance.instanceId)
+
         self.aws.scale_instance(self.instance, instance_type, fallback_instances)
-        logger.info(f"Scaling {self.instance.instanceId} complete.")
+
+        # Remove our intent, now that it is over.
+        # (The rule might still be in progress, but if we were to restart at this moment it should be close enough to idempotent.)
+        CronUtil.delete_cron_intent(rule_id)
+
+        logger.debug(f"Scaling {self.instance.instanceId} complete.")
 
     def get_endpoint_address(self):
         return self.table.get_endpoint_address(self.instance)

@@ -13,7 +13,8 @@
 #   - a multi-IP A record of the format cluster\d+-secondary-rrdns.project(-environment)?.example.com
 # - When a hostname includes the environment, it's only the first 4 characters of that environment.
 
-# Set to 0 to not be too noisy
+# Set how much gets logged
+# 0 for problems and terse information
 # 1 to be verbose
 # 2 to figure out what broke
 debug=0
@@ -31,8 +32,8 @@ die()
 build_target_hostname()
 {
   hostname="$1.${PROJECT}"
-  [[ "${PROJECT}" == "snowflake" ]] && [[ "${PROJECT_ENV}" == "prod" ]] || hostname="${hostname}-${PROJECT_ENV:0:4}"
-  hostname="${hostname}.${REGION}.example.com"
+  hostname="${hostname}-${PROJECT_ENV:0:4}"
+  hostname="${hostname}.${REGION}.insops.net"
 
   echo "$hostname"
 }
@@ -49,7 +50,7 @@ build_primary_hostname()
   echo "$hostname"
 }
 
-# In this iteration of the script, we don't care about HOSTED_NAME or RECORD_TYPE,
+# In this iteration of this script, we don't care about HOSTED_NAME or RECORD_TYPE,
 # but we still need to accept them for compatibility when pygmy is doing route53 manipulation.
 if [ $# -ne 6 ]
 then
@@ -93,13 +94,17 @@ smi_aws_region=""
 REGION="${smi_aws_region}"
 (( debug > 0 )) && echo "Region: ${REGION}"
 
-# Figure out where our DNS_NAME currently points, and how much longer we have till the DNS TTL expires
-dig_output="$(dig +nocmd +noall +answer +ttlid "${DNS_NAME}")"
+# Figure out the IP(s) where our DNS_NAME currently points, and how much longer we have till the DNS TTL expires
+dig_output="$(dig +nocmd +noall +answer +ttlid "${DNS_NAME}" | grep -v CNAME)"
 (( debug > 1 )) && echo "Dig says: ${dig_output}"
 ttl="$(echo "${dig_output}" | awk '{print $2}' | head -1)"
 
 ips="$(echo "${dig_output}" | awk '{print $NF}')"
 (( debug > 0 )) && echo "IPs: ${ips} for ${ttl} more seconds"
+
+# Record our existing IPs in a list form now, to see later if we can avoid doing a no-op resize
+# shellcheck disable=SC2207
+IFS=$'\n' existing_ips=( $(echo "${ips}" | sort | uniq ) ) || die "building list of existing IPs from [${ips}]"
 
 # Get the value of the ip to set
 TARGET_IP=$4
@@ -143,6 +148,13 @@ then
     # We disable shellcheck's preference here so that we can use error checking, as we want to make sure this succeeds
     # shellcheck disable=SC2207
     IFS=$'\n' new_ips=( $(echo "${ips}" | sed "s/${REPLICA_IP}/${TARGET_IP}/" | sort | uniq ) ) || die "swapping ${REPLICA_IP} with ${TARGET_IP} in ${ips}"
+    if [[ "${existing_ips[*]}" == "${new_ips[*]}" ]]
+    then
+      (( debug > 1 )) && echo "No-op detected: ${existing_ips[*]} == ${new_ips[*]}"
+      (( debug > 0 )) && echo "Exiting early to avoid waiting on a no-op update"
+      exit 0
+    fi
+
     # shellcheck disable=SC2001
     replicas="$(echo "${new_ips[@]}" | sed "s/ /,/g")"
     (( debug > 1 )) && echo "Setting new replicas to ${replicas}"
@@ -166,6 +178,13 @@ then
     # We disable shellcheck's preference here so that we can use error checking, as we want to make sure this succeeds
     #shellcheck disable=SC2207
     IFS=$'\n' new_ips=( $(printf "%s\n%s\n" "${ips}" "${TARGET_IP}" | sed "s/${primary_ip}/${TARGET_IP}/" | sort | uniq ) ) || die "swapping ${REPLICA_IP} with ${TARGET_IP} in ${ips}"
+    if [[ "${existing_ips[*]}" == "${new_ips[*]}" ]]
+    then
+      (( debug > 1 )) && echo "No-op detected: ${existing_ips[*]} == ${new_ips[*]}"
+      (( debug > 0 )) && echo "Exiting early to avoid waiting on a no-op update"
+      exit 0
+    fi
+
     # shellcheck disable=SC2001
     replicas="$(echo "${new_ips[@]}" | sed "s/ /,/g")"
     (( debug > 1 )) && echo "Setting new replicas to ${replicas}"
@@ -184,6 +203,17 @@ else
   # If this is a simple CNAME secondary, not an RRDNS set of replicas, then
   # regardless of scaling up or scaling down, 
   # the only thing we want to do is set DNS_NAME to point at TARGET_HOSTNAME.
+
+  # Of course, first we should check if we are actually going to make a change.
+  if [[ "${existing_ips[*]}" == "${TARGET_IP}" ]]
+  then
+    (( debug > 1 )) && echo "No-op detected: ${existing_ips[*]} == ${TARGET_IP}"
+    (( debug > 0 )) && echo "Exiting early to avoid waiting on a no-op update"
+    exit 0
+  else
+    (( debug > 1 )) && echo "Will do the work because ${existing_ips[*]} != ${TARGET_IP}"
+  fi
+
   vault-client-exec pygmy domain_manager upsert -t CNAME -T "${new_ttl}" -f "${DNS_NAME}" -v "${TARGET_HOSTNAME}" || die "domain_manager upsert -t CNAME -T ${new_ttl} -f ${DNS_NAME} -v ${TARGET_HOSTNAME} said $?"
 fi
 
