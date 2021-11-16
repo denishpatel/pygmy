@@ -138,4 +138,3 @@ class Command(BaseCommand):
             print("updated aws regions")
         else:
             print("AWS credentials are not valid")
-

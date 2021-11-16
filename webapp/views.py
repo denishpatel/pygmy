@@ -65,7 +65,7 @@ class SecretsEditView(LoginRequiredMixin, View):
                 return Response(status=400)
         except DbCredentials.DoesNotExist:
             return Response(status=400)
-        return JsonResponse(data=dict({"success": True}),status=200)
+        return JsonResponse(data=dict({"success": True}), status=200)
 
     def dispatch(self, *args, **kwargs):
         return super(SecretsEditView, self).dispatch(*args, **kwargs)
@@ -136,7 +136,7 @@ class InstanceView(LoginRequiredMixin, View):
                 "instance": db_helper.instance
             })
         except Ec2DbInfo.DoesNotExist:
-            return render(request, self.template, { "error": "Not found" })
+            return render(request, self.template, {"error": "Not found"})
 
     def post(self, request, cluster_type, id, *args, **kwargs):
         instance_type = request.POST.get("instance_type", None)

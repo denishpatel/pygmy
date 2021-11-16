@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 cron_lock_id = '42'
 
+
 class CronUtil:
 
     @staticmethod
@@ -39,8 +40,7 @@ class CronUtil:
 
             cron.write()
 
-
-    def create_cron_intent(rule_id,instance):
+    def create_cron_intent(rule_id, instance):
         with advisory_lock(cron_lock_id) as acquired:
             cron = CronTab(user=getpass.getuser())
             cron.remove_all(comment="intent_{}".format(str(rule_id)))
@@ -97,7 +97,6 @@ class CronUtil:
         else:
             logger.debug("Not going to retry because retry rule is incomplete")
 
-
     @staticmethod
     def delete_retry_cron(rule_id):
         with advisory_lock(cron_lock_id) as acquired:
@@ -107,7 +106,6 @@ class CronUtil:
             cron.remove_all(comment=retry_rule_comment)
             cron.write()
 
-
     @staticmethod
     def delete_cron(rule):
         if sys.platform == "win32":
@@ -116,7 +114,6 @@ class CronUtil:
             cron = CronTab(user=getpass.getuser())
             cron.remove_all(comment="rule_{}".format(rule.id))
             cron.write()
-
 
     @staticmethod
     def delete_cron_intent(rule_id):

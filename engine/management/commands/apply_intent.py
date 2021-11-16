@@ -15,8 +15,8 @@ class Command(BaseCommand):
         parser.add_argument('rule_id', nargs=1, type=int, help="Rule id to resume.")
         parser.add_argument('instance_id', nargs=1, help="The instance id to make sure is running before we retry.")
 
-    def sanitize_instance_id(self, instance_id)
-        return re.sub('[^0-9\-a-f]', '', instance_id.lower())
+    def sanitize_instance_id(self, instance_id):
+        return re.sub(r'[^0-9\-a-f]', '', instance_id.lower())
 
     def handle(self, *args, **kwargs):
         logger.debug(os.environ)
@@ -34,7 +34,7 @@ class Command(BaseCommand):
         helper = DbHelper(instance)
         helper.aws.start_instance(sanitize_instance_id)
 
-        # Now that the instance is up, kick off our rule. 
+        # Now that the instance is up, kick off our rule.
         # If it fails it'll take care of any retries itself, so all we really need to do
         # is wait for it to finish and then remove the intent crontab.
         python_path = os.path.join(settings.BASE_DIR, "venv", "bin", "python")
@@ -58,4 +58,3 @@ class Command(BaseCommand):
 
         # Now that we've completed our intent, remove it from cron
         CronUtil.delete_cron_intent(rule_id)
-

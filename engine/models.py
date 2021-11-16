@@ -107,6 +107,7 @@ class Ec2DbInfo(models.Model):
     def __repr__(self):
         return "<Ec2DbInfo instance_type:%s instance_id:%s instance_object:%s isPrimary:%s cluster:%s dbName:%s isConnected:%s lastUpdated:%s type:%s last_instance_type:%s>" % (self.instance_type, self.instance_id, self.instance_object, self.isPrimary, self.cluster, self.dbName, self.isConnected, self.lastUpdated, self.type, self.last_instance_type)
 
+
 class AllEc2InstanceTypes(models.Model):
     """
     Simple DB to store all instances.
@@ -237,6 +238,7 @@ class RdsInstances(models.Model):
     def __repr__(self):
         return "<RdsInstances dbInstanceIdentifier:%s>" % (self.dbInstanceIdentifier)
 
+
 class InstanceStateInfo(models.Model):
     instance_type = models.CharField(max_length=100)
     instance_id = models.CharField(max_length=100)
@@ -318,17 +320,17 @@ class DNSData(models.Model):
 
     class Meta:
         constraints = [
-            models.CheckConstraint(check=(models.Q(match_type__exact=MATCH_INSTANCE) &
-                                                ~models.Q(instance__exact=None) &
-                                                models.Q(cluster__exact=None) &
-                                                models.Q(tag_role__exact=None)) |
-                                            (models.Q(match_type__exact=MATCH_ROLE) &
-                                                models.Q(instance__exact=None) &
-                                                ~models.Q(cluster__exact=None) &
-                                                ~models.Q(tag_role__exact=None)),
-                                        name="match_data_present"),
+            models.CheckConstraint(check=(models.Q(match_type__exact=MATCH_INSTANCE)
+                                          & ~models.Q(instance__exact=None)
+                                          & models.Q(cluster__exact=None)
+                                          & models.Q(tag_role__exact=None))
+                                   | (models.Q(match_type__exact=MATCH_ROLE)
+                                      & models.Q(instance__exact=None)
+                                      & ~models.Q(cluster__exact=None)
+                                      & ~models.Q(tag_role__exact=None)),
+                                   name="match_data_present"),
             models.UniqueConstraint(fields=["cluster", "tag_role"],
-                                        name="unique_cluster_role")
+                                    name="unique_cluster_role")
         ]
 
 

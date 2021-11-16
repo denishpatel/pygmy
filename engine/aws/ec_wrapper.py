@@ -28,7 +28,7 @@ class EC2Service(AWSServices, metaclass=Singleton):
             credentials = DbCredentials.objects.get(name="ec2")
             username = credentials.user_name
             password = credentials.password
-        except:
+        except Exception as e:
             logger.debug("Failed to find ec2 credentials, so we're going to hope libpq finds a way to auth")
             username = None
             password = None
@@ -123,7 +123,6 @@ class EC2Service(AWSServices, metaclass=Singleton):
         self.ec2_client.modify_instance_attribute(InstanceId=ec2_instance_id, Attribute='instanceType',
                                                   Value=new_instance_type)
 
-
         logger.info(f"modified {ec2_instance_id} to be {new_instance_type}")
 
         # Record the new instance size.
@@ -146,11 +145,12 @@ class EC2Service(AWSServices, metaclass=Singleton):
         self.start_instance(ec2_instance_id)
         return True
 
-    def get_instances(self,extra_filters=None):
+    def get_instances(self, extra_filters=None):
         all_instances = dict()
         TAG_KEY_NAME = SettingsModal.objects.get(name="EC2_INSTANCE_POSTGRES_TAG_KEY_NAME")
         TAG_KEY_VALUE = SettingsModal.objects.get(name="EC2_INSTANCE_POSTGRES_TAG_KEY_VALUE")
-        filters = [{
+        filters = [
+            {
                 'Name': 'tag:{}'.format(TAG_KEY_NAME.value),
                 'Values': [TAG_KEY_VALUE.value, ]
             },

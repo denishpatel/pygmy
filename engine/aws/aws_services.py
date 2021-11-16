@@ -29,7 +29,7 @@ class AWSServices:
             sts = self.aws_session.client('sts')
             sts.get_caller_identity()
             logger.info("Successfully create AWS Session using DB Credentials")
-        except:
+        except Exception as e:
             try:
                 self.aws_session = boto3.Session()
                 logger.info("Creating AWS Session using default/env credentials")
@@ -81,7 +81,7 @@ class AWSServices:
         setting.save()
 
     def get_cluster_name(self, tag_map):
-        # Ideally we'd like this to eventually be configurable, but for now, assume the cluster name will be 
+        # Ideally we'd like this to eventually be configurable, but for now, assume the cluster name will be
         # made out of tags Project-Environment-Cluster
         project = tag_map.get(settings.EC2_INSTANCE_PROJECT_TAG_KEY_NAME, None)
         environment = tag_map.get(settings.EC2_INSTANCE_ENV_TAG_KEY_NAME, None)

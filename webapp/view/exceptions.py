@@ -44,7 +44,7 @@ class ExceptionsCreateView(LoginRequiredMixin, View):
                     if created:
                         exc.clusters = clustersList
                     else:
-                        exc.clusters = list({v['id']:v for v in exc.clusters + clustersList}.values())
+                        exc.clusters = list({v['id']: v for v in exc.clusters + clustersList}.values())
                     exc.save()
                 return render(request, self.template, {"success": True})
         except Exception as e:

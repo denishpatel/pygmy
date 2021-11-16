@@ -313,8 +313,9 @@ class MockRdsData:
                 "SupportsKerberosAuthentication": False,
                 "OutpostCapable": False,
                 "SupportsGlobalDatabases": False
-            }]
-        }
+            }
+        ]
+    }
 
     @staticmethod
     def create_data_bases():
@@ -342,34 +343,34 @@ class MockRdsData:
 
 class MockRuleData:
     rule1 = {
-            "name": "Test RDS Cluster Rule CRON",
-            "typeTime": "CRON",
-            "cronTime": "* */21 * * *",
+        "name": "Test RDS Cluster Rule CRON",
+        "typeTime": "CRON",
+        "cronTime": "* */21 * * *",
 
-            "cluster_id": 2,
-            "action": "SCALE_DOWN",
-            "rds_type": "db.t2.small",
+        "cluster_id": 2,
+        "action": "SCALE_DOWN",
+        "rds_type": "db.t2.small",
 
-            "enableReplicationLag": "on",
-            "selectReplicationLagOp": "equal",
-            "replicationLag": "12",
+        "enableReplicationLag": "on",
+        "selectReplicationLagOp": "equal",
+        "replicationLag": "12",
 
-            "enableCheckConnection": "on",
-            "selectCheckConnectionOp":"greater",
-            "checkConnection": "12",
+        "enableCheckConnection": "on",
+        "selectCheckConnectionOp": "greater",
+        "checkConnection": "12",
 
-            "enableAverageLoad": "on",
-            "selectAverageLoadOp": "less",
-            "averageLoad": "32",
+        "enableAverageLoad": "on",
+        "selectAverageLoadOp": "less",
+        "averageLoad": "32",
 
-            "enableRetry": "on",
-            "retryAfter": 15,
-            "retryMax": 3,
+        "enableRetry": "on",
+        "retryAfter": 15,
+        "retryMax": 3,
 
-            "enableReverse": "on",
-            "reverse_action": "SCALE_UP",
-            "reverseCronTime": "* */21 * * *"
-        }
+        "enableReverse": "on",
+        "reverse_action": "SCALE_UP",
+        "reverseCronTime": "* */21 * * *"
+    }
 
     @staticmethod
     def create_ec2_scale_down_rule():

@@ -1,4 +1,3 @@
-import logging
 from django.utils import timezone
 from django.db import transaction
 from django.core.management import BaseCommand
@@ -8,10 +7,11 @@ from engine.rules.rules_helper import RuleHelper
 from engine.models import Rules, ActionLogs, ClusterInfo, Ec2DbInfo, AllEc2InstancesData
 from engine.aws.ec_wrapper import EC2Service
 from engine.rules.cronutils import CronUtil
+import os
+import logging
 
 logger = logging.getLogger(__name__)
 
-import os
 
 class Command(BaseCommand):
     def add_arguments(self, parser):
@@ -25,13 +25,13 @@ class Command(BaseCommand):
             self.try_rule(rid)
 
     @transaction.atomic()
-    def try_rule(self,rid):
+    def try_rule(self, rid):
         too_many_cooks = False
         aborted = False
         try:
             try:
                 rule_db = Rules.objects.select_for_update(skip_locked=True).get(id=rid)
-            except:
+            except Exception as e:
                 # The rule might not exist, or might be merely locked.
                 # If this get fails it's because it doesn't exist for real, and we can let our normal exception handling below have its way.
                 unlocked_rule_db = Rules.objects.get(id=rid)
@@ -63,7 +63,7 @@ class Command(BaseCommand):
                 return
 
             logger.debug(f"Successfully locked cluster {cluster.id} ({cluster.name})")
-            if cluster.enabled == False:
+            if cluster.enabled is False:
                 logger.error(f"Not going to work on cluster {cluster.name} because it has been disabled.")
                 aborted = True
                 return
@@ -93,9 +93,10 @@ class Command(BaseCommand):
             # Now that we have all the rows locked that we're going to need, update our instances related to the cluster and their types
             tag_project = cluster.name.split('-')[0].capitalize()
             tag_environment = cluster.name.split('-')[1].capitalize()
-            tag_cluster = cluster.name.split('-')[2] # yay snowflakes! We don't want this capitalized.
+            tag_cluster = cluster.name.split('-')[2]  # yay snowflakes! We don't want this capitalized.
             logger.debug(f"refreshing ec2 data for {tag_project} {tag_environment} {tag_cluster}")
-            tag_filters = [{
+            tag_filters = [
+                {
                     'Name': 'tag:Project',
                     'Values': [tag_project]
                 },
@@ -159,7 +160,7 @@ class Command(BaseCommand):
             msg = f"Exception caused rule failure: {e}"
             logger.error(f"Got an exception when running the rule: {e}")
         finally:
-            if too_many_cooks == False and aborted == False:
+            if too_many_cooks is False and aborted is False:
                 if helper is not None:
                     logger.debug("cleaning up rule upon completion")
                     if rule_db.status:
