@@ -1,11 +1,9 @@
 import botocore
-import concurrent.futures
 from engine.aws.aws_services import AWSServices
 from engine.models import AllEc2InstancesData, EC2, Ec2DbInfo, ClusterInfo, DbCredentials, AllEc2InstanceTypes
 from engine.postgres_wrapper import PostgresData
 from django.conf import settings
 from engine.singleton import Singleton
-from engine.utils import ThreadUtil
 from webapp.models import Settings as SettingsModal
 import logging
 logger = logging.getLogger(__name__)
@@ -28,7 +26,7 @@ class EC2Service(AWSServices, metaclass=Singleton):
             credentials = DbCredentials.objects.get(name="ec2")
             username = credentials.user_name
             password = credentials.password
-        except:
+        except Exception as e:
             logger.debug("Failed to find ec2 credentials, so we're going to hope libpq finds a way to auth")
             username = None
             password = None
@@ -123,7 +121,6 @@ class EC2Service(AWSServices, metaclass=Singleton):
         self.ec2_client.modify_instance_attribute(InstanceId=ec2_instance_id, Attribute='instanceType',
                                                   Value=new_instance_type)
 
-
         logger.info(f"modified {ec2_instance_id} to be {new_instance_type}")
 
         # Record the new instance size.
@@ -132,25 +129,22 @@ class EC2Service(AWSServices, metaclass=Singleton):
         try:
             logger.debug(f"Recording new instance size of {new_instance_type}.")
             resizedNode = Ec2DbInfo.objects.get(instance_id=ec2_instance_id)
-            resizedNode.last_instance_type = resizedNode.instance_object.instance_type
+            resizedNode.last_instance_type = new_instance_type
             resizedNode.save()
-
-            # Update instance type after operation is completed successfully
-            ec2Instance = resizedNode.instance_object
-            ec2Instance.instance_type = new_instance_type
-            ec2Instance.save()
         except Exception as e:
             logger.warning(f"Failed to record new instance size, so we'll just keep going and pick it up when the next run starts.")
+
 
         # Start the instance
         self.start_instance(ec2_instance_id)
         return True
 
-    def get_instances(self,extra_filters=None):
+    def get_instances(self, extra_filters=None):
         all_instances = dict()
         TAG_KEY_NAME = SettingsModal.objects.get(name="EC2_INSTANCE_POSTGRES_TAG_KEY_NAME")
         TAG_KEY_VALUE = SettingsModal.objects.get(name="EC2_INSTANCE_POSTGRES_TAG_KEY_VALUE")
-        filters = [{
+        filters = [
+            {
                 'Name': 'tag:{}'.format(TAG_KEY_NAME.value),
                 'Values': [TAG_KEY_VALUE.value, ]
             },
@@ -202,26 +196,25 @@ class EC2Service(AWSServices, metaclass=Singleton):
                 )
 
         self.update_last_sync_time()
-        removed_instances = AllEc2InstancesData.objects.exclude(instanceId__in=all_instances.keys())
-        removed_instances.delete()
-        ThreadUtil.run_background_process(self.update_cluster_info, ())
-        return all_instances
 
-    def update_cluster_info(self):
         # Update Cluster Info for the instances we've selected
-        instances = AllEc2InstancesData.objects.all()
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            executor.map(self.check_cluster_info, instances)
+        for instance in AllEc2InstancesData.objects.filter(instanceId__in=all_instances.keys()):
+            self.check_cluster_info(instance)
+        return all_instances
 
     def check_cluster_info(self, instance):
         logger.debug(f"Checking cluster info for instance {instance.instanceId} ({instance.instanceType})")
         try:
             db = Ec2DbInfo.objects.get(instance_id=instance.instanceId)
-        except Exception as e:
-            logger.info(f"Instance {instance.instanceId} appears new to us: {e}")
+            logger.debug(f"Found Ec2DbInfo record with cluster_id {db.cluster_id}")
+        except Ec2DbInfo.DoesNotExist:
+            logger.info(f"Instance {instance.instanceId} appears new to us")
             # Because we don't have this yet, go ahead and create it. In the unlikely event that it fails,
             # we'll just fail to run for now.
             db, created = Ec2DbInfo.objects.get_or_create(instance_id=instance.instanceId, type=EC2, last_instance_type=instance.instanceType)
+        except Exception as e:
+            logger.warn(f"Failed to get ec2dbinfo for {instance.instanceId} because {e}")
+            return
         db.instance_object = instance
         logger.debug(f"Found Ec2DbInfo record with cluster_id {db.cluster_id}")
         try:
@@ -252,7 +245,7 @@ class EC2Service(AWSServices, metaclass=Singleton):
 
     def update_replica_cluster_info(self, private_dns_name, replicas):
         for node in replicas:
-            logger.debug(f"node {node}")
+            logger.debug(f"updating replica info for node {node}")
             try:
                 instance = AllEc2InstancesData.objects.get(privateIpAddress=node)
             except AllEc2InstancesData.DoesNotExist:
@@ -261,10 +254,13 @@ class EC2Service(AWSServices, metaclass=Singleton):
             try:
                 db_info = Ec2DbInfo.objects.get(instance_id=instance.instanceId)
             except Ec2DbInfo.DoesNotExist:
-                logger.info(f"Instance {instance.instanceId} appears new to us: {e}")
+                logger.info(f"Instance {instance.instanceId} appears new to us")
                 # Because we don't have this yet, go ahead and create it. In the unlikely event that it fails,
                 # we'll just fail to run for now.
                 db_info, created = Ec2DbInfo.objects.get_or_create(instance_id=instance.instanceId, type=EC2, last_instance_type=instance.instanceType)
+            except Exception as e:
+                logger.warn(f"Failed to retrieve ec2dbinfo for {instance.instanceId} because {e}")
+                return
             db_info.cluster = ClusterInfo.objects.get(primaryNodeIp=private_dns_name, type=EC2)
             db_info.content_object = instance
             db_info.save()
@@ -295,16 +291,6 @@ class EC2Service(AWSServices, metaclass=Singleton):
         db.tags = instance["Tags"]
         db.virtualizationType = instance["VirtualizationType"]
         db.cpuOptions = instance.get("CpuOptions", {})
-        db.save()
-        self.save_ec2_db_info(db)
-
-    @staticmethod
-    def save_ec2_db_info(instance):
-        db, created = Ec2DbInfo.objects.get_or_create(instance_id=instance.instanceId, type=EC2)
-        if created:
-            logger.info(f"Instance {instance.instanceId} appears new to us")
-            db.last_instance_type = instance.instanceType
-        db.content_object = instance
         db.save()
 
     def save_instance_types(self):

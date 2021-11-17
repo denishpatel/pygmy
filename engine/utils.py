@@ -1,8 +1,6 @@
 import base64
 import hashlib
 import logging
-import threading
-
 from Crypto import Random
 from Crypto.Cipher import AES
 from django.conf import settings
@@ -43,15 +41,3 @@ class CryptoUtil(metaclass=Singleton):
 
     def unpad(self, data):
         return data[:-ord(data[len(data) - 1:])]
-
-
-class ThreadUtil(metaclass=Singleton):
-
-    def __init__(self, *args, **kwargs):
-        super(ThreadUtil, self).__init__(*args, **kwargs)
-
-    @staticmethod
-    def run_background_process(target, args=()):
-        thread = threading.Thread(target=target, args=args)
-        thread.setDaemon(True)
-        thread.start()

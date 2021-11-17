@@ -40,7 +40,7 @@ class AWSUtil:
     def get_aws_credentials():
         try:
             creds = DbCredentials.objects.get(name="aws")
-        except:
+        except Exception as e:
             creds = None
         return creds
 

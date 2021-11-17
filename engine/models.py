@@ -1,5 +1,6 @@
 from engine.utils import CryptoUtil
 from django.db import models
+from django.contrib.postgres.fields import ArrayField
 from datetime import datetime
 from django.utils import timezone
 from django.contrib.contenttypes.models import ContentType
@@ -105,6 +106,7 @@ class Ec2DbInfo(models.Model):
 
     def __repr__(self):
         return "<Ec2DbInfo instance_type:%s instance_id:%s instance_object:%s isPrimary:%s cluster:%s dbName:%s isConnected:%s lastUpdated:%s type:%s last_instance_type:%s>" % (self.instance_type, self.instance_id, self.instance_object, self.isPrimary, self.cluster, self.dbName, self.isConnected, self.lastUpdated, self.type, self.last_instance_type)
+
 
 class AllEc2InstanceTypes(models.Model):
     """
@@ -236,6 +238,7 @@ class RdsInstances(models.Model):
     def __repr__(self):
         return "<RdsInstances dbInstanceIdentifier:%s>" % (self.dbInstanceIdentifier)
 
+
 class InstanceStateInfo(models.Model):
     instance_type = models.CharField(max_length=100)
     instance_id = models.CharField(max_length=100)
@@ -255,7 +258,7 @@ class Rules(models.Model):
     action_arg = models.CharField(max_length=255, null=True)
     status = models.BooleanField(default=False, null=True)
     run_type = models.CharField(choices=RunType, max_length=100)
-    run_at = models.CharField(max_length=100, null=False)
+    run_at = ArrayField(models.CharField(max_length=100), null=False)
     err_msg = models.CharField(max_length=255, null=True)
     last_run = models.DateTimeField(auto_created=True, null=True)
     parent_rule = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True, related_name="child_rule")
@@ -317,17 +320,17 @@ class DNSData(models.Model):
 
     class Meta:
         constraints = [
-            models.CheckConstraint(check=(models.Q(match_type__exact=MATCH_INSTANCE) &
-                                                ~models.Q(instance__exact=None) &
-                                                models.Q(cluster__exact=None) &
-                                                models.Q(tag_role__exact=None)) |
-                                            (models.Q(match_type__exact=MATCH_ROLE) &
-                                                models.Q(instance__exact=None) &
-                                                ~models.Q(cluster__exact=None) &
-                                                ~models.Q(tag_role__exact=None)),
-                                        name="match_data_present"),
+            models.CheckConstraint(check=(models.Q(match_type__exact=MATCH_INSTANCE)
+                                          & ~models.Q(instance__exact=None)
+                                          & models.Q(cluster__exact=None)
+                                          & models.Q(tag_role__exact=None))
+                                   | (models.Q(match_type__exact=MATCH_ROLE)
+                                      & models.Q(instance__exact=None)
+                                      & ~models.Q(cluster__exact=None)
+                                      & ~models.Q(tag_role__exact=None)),
+                                   name="match_data_present"),
             models.UniqueConstraint(fields=["cluster", "tag_role"],
-                                        name="unique_cluster_role")
+                                    name="unique_cluster_role")
         ]
 
 

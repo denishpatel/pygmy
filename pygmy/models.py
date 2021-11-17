@@ -9,4 +9,3 @@ class Log(models.Model):
     message = models.TextField(null=True)
     last_line = models.TextField(null=True)
     object = models.JSONField(null=True)
-

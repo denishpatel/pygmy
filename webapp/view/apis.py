@@ -168,7 +168,7 @@ class ExceptionEditApiView(APIView):
                     if date == str(current_exec.exception_date):
                         exc.clusters = clist
                     else:
-                        exc.clusters = list({v['id']:v for v in exc.clusters + clist}.values())
+                        exc.clusters = list({v['id']: v for v in exc.clusters + clist}.values())
                     exc.save()
                 return Response({"status": "Success"})
         except Exception as e:
@@ -231,6 +231,7 @@ class EditClusterManagement(RetrieveUpdateDestroyAPIView):
     permission_classes = []
     serializer_class = ClusterManagementSerializer
 
+
 class ToggleCluster(UpdateAPIView):
     """
     Pause or Resume Cluster Scaling
@@ -240,7 +241,7 @@ class ToggleCluster(UpdateAPIView):
     parser_classes = [JSONParser]
     serializer_class = ToggleClusterSerializer
 
-    @swagger_auto_schema(operation_summary="Toggle Pygmy Management",  tags=["Cluster"], request_body=ToggleClusterSerializer(), responses={200: '{"success": True}'})
+    @swagger_auto_schema(operation_summary="Toggle Pygmy Management", tags=["Cluster"], request_body=ToggleClusterSerializer(), responses={200: '{"success": True}'})
     @transaction.atomic()
     def put(self, request, name):
         try:
@@ -251,11 +252,11 @@ class ToggleCluster(UpdateAPIView):
 
         try:
             cluster = ClusterInfo.objects.select_for_update(nowait=True).get(name=name)
-            if cluster.enabled == True and enable_cluster == True:
+            if cluster.enabled is True and enable_cluster is True:
                 result = {"Success": "Cluster was already enabled"}
-            elif cluster.enabled == False and enable_cluster == False:
+            elif cluster.enabled is False and enable_cluster is False:
                 result = {"Success": "Cluster was already disabled"}
-            elif cluster.enabled == True:
+            elif cluster.enabled is True:
                 cluster.enabled = False
                 cluster.save()
                 result = {"Success": "Cluster disabled"}

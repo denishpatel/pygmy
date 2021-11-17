@@ -23,8 +23,8 @@ class AllEc2InstanceTypesTest(TestCase):
         cls.mock_rds.start()
 
         with patch.object(PostgresData, "__init__", new=MockPostgresData.define_value),\
-        patch.object(PostgresData, "is_ec2_postgres_instance_primary", new=MockPostgresData.is_ec2_postgres_instance_primary),\
-        patch.object(PostgresData, "get_all_slave_servers", new=MockPostgresData.get_all_slave_servers):
+             patch.object(PostgresData, "is_ec2_postgres_instance_primary", new=MockPostgresData.is_ec2_postgres_instance_primary),\
+             patch.object(PostgresData, "get_all_slave_servers", new=MockPostgresData.get_all_slave_servers):
             Command.populate_settings(headless=True)
             MockEc2Data.create_ec2_instances()
             EC2Service().get_instances()
@@ -215,7 +215,7 @@ class AllEc2InstanceTypesTest(TestCase):
 
     def test_cluster_discoverable(self):
         cluster = ClusterInfo.objects.filter(type="EC2")
-        self.assertTrue(cluster.count()>0)
+        self.assertTrue(cluster.count() > 0)
         cluster = ClusterInfo.objects.filter(type="RDS")
         self.assertTrue(cluster.count() > 0)
 

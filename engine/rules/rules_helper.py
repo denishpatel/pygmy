@@ -140,7 +140,7 @@ class RuleHelper:
                     CronUtil.delete_cron(rule)
                     rule.delete()
 
-    def more_retries_allowed(self,attempts):
+    def more_retries_allowed(self, attempts):
         retry = self.rule_json.get("retry", None)
         if retry is not None:
             # attempts includes the first attempt, which isn't technically a "retry",
@@ -187,7 +187,7 @@ class RuleHelper:
                 try:
                     helper.check_replication_lag(self.rule_json, self.any_conditions)
                     db_successes[db.id] += 1
-                except:
+                except Exception as e:
                     if self.any_conditions:
                         logger.info(f"{db.instance_id} failed a replication lag check but we are using OR logic ({db_successes[db.id]} other successes)")
                     else:
@@ -199,7 +199,7 @@ class RuleHelper:
                     else:
                         helper.check_connections(self.rule_json, self.any_conditions)
                     db_successes[db.id] += 1
-                except:
+                except Exception as e:
                     if self.any_conditions:
                         logger.info(f"{db.instance_id} failed a connection count check but we are using OR logic ({db_successes[db.id]} other successes)")
                     else:
@@ -230,7 +230,7 @@ class RuleHelper:
                         # We seem to think specific cluster roles should have instance sizes that aren't the default.
                         # See if _this_ instance has such an exception, and, if so, use it.
                         tags = db_instances[id].aws.get_tag_map(db_instances[id].instance)
-                        role = tags.get(settings.EC2_INSTANCE_ROLE_TAG_KEY_NAME,None)
+                        role = tags.get(settings.EC2_INSTANCE_ROLE_TAG_KEY_NAME, None)
                         logger.debug(f"Looking for exception instance size for role {role}")
                         for item in self.new_instance_role_types:
                             combo = item.split(':')
@@ -320,7 +320,7 @@ class RuleHelper:
             db_helper.check_connections(self.rule_json, self.any_conditions, connections=active_connections)
         else:
             # If we don't have this rule, then if we are running our checks logically or'd, we should return False.
-            return not self.any_conditions            
+            return not self.any_conditions
         return True
 
     def update_dns_entries(self, helper):
@@ -337,21 +337,21 @@ class RuleHelper:
         except Exception as e:
             logger.warn(f"{helper.instance.instanceId} found exception when looking for instance match dns entry: {e}")
 
-        if dns_entry == None:
+        if dns_entry is None:
             # If we don't have an instance match for this instance, maybe we have a role match?
             tags = helper.aws.get_tag_map(helper.instance)
-            role = tags.get(settings.EC2_INSTANCE_ROLE_TAG_KEY_NAME,None)
+            role = tags.get(settings.EC2_INSTANCE_ROLE_TAG_KEY_NAME, None)
             if role:
                 logger.debug(f"{helper.instance.instanceId} has role tag {settings.EC2_INSTANCE_ROLE_TAG_KEY_NAME}={role}; looking for role match in cluster {self.cluster.id}")
                 try:
-                    dns_entry = DNSData.objects.get(match_type='MATCH_ROLE', cluster=self.cluster, tag_role=role )
+                    dns_entry = DNSData.objects.get(match_type='MATCH_ROLE', cluster=self.cluster, tag_role=role)
                     logger.debug(f"Found dns match of {dns_entry.dns_name}")
                 except ObjectDoesNotExist:
                     logger.debug(f"{helper.instance.instanceId} does not have an role match dns entry")
             else:
                 logger.debug(f"{helper.instance.instanceId} does not have a {settings.EC2_INSTANCE_ROLE_TAG_KEY_NAME} tag for role matching")
 
-        if dns_entry == None:
+        if dns_entry is None:
             logger.warn(f"not updating dns because {helper.db_info.id} has no dns_entry attribute")
         else:
             dns_name = dns_entry.dns_name
@@ -391,7 +391,7 @@ class RuleHelper:
                 "AWS_ACCESS_KEY_ID": DB_CRED.user_name,
                 "AWS_SECRET_ACCESS_KEY": DB_CRED.password
             })
-        except:
+        except Exception as e:
             env_var = dict()
 
         try:
@@ -421,7 +421,7 @@ class RuleHelper:
                 "AWS_ACCESS_KEY_ID": DB_CRED.user_name,
                 "AWS_SECRET_ACCESS_KEY": DB_CRED.password
             })
-        except:
+        except Exception as e:
             env_var = dict()
 
         try:
@@ -451,7 +451,7 @@ class RuleHelper:
                 "AWS_ACCESS_KEY_ID": DB_CRED.user_name,
                 "AWS_SECRET_ACCESS_KEY": DB_CRED.password
             })
-        except:
+        except Exception as e:
             env_var = dict()
 
         try:

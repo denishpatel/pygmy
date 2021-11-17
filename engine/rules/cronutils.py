@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 cron_lock_id = '42'
 
+
 class CronUtil:
 
     @staticmethod
@@ -17,12 +18,12 @@ class CronUtil:
         with advisory_lock(cron_lock_id) as acquired:
             cron = CronTab(user=getpass.getuser())
             cron.remove_all(comment="rule_{}".format(str(rule.id)))
-            job = cron.new(command="{0}/venv/bin/python {0}/manage.py apply_rule {1}".format(settings.BASE_DIR, rule.id),
-                           comment="rule_{}".format(rule.id))
 
             # Run at
             if rule.run_type == DAILY:
-                time = rule.run_at.split(":")
+                job = cron.new(command="{0}/venv/bin/python {0}/manage.py apply_rule {1}".format(settings.BASE_DIR, rule.id),
+                               comment="rule_{}".format(rule.id))
+                time = rule.run_at[0].split(":")
                 hour = time[0]
                 minute = time[1]
                 # Setup a cron
@@ -32,12 +33,14 @@ class CronUtil:
                     job.minute.on(minute)
             else:
                 # run_type is cron
-                job.setall(rule.run_at)
+                for this_time in rule.run_at:
+                    job = cron.new(command="{0}/venv/bin/python {0}/manage.py apply_rule {1}".format(settings.BASE_DIR, rule.id),
+                                   comment="rule_{}".format(rule.id))
+                    job.setall(this_time)
 
             cron.write()
 
-
-    def create_cron_intent(rule_id,instance):
+    def create_cron_intent(rule_id, instance):
         with advisory_lock(cron_lock_id) as acquired:
             cron = CronTab(user=getpass.getuser())
             cron.remove_all(comment="intent_{}".format(str(rule_id)))
@@ -94,7 +97,6 @@ class CronUtil:
         else:
             logger.debug("Not going to retry because retry rule is incomplete")
 
-
     @staticmethod
     def delete_retry_cron(rule_id):
         with advisory_lock(cron_lock_id) as acquired:
@@ -104,7 +106,6 @@ class CronUtil:
             cron.remove_all(comment=retry_rule_comment)
             cron.write()
 
-
     @staticmethod
     def delete_cron(rule):
         if sys.platform == "win32":
@@ -113,7 +114,6 @@ class CronUtil:
             cron = CronTab(user=getpass.getuser())
             cron.remove_all(comment="rule_{}".format(rule.id))
             cron.write()
-
 
     @staticmethod
     def delete_cron_intent(rule_id):

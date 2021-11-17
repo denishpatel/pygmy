@@ -11,7 +11,7 @@ class DBHandler(logging.Handler):
             message = self.format(record)
             try:
                 last_line = message.rsplit("\n", 1)[-1]
-            except:
+            except Exception as e:
                 last_line = None
             try:
                 # Log = apps.get_model("pygmy.models", "Log")
@@ -38,7 +38,7 @@ class DBHandler(logging.Handler):
 
     def check_rule_id(self, last_line):
         from engine.models import Rules
-        check_rule_id = re.match("#Rule[\s](\d+)", last_line)
+        check_rule_id = re.match(r"#Rule[\s](\d+)", last_line)
         if check_rule_id:
             rule_id = (check_rule_id.group())
             try:

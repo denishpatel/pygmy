@@ -50,7 +50,8 @@ class SettingsRefreshView(LoginRequiredMixin, View):
                 # aws = AWSData()
                 sync_setting = Settings.objects.get(name=settingId)
                 if not sync_setting.in_progress:
-                    start_background_sync(sync_setting)
+                    thread = threading.Thread(target=start_background_sync, args=(sync_setting,))
+                    thread.start()
             return JsonResponse({})
         except Exception as e:
             print(str(e))
@@ -67,12 +68,10 @@ def start_background_sync(sync_setting):
     sync_setting.in_progress = True
     sync_setting.last_sync = timezone.now()
     sync_setting.save()
-    try:
-        if sync_setting.name != "logs":
-            aws = AWSUtil.get_aws_service(sync_setting.name.upper())
-            aws.get_instances()
-    except Exception as e:
-        pass
+    if sync_setting.name != "logs":
+        aws = AWSUtil.get_aws_service(sync_setting.name.upper())
+        aws.clear_db()
+        aws.get_instances()
     sync_setting.in_progress = False
     sync_setting.last_sync = timezone.now()
     sync_setting.save()

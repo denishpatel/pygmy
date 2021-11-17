@@ -1,13 +1,9 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.cache import cache
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views import View
 from rest_framework.response import Response
-
-from engine.aws.ec_wrapper import EC2Service
-from engine.aws.rds_wrapper import RDSService
 from engine.models import DbCredentials, ClusterInfo, Ec2DbInfo
 from engine.rules.db_helper import DbHelper
 from engine.aws.aws_utils import AWSUtil
@@ -18,18 +14,9 @@ class LandingView(LoginRequiredMixin, View):
 
     def get(self, request, **kwargs):
         dbInfo = Ec2DbInfo.objects.all()
-        self.refresh_instances()
         return render(request, self.template, {
             "dbs": dbInfo
         })
-
-    def refresh_instances(self):
-        if not cache.get("refresh_instance", False):
-            cache.set("refresh_instance", True, 60)
-            ec2_service = EC2Service()
-            rds_service = RDSService()
-            ec2_service.get_instances()
-            rds_service.get_instances()
 
     def dispatch(self, *args, **kwargs):
         return super(LandingView, self).dispatch(*args, **kwargs)
@@ -65,7 +52,7 @@ class SecretsEditView(LoginRequiredMixin, View):
                 return Response(status=400)
         except DbCredentials.DoesNotExist:
             return Response(status=400)
-        return JsonResponse(data=dict({"success": True}),status=200)
+        return JsonResponse(data=dict({"success": True}), status=200)
 
     def dispatch(self, *args, **kwargs):
         return super(SecretsEditView, self).dispatch(*args, **kwargs)
@@ -136,7 +123,7 @@ class InstanceView(LoginRequiredMixin, View):
                 "instance": db_helper.instance
             })
         except Ec2DbInfo.DoesNotExist:
-            return render(request, self.template, { "error": "Not found" })
+            return render(request, self.template, {"error": "Not found"})
 
     def post(self, request, cluster_type, id, *args, **kwargs):
         instance_type = request.POST.get("instance_type", None)

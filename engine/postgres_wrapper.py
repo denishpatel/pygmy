@@ -17,7 +17,7 @@ class PostgresData:
                 self.conn = psycopg2.connect(host=DB_HOST, database=DB_NAME, port=DB_PORT)
             self.cursor = self.conn.cursor()
         except Exception as e:
-            if expect_errors == False:
+            if expect_errors is False:
                 logger.error("ERROR: Cannot connect to the postgres db!")
                 logger.exception(e)
                 raise e
@@ -26,7 +26,7 @@ class PostgresData:
                 raise e
 
     def execute_and_return_data(self, query, expect_errors=False):
-        if expect_errors == True and self is None:
+        if expect_errors is True and self is None:
             return None
 
         try:
@@ -38,9 +38,9 @@ class PostgresData:
                 result.append(line)
             return result
         except Exception as e:
-            if self.conn.closed() == False:
+            if self.conn.closed() is False:
                 self.conn.close()
-            if expect_errors == False:
+            if expect_errors is False:
                 logger.exception(e)
                 raise e
 
@@ -117,7 +117,7 @@ class PostgresData:
         """
         query = "select status from pg_stat_wal_receiver"
         result = self.execute_and_return_data(query)
-        if len(result)==0:
+        if len(result) == 0:
             logger.error("Found no streaming data on replica! Is this replica configured for streaming?")
             return False
         else:

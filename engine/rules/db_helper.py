@@ -37,18 +37,17 @@ class DbHelper:
     def wait_till_replica_streaming(self):
         logger.info(f"Waiting for db on instance {self.instance.instanceId} to come alive")
         is_alive = False
-        while is_alive == False:
+        while is_alive is False:
             try:
                 logging.debug("Checking if db is alive")
                 is_alive = self.new_db_conn(expect_errors=True).is_alive(expect_errors=True)
                 time.sleep(5)
-            except:
+            except Exception as e:
                 logger.info("Replica not yet accepting connections")
                 time.sleep(5)
 
-
         logger.info(f"Waiting till db on instance {self.instance.instanceId} has begun streaming")
-        while self.db_conn().get_streaming_status() == False:
+        while self.db_conn().get_streaming_status() is False:
             logger.info("Replica not yet streaming; sleeping for 5 seconds")
             time.sleep(5)
 
@@ -60,13 +59,13 @@ class DbHelper:
                 raise Exception("Could not get replication lag")
             else:
                 logger.info("Replication lag check threshold is {}, actual lag is {}".format(replication_lag_rule.get("value"),
-                                                                           replication_lag))
+                            replication_lag))
                 return self._check_value(replication_lag_rule, replication_lag, msg="Replication Lag")
         else:
-            # If we haven't bothered to define a check condition for this metric, 
-            # then if we are running our checks logically or'd, we should return False, 
+            # If we haven't bothered to define a check condition for this metric,
+            # then if we are running our checks logically or'd, we should return False,
             # because in that case we care very much if any of the things we *did* define succeeds.
-            # If we are running logically and'd, we are instead likely looking for things that fail, 
+            # If we are running logically and'd, we are instead likely looking for things that fail,
             # so when running that way, return True in the absence of a definition.
             if any_conditions:
                 raise Exception("No replication lag clause defined and running checks in ANY mode")
@@ -80,12 +79,12 @@ class DbHelper:
                 raise Exception("Could not get system load avg")
             else:
                 logger.info(f"Avg load check threshold is {rule.get('value')}, actual is {avg_load}, offset {offset}")
-                return self._check_value(rule, avg_load+offset, msg="Average load")
+                return self._check_value(rule, avg_load + offset, msg="Average load")
         else:
-            # If we haven't bothered to define a check condition for this metric, 
-            # then if we are running our checks logically or'd, we should return False, 
+            # If we haven't bothered to define a check condition for this metric,
+            # then if we are running our checks logically or'd, we should return False,
             # because in that case we care very much if any of the things we *did* define succeeds.
-            # If we are running logically and'd, we are instead likely looking for things that fail, 
+            # If we are running logically and'd, we are instead likely looking for things that fail,
             # so when running that way, return True in the absence of a definition.
             if any_conditions:
                 raise Exception("No average load clause defined and running checks in ANY mode")
@@ -105,10 +104,10 @@ class DbHelper:
                 logger.info("Active connection count threshold is {}, actual count is {}".format(rule.get("value"), active_connections))
                 return self._check_value(rule, active_connections, msg="Check Connection")
         else:
-            # If we haven't bothered to define a check condition for this metric, 
-            # then if we are running our checks logically or'd, we should return False, 
+            # If we haven't bothered to define a check condition for this metric,
+            # then if we are running our checks logically or'd, we should return False,
             # because in that case we care very much if any of the things we *did* define succeeds.
-            # If we are running logically and'd, we are instead likely looking for things that fail, 
+            # If we are running logically and'd, we are instead likely looking for things that fail,
             # so when running that way, return True in the absence of a definition.
             if any_conditions:
                 raise Exception("No connection check clause defined and running checks in ANY mode")
@@ -143,7 +142,7 @@ class DbHelper:
         logger.debug(f"changing instance {self.instance.instanceId} from {self.instance.instanceType} to {instance_type}")
 
         # Mark our intent to resize an cluster member
-        CronUtil.create_cron_intent(rule_id,self.instance.instanceId)
+        CronUtil.create_cron_intent(rule_id, self.instance.instanceId)
 
         self.aws.scale_instance(self.instance, instance_type, fallback_instances)
 

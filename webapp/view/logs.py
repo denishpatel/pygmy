@@ -29,4 +29,3 @@ class LogsApiView(generics.ListAPIView):
 
     def get_queryset(self):
         return Log.objects.all()
-

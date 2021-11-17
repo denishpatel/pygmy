@@ -22,7 +22,7 @@ class RDSService(AWSServices, metaclass=Singleton):
         host = db.instance_object.dbEndpoint["Address"]
         username = db.instance_object.masterUsername
         db_name = db.instance_object.dbName
-        password = credentials.password #"postgres123"
+        password = credentials.password
         return PostgresData(host, username, password, db_name)
 
     def check_instance_status(self, instance):

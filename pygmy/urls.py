@@ -23,18 +23,14 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 
-schema_view = get_schema_view(
-   openapi.Info(
-      title="PYGMY API",
-      default_version='v1',
-      description="Swagger document to check out API documentation",
-      terms_of_service="https://www.google.com/policies/terms/",
-      contact=openapi.Contact(email="denish.j.patel@gmail.com"),
-      license=openapi.License(name="BSD License"),
-   ),
-   public=True,
-   permission_classes=(permissions.AllowAny,),
-)
+schema_view = get_schema_view(openapi.Info(title="PYGMY API",
+                                           default_version='v1',
+                                           description="Swagger document to check out API documentation",
+                                           terms_of_service="https://www.google.com/policies/terms/",
+                                           contact=openapi.Contact(email="denish.j.patel@gmail.com"),
+                                           license=openapi.License(name="BSD License")),
+                              public=True,
+                              permission_classes=(permissions.AllowAny,))
 
 admin.site.site_header = 'PygMy Administration'           # default: "Django Administration"
 admin.site.index_title = 'PygMy Admin Area'               # default: "Site administration"

@@ -184,13 +184,6 @@ REDOC_SETTINGS = {
     'LAZY_RENDERING': False,
 }
 
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'unique-snowflake',
-    }
-}
-
 DEFAULT_REGION = "us-east-1"
 
 # Login Redirect to
@@ -235,7 +228,7 @@ LOGGING = {
         },
         'pygmyLogs': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'maxBytes': 1024*1024*50,  # 50 MB
+            'maxBytes': 1024 * 1024 * 50,  # 50 MB
             'backupCount': 5,
             'formatter': 'simple',
             'filename': os.path.join(BASE_DIR, 'logs', 'error.log'),

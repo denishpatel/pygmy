@@ -7,14 +7,14 @@ For more information on this file, see
 https://docs.djangoproject.com/en/3.0/howto/deployment/asgi/
 """
 
-import os
-
 from django.core.asgi import get_asgi_application
+from engine.management.commands.populate_settings_data import Command
+
+import os
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'pygmy.settings')
 
 application = get_asgi_application()
 
-from engine.management.commands.populate_settings_data import Command
 # Populate settings
 Command.populate_settings()
