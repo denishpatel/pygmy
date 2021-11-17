@@ -1,13 +1,9 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.cache import cache
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views import View
 from rest_framework.response import Response
-
-from engine.aws.ec_wrapper import EC2Service
-from engine.aws.rds_wrapper import RDSService
 from engine.models import DbCredentials, ClusterInfo, Ec2DbInfo
 from engine.rules.db_helper import DbHelper
 from engine.aws.aws_utils import AWSUtil
@@ -18,18 +14,9 @@ class LandingView(LoginRequiredMixin, View):
 
     def get(self, request, **kwargs):
         dbInfo = Ec2DbInfo.objects.all()
-        self.refresh_instances()
         return render(request, self.template, {
             "dbs": dbInfo
         })
-
-    def refresh_instances(self):
-        if not cache.get("refresh_instance", False):
-            cache.set("refresh_instance", True, 60)
-            ec2_service = EC2Service()
-            rds_service = RDSService()
-            ec2_service.get_instances()
-            rds_service.get_instances()
 
     def dispatch(self, *args, **kwargs):
         return super(LandingView, self).dispatch(*args, **kwargs)

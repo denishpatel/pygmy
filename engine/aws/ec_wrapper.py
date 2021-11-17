@@ -1,11 +1,9 @@
 import botocore
-import concurrent.futures
 from engine.aws.aws_services import AWSServices
 from engine.models import AllEc2InstancesData, EC2, Ec2DbInfo, ClusterInfo, DbCredentials, AllEc2InstanceTypes
 from engine.postgres_wrapper import PostgresData
 from django.conf import settings
 from engine.singleton import Singleton
-from engine.utils import ThreadUtil
 from webapp.models import Settings as SettingsModal
 import logging
 logger = logging.getLogger(__name__)
@@ -131,15 +129,11 @@ class EC2Service(AWSServices, metaclass=Singleton):
         try:
             logger.debug(f"Recording new instance size of {new_instance_type}.")
             resizedNode = Ec2DbInfo.objects.get(instance_id=ec2_instance_id)
-            resizedNode.last_instance_type = resizedNode.instance_object.instance_type
+            resizedNode.last_instance_type = new_instance_type
             resizedNode.save()
-
-            # Update instance type after operation is completed successfully
-            ec2Instance = resizedNode.instance_object
-            ec2Instance.instance_type = new_instance_type
-            ec2Instance.save()
         except Exception as e:
             logger.warning(f"Failed to record new instance size, so we'll just keep going and pick it up when the next run starts.")
+
 
         # Start the instance
         self.start_instance(ec2_instance_id)
@@ -202,16 +196,11 @@ class EC2Service(AWSServices, metaclass=Singleton):
                 )
 
         self.update_last_sync_time()
-        removed_instances = AllEc2InstancesData.objects.exclude(instanceId__in=all_instances.keys())
-        removed_instances.delete()
-        ThreadUtil.run_background_process(self.update_cluster_info, ())
-        return all_instances
 
-    def update_cluster_info(self):
         # Update Cluster Info for the instances we've selected
-        instances = AllEc2InstancesData.objects.all()
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            executor.map(self.check_cluster_info, instances)
+        for instance in AllEc2InstancesData.objects.filter(instanceId__in=all_instances.keys()):
+            self.check_cluster_info(instance)
+        return all_instances
 
     def check_cluster_info(self, instance):
         logger.debug(f"Checking cluster info for instance {instance.instanceId} ({instance.instanceType})")
@@ -295,16 +284,6 @@ class EC2Service(AWSServices, metaclass=Singleton):
         db.tags = instance["Tags"]
         db.virtualizationType = instance["VirtualizationType"]
         db.cpuOptions = instance.get("CpuOptions", {})
-        db.save()
-        self.save_ec2_db_info(db)
-
-    @staticmethod
-    def save_ec2_db_info(instance):
-        db, created = Ec2DbInfo.objects.get_or_create(instance_id=instance.instanceId, type=EC2)
-        if created:
-            logger.info(f"Instance {instance.instanceId} appears new to us")
-            db.last_instance_type = instance.instanceType
-        db.content_object = instance
         db.save()
 
     def save_instance_types(self):
