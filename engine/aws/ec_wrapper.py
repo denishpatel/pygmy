@@ -206,11 +206,15 @@ class EC2Service(AWSServices, metaclass=Singleton):
         logger.debug(f"Checking cluster info for instance {instance.instanceId} ({instance.instanceType})")
         try:
             db = Ec2DbInfo.objects.get(instance_id=instance.instanceId)
-        except Exception as e:
-            logger.info(f"Instance {instance.instanceId} appears new to us: {e}")
+            logger.debug(f"Found Ec2DbInfo record with cluster_id {db.cluster_id}")
+        except Ec2DbInfo.DoesNotExist:
+            logger.info(f"Instance {instance.instanceId} appears new to us")
             # Because we don't have this yet, go ahead and create it. In the unlikely event that it fails,
             # we'll just fail to run for now.
             db, created = Ec2DbInfo.objects.get_or_create(instance_id=instance.instanceId, type=EC2, last_instance_type=instance.instanceType)
+        except Exception as e:
+            logger.warn(f"Failed to get ec2dbinfo for {instance.instanceId} because {e}")
+            return
         db.instance_object = instance
         logger.debug(f"Found Ec2DbInfo record with cluster_id {db.cluster_id}")
         try:
@@ -241,7 +245,7 @@ class EC2Service(AWSServices, metaclass=Singleton):
 
     def update_replica_cluster_info(self, private_dns_name, replicas):
         for node in replicas:
-            logger.debug(f"node {node}")
+            logger.debug(f"updating replica info for node {node}")
             try:
                 instance = AllEc2InstancesData.objects.get(privateIpAddress=node)
             except AllEc2InstancesData.DoesNotExist:
@@ -250,10 +254,13 @@ class EC2Service(AWSServices, metaclass=Singleton):
             try:
                 db_info = Ec2DbInfo.objects.get(instance_id=instance.instanceId)
             except Ec2DbInfo.DoesNotExist:
-                logger.info(f"Instance {instance.instanceId} appears new to us: {e}")
+                logger.info(f"Instance {instance.instanceId} appears new to us")
                 # Because we don't have this yet, go ahead and create it. In the unlikely event that it fails,
                 # we'll just fail to run for now.
                 db_info, created = Ec2DbInfo.objects.get_or_create(instance_id=instance.instanceId, type=EC2, last_instance_type=instance.instanceType)
+            except Exception as e:
+                logger.warn(f"Failed to retrieve ec2dbinfo for {instance.instanceId} because {e}")
+                return
             db_info.cluster = ClusterInfo.objects.get(primaryNodeIp=private_dns_name, type=EC2)
             db_info.content_object = instance
             db_info.save()

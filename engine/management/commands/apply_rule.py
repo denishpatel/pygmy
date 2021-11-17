@@ -84,11 +84,13 @@ class Command(BaseCommand):
                     # Now lock the cached info about this node
                     # TODO: Make this work for RDS
                     nodeData[node.instance_id] = AllEc2InstancesData.objects.select_for_update().get(instanceId=node.instance_id)
+                    logger.debug(f"Successfully locked AllEc2InstancesData row for instance {node.instance_id}")
+                except AllEc2InstancesData.DoesNotExist:
+                    logger.debug(f"We couldn't lock {node.instance_id} because it doesn't exist. That shouldn't be a problem.")
                 except Exception as e:
                     logger.error(f"Refusing to run because we failed to lock our ec2 instance data row for instance {node.instance_id}: {e}")
                     aborted = True
                     return
-                logger.debug(f"Successfully locked AllEc2InstancesData row for instance {node.instance_id}")
 
             # Now that we have all the rows locked that we're going to need, update our instances related to the cluster and their types
             tag_project = cluster.name.split('-')[0].capitalize()
@@ -111,7 +113,7 @@ class Command(BaseCommand):
 
             # we probably want to wrap this all in a function, and not cut-n-paste from get_all_db_data.py
             try:
-                logger.debug("Getting EC2 instance from AWS started")
+                logger.debug("Starting refresh of EC2 instances")
                 ec2_service = EC2Service()
                 new_instances = ec2_service.get_instances(extra_filters=tag_filters)
                 logger.debug(f"Our new instances are {new_instances}")
