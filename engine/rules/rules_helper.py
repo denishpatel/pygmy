@@ -179,32 +179,46 @@ class RuleHelper:
         db_avg_load = dict()
         db_successes = dict()
         all_good = False
+        # If we're scaling up because of load, then that same load calculation should push all replicas to scale up, and don't have to check each one.
+        forced_scaleup = False
+        if self.action == SCALE_UP:
+            try:
+                primary_helper = DbHelper(self.primary_dbs[0])
+                primary_helper.check_average_load(self.rule_json, self.any_conditions)
+                logger.info("Scaling up entire cluster because load is too high")
+                forced_scaleup = True
+            except Exception as e:
+                logger.debug("Not enough load to scale up all replicas; checking each for replication lag and connection counts")
         try:
             for db in self.secondary_dbs:
                 db_successes[db.id] = 0
                 helper = DbHelper(db)
                 logger.debug(f"Adding instance {db.instance_id} ({helper.instance.instanceType}) to secondaries")
-                try:
-                    helper.check_replication_lag(self.rule_json, self.any_conditions)
+
+                if forced_scaleup:
                     db_successes[db.id] += 1
-                except Exception as e:
-                    if self.any_conditions:
-                        logger.info(f"{db.instance_id} failed a replication lag check but we are using OR logic ({db_successes[db.id]} other successes)")
-                    else:
-                        logger.warn(f"skipping {db.instance_id} because it failed a replication lag check")
-                        next
-                try:
-                    if self._is_cluster_managed:
-                        self.check_specific_connections(helper)
-                    else:
-                        helper.check_connections(self.rule_json, self.any_conditions)
-                    db_successes[db.id] += 1
-                except Exception as e:
-                    if self.any_conditions:
-                        logger.info(f"{db.instance_id} failed a connection count check but we are using OR logic ({db_successes[db.id]} other successes)")
-                    else:
-                        logger.warn(f"skipping {db.instance_id} because it failed an active connection count check")
-                        next
+                else:
+                    try:
+                        helper.check_replication_lag(self.rule_json, self.any_conditions)
+                        db_successes[db.id] += 1
+                    except Exception as e:
+                        if self.any_conditions:
+                            logger.info(f"{db.instance_id} failed a replication lag check but we are using OR logic ({db_successes[db.id]} other successes)")
+                        else:
+                            logger.warn(f"skipping {db.instance_id} because it failed a replication lag check")
+                            next
+                    try:
+                        if self._is_cluster_managed:
+                            self.check_specific_connections(helper)
+                        else:
+                            helper.check_connections(self.rule_json, self.any_conditions)
+                        db_successes[db.id] += 1
+                    except Exception as e:
+                        if self.any_conditions:
+                            logger.info(f"{db.instance_id} failed a connection count check but we are using OR logic ({db_successes[db.id]} other successes)")
+                        else:
+                            logger.warn(f"skipping {db.instance_id} because it failed an active connection count check")
+                            next
                 if (self.any_conditions and db_successes[db.id] > 0) or db_successes[db.id] == 2:
                     db_instances[db.id] = helper
                     db_avg_load[db.id] = helper.get_system_load_avg()
@@ -290,7 +304,7 @@ class RuleHelper:
             else:
                 logger.info(f"Managed cluster is {self._is_cluster_managed} and avg_load is {self.cluster_mgmt.avg_load}")
                 for id, helper in db_instances.items():
-                    helper.check_average_load(self.rule_json, self.any_conditions, self.any_conditions)
+                    helper.check_average_load(self.rule_json, self.any_conditions)
                     helper.check_connections(self.rule_json, self.any_conditions)
                     helper.update_instance_type(self.new_instance_type, self.rule.id, self.fallback_instances)
                     self.update_dns_entries(helper)
