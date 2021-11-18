@@ -134,7 +134,6 @@ class EC2Service(AWSServices, metaclass=Singleton):
         except Exception as e:
             logger.warning(f"Failed to record new instance size, so we'll just keep going and pick it up when the next run starts.")
 
-
         # Start the instance
         self.start_instance(ec2_instance_id)
         return True
