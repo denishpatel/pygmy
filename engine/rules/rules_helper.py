@@ -196,7 +196,9 @@ class RuleHelper:
                 logger.debug(f"Adding instance {db.instance_id} ({helper.instance.instanceType}) to secondaries")
 
                 if forced_scaleup:
-                    db_successes[db.id] += 1
+                    # Simulate a successful check of both lag and connection count, so that this node is added
+                    # regardless of if we're in ANY or ALL rule conditions
+                    db_successes[db.id] += 2
                 else:
                     try:
                         helper.check_replication_lag(self.rule_json, self.any_conditions)
