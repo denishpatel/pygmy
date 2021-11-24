@@ -28,6 +28,9 @@ class Command(BaseCommand):
     def try_rule(self, rid):
         too_many_cooks = False
         aborted = False
+
+        # Make a dummy helper variable in case we error out for some reason.
+        helper = None
         try:
             try:
                 rule_db = Rules.objects.select_for_update(skip_locked=True).get(id=rid)
