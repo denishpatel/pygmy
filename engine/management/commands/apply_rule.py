@@ -33,6 +33,7 @@ class Command(BaseCommand):
         helper = None
         msg = None
         try:
+            logger.info(f"Running rule {rid} ({rule_db.name})")
             try:
                 rule_db = Rules.objects.select_for_update(skip_locked=True).get(id=rid)
             except Exception as e:

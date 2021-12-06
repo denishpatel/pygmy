@@ -32,7 +32,7 @@ class AWSServices:
         except Exception as e:
             try:
                 self.aws_session = boto3.Session()
-                logger.info("Creating AWS Session using default/env credentials")
+                logger.debug("Creating AWS Session using default/env credentials")
             except Exception as e:
                 logger.error("Failed to create AWS Session using DB Credentials")
                 raise e

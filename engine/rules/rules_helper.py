@@ -205,7 +205,7 @@ class RuleHelper:
                         db_successes[db.id] += 1
                     except Exception as e:
                         if self.any_conditions:
-                            logger.info(f"{db.instance_id} failed a replication lag check but we are using OR logic ({db_successes[db.id]} other successes)")
+                            logger.debug(f"{db.instance_id} failed a replication lag check but we are using OR logic ({db_successes[db.id]} other successes)")
                         else:
                             logger.warn(f"skipping {db.instance_id} because it failed a replication lag check")
                             next
@@ -217,7 +217,7 @@ class RuleHelper:
                         db_successes[db.id] += 1
                     except Exception as e:
                         if self.any_conditions:
-                            logger.info(f"{db.instance_id} failed a connection count check but we are using OR logic ({db_successes[db.id]} other successes)")
+                            logger.debug(f"{db.instance_id} failed a connection count check but we are using OR logic ({db_successes[db.id]} other successes)")
                         else:
                             logger.warn(f"skipping {db.instance_id} because it failed an active connection count check")
                             next
@@ -385,7 +385,7 @@ class RuleHelper:
             helper = DbHelper(self.primary_dbs[0])
             return helper.get_endpoint_address()
         else:
-            logger.error("NO primary db present for cluster {}".format(self.cluster.name))
+            logger.error("No primary db present for cluster {}".format(self.cluster.name))
 
     def run_dns_script(self, dns_name, zone_name, target_address, replica_address):
         """
@@ -444,18 +444,18 @@ class RuleHelper:
             logger.info(f"Running pre-resize hook for {instance_id}")
             test = subprocess.check_output([script_path, instance_id], env=env_var)
             if len(test) > 0:
-                logger.info(f"running {script_path} {instance_id} succeeded with non-empty result of {test}")
+                logger.debug(f"running {script_path} {instance_id} succeeded with non-empty result of {test}")
             else:
                 logger.debug(f"running {script_path} {instance_id} succeeded")
         except subprocess.CalledProcessError as e:
-            logger.info(f"running {script_path} {instance_id} returned: {e.returncode} ({e.output})")
+            logger.warn(f"running {script_path} {instance_id} returned: {e.returncode} ({e.output})")
             raise e
         except Exception as e:
             if hasattr(e, 'message'):
                 message = e.message
             else:
                 message = e
-            logger.info(f"running {script_path} {instance_id} returned generic error: {message}")
+            logger.warn(f"running {script_path} {instance_id} returned generic error: {message}")
             raise e
 
     def run_post_streaming_script(self, instance_id):
@@ -478,12 +478,12 @@ class RuleHelper:
             else:
                 logger.debug(f"running {script_path} {instance_id} succeeded")
         except subprocess.CalledProcessError as e:
-            logger.info(f"running {script_path} {instance_id} returned: {e.returncode} ({e.output})")
+            logger.warn(f"running {script_path} {instance_id} returned: {e.returncode} ({e.output})")
             raise e
         except Exception as e:
             if hasattr(e, 'message'):
                 message = e.message
             else:
                 message = e
-            logger.info(f"running {script_path} {instance_id} returned generic error: {message}")
+            logger.warn(f"running {script_path} {instance_id} returned generic error: {message}")
             raise e
