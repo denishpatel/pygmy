@@ -47,7 +47,7 @@ class DbHelper:
                 time.sleep(5)
 
         logger.info(f"Waiting till db on instance {self.instance.instanceId} has begun streaming")
-        while self.db_conn().get_streaming_status() is False:
+        while self.db_conn().get_streaming_status(expect_errors=True) is False:
             logger.info("Replica not yet streaming; sleeping for 5 seconds")
             time.sleep(5)
 

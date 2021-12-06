@@ -110,7 +110,7 @@ class PostgresData:
         query = "SELECT EXTRACT(EPOCH FROM (now() - pg_last_xact_replay_timestamp()))::INT replica_lag_in_seconds"
         return self.execute_and_return_data(query)[0][0]
 
-    def get_streaming_status(self):
+    def get_streaming_status(self, expect_errors=False):
         """
         Return streaming status
         ONLY to be hit on REPLICA
@@ -118,7 +118,10 @@ class PostgresData:
         query = "select status from pg_stat_wal_receiver"
         result = self.execute_and_return_data(query)
         if len(result) == 0:
-            logger.error("Found no streaming data on replica! Is this replica configured for streaming?")
+            if expect_errors is True:
+                logger.info("Found no streaming data on replica! Is this replica configured for streaming?")
+            else:
+                logger.error("Found no streaming data on replica! Is this replica configured for streaming?")
             return False
         else:
             logger.debug("Result of get streaming status: " + str(result[0][0]))

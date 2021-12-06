@@ -102,7 +102,7 @@ class CronUtil:
         with advisory_lock(cron_lock_id) as acquired:
             cron = CronTab(user=getpass.getuser())
             retry_rule_comment = CronUtil.build_retry_rule_comment(rule_id)
-            logger.warn(f"removing all cronjobs with comment {retry_rule_comment}")
+            logger.info(f"removing all cronjobs with comment {retry_rule_comment}")
             cron.remove_all(comment=retry_rule_comment)
             cron.write()
 
