@@ -31,6 +31,7 @@ class Command(BaseCommand):
 
         # Make a dummy helper variable in case we error out for some reason.
         helper = None
+        msg = None
         try:
             try:
                 rule_db = Rules.objects.select_for_update(skip_locked=True).get(id=rid)
@@ -53,16 +54,25 @@ class Command(BaseCommand):
                 ActionLogger.add_log(rule_db, f"Rule {rid} execution is started by pid {os.getpid()}")
 
             logger.debug(f"Successfully locked rule {rid} ({rule_db.name})")
+            rule_db.attempts += 1
+            rule_db.working_pid = os.getpid()
+            rule_db.last_started = timezone.now()
+            rule_db.save()
 
             # Now that we have our rule row locked, also lock the cluster, and the nodes of the cluster
             # By locking the cluster we make sure no other rule that affects the same cluster can run concurrently,
             # and by locking the nodes we do the same thing for get_all_db_data.
             try:
                 cluster = ClusterInfo.objects.select_for_update(skip_locked=True).get(id=rule_db.cluster_id)
-            except Exception as e:
+            except ClusterInfo.DoesNotExist:
                 # We know the cluster *exists* (thanks foreign keys!) so it must be locked by something else.
                 # This rule run was not meant to be.
-                logger.error(f"Refusing to run because cluster {rule_db.cluster_id} is currently locked by something else: {e}")
+                # Queue it up for retry if we can.
+                logger.error(f"Refusing to run because cluster {rule_db.cluster_id} is currently locked by something else.")
+                CronUtil.set_retry_cron(rule_db, rule_db.attempts)
+                return
+            except Exception as e:
+                logger.error(f"Refusing to run because cluster of an unexpected error trying to lock ClusterInfo {rule_db.cluster_id}: {e}")
                 return
 
             logger.debug(f"Successfully locked cluster {cluster.id} ({cluster.name})")
@@ -118,7 +128,7 @@ class Command(BaseCommand):
             try:
                 logger.debug("Starting refresh of EC2 instances")
                 ec2_service = EC2Service()
-                new_instances = ec2_service.get_instances(extra_filters=tag_filters)
+                new_instances = ec2_service.get_instances(extra_filters=tag_filters, update_sync_time=False)
                 logger.debug(f"Our new instances are {new_instances}")
                 for node in nodes:
                     if node.instance_id in new_instances:
@@ -150,10 +160,6 @@ class Command(BaseCommand):
             helper = RuleHelper.from_id(rid)
             helper.check_exception_date()
 
-            rule_db.attempts += 1
-            rule_db.working_pid = os.getpid()
-            rule_db.last_started = timezone.now()
-            rule_db.save()
             helper.apply_rule(rule_db.attempts)
             rule_db.status = True
             rule_db.err_msg = ""
@@ -165,24 +171,37 @@ class Command(BaseCommand):
             msg = f"Exception caused rule failure: {e}"
             logger.error(f"Got an exception when running the rule: {e}")
         finally:
-            if too_many_cooks is False and aborted is False:
-                if helper is not None:
-                    logger.debug("cleaning up rule upon completion")
-                    if rule_db.status:
-                        # If we successfully ran the rule, reset our attempts and clean out any retry cron entries.
-                        CronUtil.delete_retry_cron(rid)
+            logger.debug("Wrapping up rule run")
+
+            if helper is None:
+                # Make a RuleHelper. It might not have the most recent EC2 information,
+                # because if we've gotten here and still don't have a RuleHelper we clearly skipped over the EC2 refresh,
+                # but all we need it for is to check if more retries are allowed.
+                helper = RuleHelper.from_id(rid)
+
+            if too_many_cooks is False:
+                # Given that we were able to lock the rule, then regardless of success, we have some cleanup to do
+                previous_attempts = rule_db.attempts
+
+                # ..but maybe we did have a successful run?
+                if aborted is False and rule_db.status:
+                    logger.debug("cleaning up rule upon successful completion")
+                    CronUtil.delete_retry_cron(rid)
+                    rule_db.attempts = 0
+                else:
+                    if helper.more_retries_allowed(rule_db.attempts) is False:
                         rule_db.attempts = 0
+                        logger.warn(f"Refusing to retry again after {previous_attempts} attempts")
                     else:
-                        if helper.more_retries_allowed(rule_db.attempts):
-                            logger.debug(f"Rule didn't complete successfully; will the {ordinal(rule_db.attempts)} retry be the charm?")
-                        else:
-                            logger.warn(f"Refusing to retry again after {rule_db.attempts} attempts")
-                            rule_db.attempts = 0
-                # Regardless of success, update some other things and save our changes to the rule
+                        logger.debug(f"Rule didn't complete successfully; will the {ordinal(rule_db.attempts)} retry be the charm?")
+
+                # Now that the retry count has been tweaked, pretend that we. were. never. here.
+                logger.debug("cleaning out rule pid")
                 rule_db.working_pid = None
                 rule_db.last_run = timezone.now()
                 rule_db.save()
-                self.add_log_entry(rule_db, msg)
+                if msg is not None:
+                    self.add_log_entry(rule_db, msg)
 
     def add_log_entry(self, rule, msg, extra_info=None):
         # Add Log entry

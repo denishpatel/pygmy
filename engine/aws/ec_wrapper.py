@@ -138,7 +138,7 @@ class EC2Service(AWSServices, metaclass=Singleton):
         self.start_instance(ec2_instance_id)
         return True
 
-    def get_instances(self, extra_filters=None):
+    def get_instances(self, extra_filters=None, update_sync_time=True):
         all_instances = dict()
         TAG_KEY_NAME = SettingsModal.objects.get(name="EC2_INSTANCE_POSTGRES_TAG_KEY_NAME")
         TAG_KEY_VALUE = SettingsModal.objects.get(name="EC2_INSTANCE_POSTGRES_TAG_KEY_VALUE")
@@ -194,7 +194,10 @@ class EC2Service(AWSServices, metaclass=Singleton):
                     NextToken=all_pg_ec2_instances.get("NextToken")
                 )
 
-        self.update_last_sync_time()
+        if update_sync_time:
+            logger.debug("updating last sync time")
+            self.update_last_sync_time()
+            logger.debug("last sync time updated")
 
         # Update Cluster Info for the instances we've selected
         for instance in AllEc2InstancesData.objects.filter(instanceId__in=all_instances.keys()):
